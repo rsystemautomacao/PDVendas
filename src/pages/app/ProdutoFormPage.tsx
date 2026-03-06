@@ -1,0 +1,246 @@
+import { useState, useCallback, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
+import { useProdutos } from '../../contexts/ProdutoContext'
+import { useToast } from '../../contexts/ToastContext'
+import { sanitize } from '../../utils/helpers'
+
+const UNIDADES = ['UN', 'KG', 'L', 'CX', 'M', 'PCT'] as const
+
+export function ProdutoFormPage() {
+  const navigate = useNavigate()
+  const { id } = useParams()
+  const { getProduto, adicionarProduto, atualizarProduto } = useProdutos()
+  const toast = useToast()
+
+  const isEdit = !!id && id !== 'novo'
+
+  const [nome, setNome] = useState('')
+  const [codigo, setCodigo] = useState('')
+  const [codigoBarras, setCodigoBarras] = useState('')
+  const [tipo, setTipo] = useState<'produto' | 'servico'>('produto')
+  const [preco, setPreco] = useState('')
+  const [precoCusto, setPrecoCusto] = useState('')
+  const [estoque, setEstoque] = useState('')
+  const [estoqueMinimo, setEstoqueMinimo] = useState('0')
+  const [unidade, setUnidade] = useState<typeof UNIDADES[number]>('UN')
+  const [grupo, setGrupo] = useState('')
+  const [marca, setMarca] = useState('')
+  const [fornecedor, setFornecedor] = useState('')
+  const [ativo, setAtivo] = useState(true)
+  const [observacoes, setObservacoes] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(false)
+
+  // Load existing product if editing
+  useEffect(() => {
+    if (isEdit && id) {
+      const produto = getProduto(id)
+      if (produto) {
+        setNome(produto.nome)
+        setCodigo(produto.codigo)
+        setCodigoBarras(produto.codigoBarras || '')
+        setTipo(produto.tipo)
+        setPreco(String(produto.preco))
+        setPrecoCusto(String(produto.precoCusto || ''))
+        setEstoque(String(produto.estoque))
+        setEstoqueMinimo(String(produto.estoqueMinimo))
+        setUnidade(produto.unidade)
+        setGrupo(produto.grupo || '')
+        setMarca(produto.marca || '')
+        setFornecedor(produto.fornecedor || '')
+        setAtivo(produto.ativo)
+        setObservacoes(produto.observacoes || '')
+      } else {
+        toast.erro('Produto nao encontrado')
+        navigate('/app/produtos')
+      }
+    }
+  }, [isEdit, id, getProduto, navigate, toast])
+
+  const validate = useCallback(() => {
+    const next: Record<string, string> = {}
+    if (!nome.trim()) next.nome = 'Nome e obrigatorio'
+    if (!preco || parseFloat(preco) <= 0) next.preco = 'Preco e obrigatorio'
+    setErrors(next)
+    return Object.keys(next).length === 0
+  }, [nome, preco])
+
+  const handleSave = useCallback(() => {
+    if (!validate()) return
+    setLoading(true)
+
+    const data = {
+      nome: sanitize(nome.trim()),
+      codigo: codigo.trim() || String(Date.now()).slice(-6),
+      codigoBarras: codigoBarras.trim() || undefined,
+      tipo,
+      preco: parseFloat(preco) || 0,
+      precoCusto: precoCusto ? parseFloat(precoCusto) : undefined,
+      estoque: parseInt(estoque) || 0,
+      estoqueMinimo: parseInt(estoqueMinimo) || 0,
+      unidade,
+      grupo: grupo.trim() || undefined,
+      marca: marca.trim() || undefined,
+      fornecedor: fornecedor.trim() || undefined,
+      ativo,
+      observacoes: observacoes.trim() || undefined,
+    }
+
+    if (isEdit && id) {
+      atualizarProduto(id, data)
+    } else {
+      adicionarProduto(data as Parameters<typeof adicionarProduto>[0])
+    }
+
+    setLoading(false)
+    navigate('/app/produtos')
+  }, [nome, codigo, codigoBarras, tipo, preco, precoCusto, estoque, estoqueMinimo, unidade, grupo, marca, fornecedor, ativo, observacoes, isEdit, id, validate, adicionarProduto, atualizarProduto, navigate])
+
+  return (
+    <div className="p-4 md:p-6 pb-24">
+      <div className="mx-auto max-w-3xl">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={() => navigate('/app/produtos')} className="btn-ghost p-2">
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-xl font-bold text-gray-800">
+            {isEdit ? 'Editar Produto' : 'Novo Produto / Servico'}
+          </h1>
+        </div>
+
+        <div className="card p-6">
+          <div className="grid gap-5 sm:grid-cols-2">
+            {/* Nome */}
+            <div className="sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Nome *</label>
+              <input type="text" value={nome} onChange={e => setNome(e.target.value)}
+                placeholder="Nome do produto ou servico" className={`input-field ${errors.nome ? 'border-red-500' : ''}`} autoFocus />
+              {errors.nome && <p className="text-xs text-red-500 mt-1">{errors.nome}</p>}
+            </div>
+
+            {/* Codigo */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Codigo</label>
+              <input type="text" value={codigo} onChange={e => setCodigo(e.target.value)}
+                placeholder="Codigo interno (auto se vazio)" className="input-field" />
+            </div>
+
+            {/* Codigo de barras */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Codigo de Barras</label>
+              <input type="text" value={codigoBarras} onChange={e => setCodigoBarras(e.target.value)}
+                placeholder="EAN/GTIN" className="input-field" />
+            </div>
+
+            {/* Tipo */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Tipo</label>
+              <div className="flex gap-4 mt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={tipo === 'produto'} onChange={() => setTipo('produto')}
+                    className="text-primary focus:ring-primary" />
+                  <span className="text-sm">Produto</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={tipo === 'servico'} onChange={() => setTipo('servico')}
+                    className="text-primary focus:ring-primary" />
+                  <span className="text-sm">Servico</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Preco */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Preco de Venda *</label>
+              <input type="number" step="0.01" value={preco} onChange={e => setPreco(e.target.value)}
+                placeholder="0.00" className={`input-field ${errors.preco ? 'border-red-500' : ''}`} />
+              {errors.preco && <p className="text-xs text-red-500 mt-1">{errors.preco}</p>}
+            </div>
+
+            {/* Preco Custo */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Preco de Custo</label>
+              <input type="number" step="0.01" value={precoCusto} onChange={e => setPrecoCusto(e.target.value)}
+                placeholder="0.00" className="input-field" />
+            </div>
+
+            {tipo === 'produto' && (
+              <>
+                {/* Estoque */}
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Estoque Atual</label>
+                  <input type="number" value={estoque} onChange={e => setEstoque(e.target.value)}
+                    placeholder="0" className="input-field" />
+                </div>
+
+                {/* Estoque Minimo */}
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Estoque Minimo</label>
+                  <input type="number" value={estoqueMinimo} onChange={e => setEstoqueMinimo(e.target.value)}
+                    placeholder="0" className="input-field" />
+                </div>
+
+                {/* Unidade */}
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Unidade</label>
+                  <select value={unidade} onChange={e => setUnidade(e.target.value as typeof unidade)} className="input-field">
+                    {UNIDADES.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Grupo */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Grupo</label>
+              <input type="text" value={grupo} onChange={e => setGrupo(e.target.value)}
+                placeholder="Ex: Bebidas, Alimentos" className="input-field" />
+            </div>
+
+            {/* Marca */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Marca</label>
+              <input type="text" value={marca} onChange={e => setMarca(e.target.value)}
+                placeholder="Marca do produto" className="input-field" />
+            </div>
+
+            {/* Fornecedor */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Fornecedor</label>
+              <input type="text" value={fornecedor} onChange={e => setFornecedor(e.target.value)}
+                placeholder="Fornecedor" className="input-field" />
+            </div>
+
+            {/* Status */}
+            <div className="sm:col-span-2 flex items-center gap-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <div className={`relative w-11 h-6 rounded-full transition-colors ${ativo ? 'bg-primary' : 'bg-gray-300'}`}
+                  onClick={() => setAtivo(!ativo)}>
+                  <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${ativo ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </div>
+                <span className="text-sm font-medium text-gray-700">{ativo ? 'Ativo' : 'Inativo'}</span>
+              </label>
+            </div>
+
+            {/* Observacoes */}
+            <div className="sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Observacoes</label>
+              <textarea value={observacoes} onChange={e => setObservacoes(e.target.value)}
+                placeholder="Observacoes sobre o produto" rows={3} className="input-field resize-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 mt-4 justify-end">
+          <button onClick={() => navigate('/app/produtos')} className="btn-secondary">Cancelar</button>
+          <button onClick={handleSave} disabled={loading} className="btn-primary">
+            {loading ? 'Salvando...' : isEdit ? 'Salvar Alteracoes' : 'Cadastrar Produto'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
