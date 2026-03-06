@@ -19,6 +19,8 @@ mongoose.plugin((schema) => {
     transform: (_doc: any, ret: any) => {
       if (ret._id) ret._id = ret._id.toString();
       delete ret.id; // remove o virtual "id" duplicado
+      delete ret.senha; // nunca expor senha no JSON
+      delete ret.__v;
       // Converter ObjectIds e Dates recursivamente
       for (const key of Object.keys(ret)) {
         const val = ret[key];
