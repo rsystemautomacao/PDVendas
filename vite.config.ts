@@ -6,4 +6,12 @@ export default defineConfig({
   resolve: {
     alias: [{ find: '@', replacement: new URL('./src', import.meta.url).pathname }],
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
+  },
 })
