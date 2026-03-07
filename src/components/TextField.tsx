@@ -41,9 +41,10 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
             id={inputId}
             type={inputType}
             className={`
-              w-full min-h-[44px] rounded-input border border-gray-300 bg-white py-2.5 pr-10
+              w-full min-h-[44px] rounded-input border border-gray-200 bg-white py-2.5 pr-10
               text-text-primary placeholder:text-text-muted
-              transition-colors focus:border-primary focus:bg-primary-pale/30 focus:outline-none focus:ring-2 focus:ring-primary/20
+              transition-all duration-200 hover:border-gray-300
+              focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:shadow-sm focus:shadow-primary/10
               disabled:bg-gray-100 disabled:opacity-70
               ${leftIcon ? 'pl-11' : 'pl-4'}
               ${(rightIcon || (isPassword && true)) ? 'pr-11' : 'pr-4'}

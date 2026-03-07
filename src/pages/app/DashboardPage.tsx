@@ -43,17 +43,21 @@ export function DashboardPage() {
   return (
     <div className="p-4 md:p-6">
       <div className="mx-auto max-w-7xl">
-        {/* Welcome */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">
-            Ola, {user?.nome?.split(' ')[0] || 'Usuario'}!
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {caixaAberto
-              ? `Caixa #${caixaAberto.numero} aberto | ${vendasHoje.length} venda(s) hoje`
-              : 'Nenhum caixa aberto. Abra um caixa para iniciar vendas.'
-            }
-          </p>
+        {/* Welcome Banner */}
+        <div className="mb-6 rounded-2xl bg-gradient-to-r from-primary to-blue-600 p-6 text-white shadow-lg relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
+          <div className="absolute right-20 bottom-0 h-24 w-24 rounded-full bg-white/5" />
+          <div className="relative z-10">
+            <h1 className="text-2xl font-bold">
+              Ola, {user?.nome?.split(' ')[0] || 'Usuario'}!
+            </h1>
+            <p className="text-sm text-blue-100 mt-1">
+              {caixaAberto
+                ? `Caixa #${caixaAberto.numero} aberto | ${vendasHoje.length} venda(s) hoje`
+                : 'Nenhum caixa aberto. Abra um caixa para iniciar vendas.'
+              }
+            </p>
+          </div>
         </div>
 
         {/* Quick Actions */}
@@ -98,44 +102,48 @@ export function DashboardPage() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="card p-5">
+          <div className="stat-card p-5">
+            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-green-400 to-green-600" />
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-gray-500">Vendas Hoje</span>
-              <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                <ShoppingCart size={16} className="text-green-600" />
+              <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center">
+                <ShoppingCart size={18} className="text-green-600" />
               </div>
             </div>
             <p className="text-2xl font-bold text-gray-800">{formatCurrency(totalHoje)}</p>
             <p className="text-xs text-gray-400 mt-1">{vendasHoje.length} venda(s)</p>
           </div>
 
-          <div className="card p-5">
+          <div className="stat-card p-5">
+            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-blue-400 to-blue-600" />
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-gray-500">Vendas no Mes</span>
-              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                <TrendingUp size={16} className="text-blue-600" />
+              <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
+                <TrendingUp size={18} className="text-blue-600" />
               </div>
             </div>
             <p className="text-2xl font-bold text-gray-800">{formatCurrency(totalMes)}</p>
             <p className="text-xs text-gray-400 mt-1">{vendas.filter(v => v.status === 'finalizada').length} total de vendas</p>
           </div>
 
-          <div className="card p-5">
+          <div className="stat-card p-5">
+            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-emerald-400 to-emerald-600" />
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-gray-500">A Receber</span>
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                <ArrowUpRight size={16} className="text-emerald-600" />
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <ArrowUpRight size={18} className="text-emerald-600" />
               </div>
             </div>
             <p className="text-2xl font-bold text-emerald-600">{formatCurrency(contasReceberPendentes)}</p>
             <p className="text-xs text-gray-400 mt-1">Pendente</p>
           </div>
 
-          <div className="card p-5">
+          <div className="stat-card p-5">
+            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-red-400 to-red-600" />
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-gray-500">A Pagar</span>
-              <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-                <ArrowDownRight size={16} className="text-red-600" />
+              <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center">
+                <ArrowDownRight size={18} className="text-red-600" />
               </div>
             </div>
             <p className="text-2xl font-bold text-red-600">{formatCurrency(contasPagarPendentes)}</p>
@@ -211,20 +219,20 @@ export function DashboardPage() {
 
         {/* Stats overview */}
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl p-4 border border-gray-100 text-center">
+          <div className="bg-white rounded-2xl p-4 border border-gray-100 text-center shadow-card hover:shadow-card-hover transition-shadow">
             <p className="text-2xl font-bold text-gray-800">{produtos.filter(p => p.ativo).length}</p>
             <p className="text-xs text-gray-500 mt-1">Produtos ativos</p>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100 text-center">
+          <div className="bg-white rounded-2xl p-4 border border-gray-100 text-center shadow-card hover:shadow-card-hover transition-shadow">
             <p className="text-2xl font-bold text-gray-800">{clientes.filter(c => c.ativo).length}</p>
             <p className="text-xs text-gray-500 mt-1">Clientes ativos</p>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100 text-center">
+          <div className="bg-white rounded-2xl p-4 border border-gray-100 text-center shadow-card hover:shadow-card-hover transition-shadow">
             <p className="text-2xl font-bold text-gray-800">{vendas.filter(v => v.status === 'finalizada').length}</p>
             <p className="text-xs text-gray-500 mt-1">Vendas realizadas</p>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100 text-center">
-            <p className="text-2xl font-bold text-gray-800">{baixoEstoque.length}</p>
+          <div className="bg-white rounded-2xl p-4 border border-gray-100 text-center shadow-card hover:shadow-card-hover transition-shadow">
+            <p className="text-2xl font-bold text-amber-600">{baixoEstoque.length}</p>
             <p className="text-xs text-gray-500 mt-1">Estoque baixo</p>
           </div>
         </div>

@@ -20,9 +20,11 @@ export function PrimaryButton({
       type={type}
       className={`
         inline-flex min-h-button items-center justify-center gap-2 rounded-button
-        bg-primary px-6 font-semibold text-white
-        transition-colors hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
-        disabled:cursor-not-allowed disabled:opacity-70
+        bg-gradient-to-r from-primary to-blue-700 px-6 font-semibold text-white
+        shadow-sm shadow-primary/20
+        transition-all duration-200 hover:shadow-md hover:shadow-primary/30 hover:brightness-110
+        focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
+        active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100
         ${fullWidth ? 'w-full' : ''}
         ${className}
       `}

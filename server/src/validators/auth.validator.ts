@@ -41,3 +41,13 @@ export const updateUserSchema = z.object({
   },
   { message: 'Senha atual é obrigatória para alterar a senha', path: ['senhaAtual'] }
 );
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Email inválido'),
+});
+
+export const resetPasswordSchema = z.object({
+  email: z.string().email('Email inválido'),
+  token: z.string().length(6, 'Código deve ter 6 dígitos'),
+  novaSenha: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+});

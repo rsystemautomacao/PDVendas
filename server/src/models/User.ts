@@ -27,6 +27,8 @@ const userSchema = new Schema(
     role: { type: String, enum: ['admin', 'caixa', 'gerente'], default: 'admin' },
     ativo: { type: Boolean, default: true },
     ultimoLogin: Date,
+    resetToken: { type: String, select: false },
+    resetTokenExpires: { type: Date, select: false },
     empresa: empresaSchema,
   },
   {

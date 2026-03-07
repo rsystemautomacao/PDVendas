@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import { User } from '../models/User';
 import { env } from '../config/env';
 import { AppError } from '../middleware/errorHandler';
@@ -62,5 +63,42 @@ export const authService = {
 
     await user.save();
     return user.toJSON();
+  },
+
+  async requestReset(email: string) {
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      // Retorna sucesso mesmo se email não existe (segurança)
+      return { message: 'Se o email existir, um código será gerado' };
+    }
+
+    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    user.set('resetToken', await bcrypt.hash(token, 10));
+    user.set('resetTokenExpires', new Date(Date.now() + 30 * 60 * 1000)); // 30 min
+    await user.save();
+
+    // Temporário: retorna token na resposta (futuro: enviar por email)
+    return { token, message: 'Código gerado com sucesso' };
+  },
+
+  async resetPassword(email: string, token: string, novaSenha: string) {
+    const user = await User.findOne({ email: email.toLowerCase() })
+      .select('+resetToken +resetTokenExpires');
+    if (!user || !user.get('resetToken') || !user.get('resetTokenExpires')) {
+      throw new AppError('Código inválido ou expirado', 400);
+    }
+    if ((user.get('resetTokenExpires') as Date) < new Date()) {
+      throw new AppError('Código expirado. Solicite um novo.', 400);
+    }
+
+    const isValid = await bcrypt.compare(token, user.get('resetToken') as string);
+    if (!isValid) throw new AppError('Código inválido', 400);
+
+    user.senha = novaSenha;
+    user.set('resetToken', undefined);
+    user.set('resetTokenExpires', undefined);
+    await user.save();
+
+    return { message: 'Senha alterada com sucesso' };
   },
 };

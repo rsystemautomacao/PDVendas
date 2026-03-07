@@ -113,15 +113,15 @@ export function Login() {
           </SecondaryButton>
         </div>
 
-        {/* Credenciais demo */}
-        <div className="mt-2 p-4 bg-blue-50 rounded-xl border border-blue-100">
-          <p className="text-xs text-blue-700 font-semibold">Acesso de demonstracao:</p>
-          <p className="text-xs text-blue-600 mt-1">E-mail: admin@meupdv.com</p>
-          <p className="text-xs text-blue-600">Senha: admin123</p>
-        </div>
-
-        <footer className="mt-2 flex flex-col items-center gap-1 text-center text-sm text-text-muted">
-          <p>Precisa de ajuda?</p>
+        <footer className="mt-4 flex flex-col items-center gap-1 text-center text-sm">
+          <a
+            href="https://wa.me/5511943950503"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-primary hover:underline"
+          >
+            Precisa de ajuda? Fale conosco
+          </a>
         </footer>
       </form>
     </AuthSplitLayout>

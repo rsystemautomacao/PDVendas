@@ -26,8 +26,8 @@ export function Sidebar({ onClose }: SidebarProps) {
     location.pathname === path || (path !== '/app' && location.pathname.startsWith(path + '/'))
 
   const linkClass = (path: string) =>
-    `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-      isActive(path) ? 'bg-primary/10 text-primary font-semibold' : 'text-gray-700 hover:bg-gray-100'
+    `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 ${
+      isActive(path) ? 'bg-primary/10 text-primary font-semibold border-l-[3px] border-primary pl-2.5' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
     }`
 
   const MenuItem = ({ to, icon: Icon, label }: { to: string; icon: typeof Home; label: string }) => (
@@ -53,7 +53,7 @@ export function Sidebar({ onClose }: SidebarProps) {
       </div>
 
       {/* User info */}
-      <div className="border-b border-gray-100 px-3 py-4">
+      <div className="border-b border-gray-100 px-3 py-4 bg-gradient-to-b from-gray-50/80 to-transparent">
         <Link
           to="/app/config/meu-usuario"
           onClick={onClose}
