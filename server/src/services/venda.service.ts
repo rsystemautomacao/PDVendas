@@ -110,7 +110,7 @@ export const vendaService = {
 
       // Restaurar estoque
       if (venda.status === 'finalizada') {
-        for (const item of venda.itens) {
+        for (const item of [...venda.itens]) {
           await Produto.findByIdAndUpdate(
             item.produtoId,
             { $inc: { estoque: item.quantidade } },

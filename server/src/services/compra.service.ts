@@ -38,7 +38,7 @@ export const compraService = {
       if (compra.status === 'recebida') throw new AppError('Compra já recebida', 400);
 
       // Atualizar estoque de cada item
-      for (const item of compra.itens) {
+      for (const item of [...compra.itens]) {
         await Produto.findByIdAndUpdate(
           item.produtoId,
           {
