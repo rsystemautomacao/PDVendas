@@ -1,15 +1,16 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { Search, X, Printer, Plus, Eye, PackageCheck, Trash2, ShoppingBag } from 'lucide-react'
-import { StorageKeys, getAll, saveAll, generateId, getNextNumber } from '../../utils/storage'
+import { api } from '../../services/api'
 import { useProdutos } from '../../contexts/ProdutoContext'
 import { useToast } from '../../contexts/ToastContext'
-import { formatCurrency, formatDateTime, isDateInRange, todayISO, todayDateOnly } from '../../utils/helpers'
+import { formatCurrency, formatDateTime, todayDateOnly } from '../../utils/helpers'
 import type { Compra, ItemCompra, Produto } from '../../types'
 
 export function ComprasPage() {
-  const { produtos, atualizarProduto } = useProdutos()
+  const { produtos, recarregar: recarregarProdutos } = useProdutos()
   const { sucesso, erro } = useToast()
-  const [compras, setCompras] = useState<Compra[]>(() => getAll<Compra>(StorageKeys.COMPRAS))
+  const [compras, setCompras] = useState<Compra[]>([])
+  const [loadingCompras, setLoadingCompras] = useState(true)
 
   // Filtros
   const hoje = todayDateOnly()
@@ -29,6 +30,23 @@ export function ComprasPage() {
   const [itensCompra, setItensCompra] = useState<ItemCompra[]>([])
   const [buscaProduto, setBuscaProduto] = useState('')
 
+  const carregarCompras = useCallback(async () => {
+    try {
+      const res = await api.get('/compras')
+      if (res.success && res.data) {
+        setCompras(res.data)
+      }
+    } catch {
+      // silencioso
+    } finally {
+      setLoadingCompras(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    carregarCompras()
+  }, [carregarCompras])
+
   const handleLimpar = useCallback(() => {
     setDataDe(mesInicio)
     setDataAte(hoje)
@@ -38,7 +56,8 @@ export function ComprasPage() {
 
   const filtradas = useMemo(() => {
     return compras.filter(c => {
-      if (!isDateInRange(c.criadoEm, dataDe, dataAte)) return false
+      const d = c.criadoEm.substring(0, 10)
+      if (d < dataDe || d > dataAte) return false
       if (fornecedor && !c.fornecedor.toLowerCase().includes(fornecedor.toLowerCase())) return false
       if (status !== 'todas' && c.status !== status) return false
       return true
@@ -87,65 +106,66 @@ export function ComprasPage() {
 
   const totalNovaCompra = itensCompra.reduce((s, i) => s + i.total, 0)
 
-  const handleCriarCompra = useCallback(() => {
+  const handleCriarCompra = useCallback(async () => {
     if (!novoFornecedor.trim()) { erro('Informe o fornecedor'); return }
     if (itensCompra.length === 0) { erro('Adicione pelo menos um item'); return }
 
-    const novaCompra: Compra = {
-      _id: generateId(),
-      numero: getNextNumber(StorageKeys.NEXT_COMPRA_NUM),
-      fornecedor: novoFornecedor.trim(),
-      itens: itensCompra,
-      total: totalNovaCompra,
-      status: 'pendente',
-      observacoes: novoObs.trim() || undefined,
-      criadoEm: todayISO(),
-    }
+    try {
+      const res = await api.post('/compras', {
+        fornecedor: novoFornecedor.trim(),
+        itens: itensCompra,
+        total: totalNovaCompra,
+        status: 'pendente',
+        observacoes: novoObs.trim() || undefined,
+      })
 
-    const updated = [...compras, novaCompra]
-    saveAll(StorageKeys.COMPRAS, updated)
-    setCompras(updated)
-    setShowNovaCompra(false)
-    setNovoFornecedor('')
-    setNovoObs('')
-    setItensCompra([])
-    sucesso(`Compra #${novaCompra.numero} criada!`)
-  }, [novoFornecedor, itensCompra, totalNovaCompra, novoObs, compras, sucesso, erro])
-
-  const handleReceber = useCallback((compra: Compra) => {
-    compra.itens.forEach(item => {
-      const prod = produtos.find(p => p._id === item.produtoId)
-      if (prod) {
-        atualizarProduto(prod._id, {
-          estoque: prod.estoque + item.quantidade,
-          precoCusto: item.custoUnitario,
-        })
+      if (res.success && res.data) {
+        await carregarCompras()
+        setShowNovaCompra(false)
+        setNovoFornecedor('')
+        setNovoObs('')
+        setItensCompra([])
+        sucesso(`Compra #${res.data.numero} criada!`)
       }
-    })
+    } catch (err: any) {
+      erro(err.message || 'Erro ao criar compra')
+    }
+  }, [novoFornecedor, itensCompra, totalNovaCompra, novoObs, carregarCompras, sucesso, erro])
 
-    const updated = compras.map(c =>
-      c._id === compra._id ? { ...c, status: 'recebida' as const, recebidaEm: todayISO() } : c
-    )
-    saveAll(StorageKeys.COMPRAS, updated)
-    setCompras(updated)
-    setShowDetalhe(null)
-    sucesso(`Compra #${compra.numero} recebida! Estoque atualizado.`)
-  }, [compras, produtos, atualizarProduto, sucesso])
+  const handleReceber = useCallback(async (compra: Compra) => {
+    try {
+      await api.put(`/compras/${compra._id}/receber`)
+      await Promise.all([carregarCompras(), recarregarProdutos()])
+      setShowDetalhe(null)
+      sucesso(`Compra #${compra.numero} recebida! Estoque atualizado.`)
+    } catch (err: any) {
+      erro(err.message || 'Erro ao receber compra')
+    }
+  }, [carregarCompras, recarregarProdutos, sucesso, erro])
 
-  const handleCancelar = useCallback((compra: Compra) => {
-    const updated = compras.map(c =>
-      c._id === compra._id ? { ...c, status: 'cancelada' as const } : c
-    )
-    saveAll(StorageKeys.COMPRAS, updated)
-    setCompras(updated)
-    setShowDetalhe(null)
-    sucesso(`Compra #${compra.numero} cancelada`)
-  }, [compras, sucesso])
+  const handleCancelar = useCallback(async (compra: Compra) => {
+    try {
+      await api.put(`/compras/${compra._id}`, { status: 'cancelada' })
+      await carregarCompras()
+      setShowDetalhe(null)
+      sucesso(`Compra #${compra.numero} cancelada`)
+    } catch (err: any) {
+      erro(err.message || 'Erro ao cancelar compra')
+    }
+  }, [carregarCompras, sucesso, erro])
 
   const statusBadge = (s: string) => {
     if (s === 'recebida') return 'badge-green'
     if (s === 'cancelada') return 'badge-red'
     return 'badge-yellow'
+  }
+
+  if (loadingCompras) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent" />
+      </div>
+    )
   }
 
   return (

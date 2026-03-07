@@ -43,7 +43,7 @@ export function MinhaEmpresaPage() {
     }
   }, [user])
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!razaoSocial.trim() && !nomeFantasia.trim()) {
       erro('Informe pelo menos o nome da empresa')
       return
@@ -51,7 +51,7 @@ export function MinhaEmpresaPage() {
 
     setLoading(true)
     try {
-      updateUser({
+      const result = await updateUser({
         empresa: {
           nome: nomeFantasia.trim() || razaoSocial.trim(),
           cnpj: cnpj,
@@ -61,7 +61,11 @@ export function MinhaEmpresaPage() {
           estado: estado,
         },
       })
-      sucesso('Dados da empresa atualizados!')
+      if (result.ok) {
+        sucesso('Dados da empresa atualizados!')
+      } else {
+        erro(result.error || 'Erro ao salvar dados da empresa')
+      }
     } catch {
       erro('Erro ao salvar dados da empresa')
     } finally {

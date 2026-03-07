@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import type { ContaPagar, ContaReceber, Despesa } from '../types'
-import { StorageKeys, getAll, saveAll, generateId } from '../utils/storage'
-import { todayISO, isDateInRange } from '../utils/helpers'
+import { api } from '../services/api'
 import { useToast } from './ToastContext'
 
 interface FinanceiroContextType {
@@ -9,18 +8,18 @@ interface FinanceiroContextType {
   contasReceber: ContaReceber[]
   despesas: Despesa[]
   // Contas a Pagar
-  addContaPagar: (c: Omit<ContaPagar, '_id' | 'criadoEm'>) => void
-  pagarConta: (id: string) => void
-  removeContaPagar: (id: string) => void
+  addContaPagar: (c: Omit<ContaPagar, '_id' | 'criadoEm'>) => Promise<void>
+  pagarConta: (id: string) => Promise<void>
+  removeContaPagar: (id: string) => Promise<void>
   // Contas a Receber
-  addContaReceber: (c: Omit<ContaReceber, '_id' | 'criadoEm'>) => void
-  receberConta: (id: string) => void
-  removeContaReceber: (id: string) => void
+  addContaReceber: (c: Omit<ContaReceber, '_id' | 'criadoEm'>) => Promise<void>
+  receberConta: (id: string) => Promise<void>
+  removeContaReceber: (id: string) => Promise<void>
   // Despesas
-  addDespesa: (d: Omit<Despesa, '_id' | 'criadoEm'>) => void
-  updateDespesa: (id: string, updates: Partial<Despesa>) => void
-  pagarDespesa: (id: string) => void
-  removeDespesa: (id: string) => void
+  addDespesa: (d: Omit<Despesa, '_id' | 'criadoEm'>) => Promise<void>
+  updateDespesa: (id: string, updates: Partial<Despesa>) => Promise<void>
+  pagarDespesa: (id: string) => Promise<void>
+  removeDespesa: (id: string) => Promise<void>
   getDespesa: (id: string) => Despesa | undefined
   // Queries
   getContasPagarPeriodo: (de: string, ate: string) => ContaPagar[]
@@ -30,6 +29,7 @@ interface FinanceiroContextType {
   getTotalContasReceberPendentes: () => number
   getContasPagarAtrasadas: () => ContaPagar[]
   getContasReceberAtrasadas: () => ContaReceber[]
+  recarregar: () => Promise<void>
 }
 
 const FinanceiroContext = createContext<FinanceiroContextType | null>(null)
@@ -40,158 +40,150 @@ export function useFinanceiro() {
   return ctx
 }
 
-function seedFinanceiro() {
-  const cp = getAll<ContaPagar>(StorageKeys.CONTAS_PAGAR)
-  if (cp.length === 0) {
-    const now = todayISO()
-    const seed: ContaPagar[] = [
-      { _id: generateId(), descricao: 'Aluguel do mes', fornecedor: 'Imobiliaria ABC', valor: 2500, valorPago: 0, vencimento: '2026-02-28', pago: false, categoria: 'Aluguel', criadoEm: now },
-      { _id: generateId(), descricao: 'Conta de luz', fornecedor: 'CPFL', valor: 450, valorPago: 0, vencimento: '2026-02-20', pago: false, categoria: 'Utilidades', criadoEm: now },
-      { _id: generateId(), descricao: 'Fornecedor de bebidas', fornecedor: 'Distribuidora XYZ', valor: 1800, valorPago: 1800, vencimento: '2026-02-10', pago: true, pagoEm: '2026-02-10', categoria: 'Fornecedores', criadoEm: now },
-    ]
-    saveAll(StorageKeys.CONTAS_PAGAR, seed)
-  }
-
-  const cr = getAll<ContaReceber>(StorageKeys.CONTAS_RECEBER)
-  if (cr.length === 0) {
-    const now = todayISO()
-    const seed: ContaReceber[] = [
-      { _id: generateId(), descricao: 'Venda a prazo - Maria Santos', clienteNome: 'Maria Santos', valor: 150, valorRecebido: 0, vencimento: '2026-02-25', recebido: false, criadoEm: now },
-      { _id: generateId(), descricao: 'Venda a prazo - Ana Costa', clienteNome: 'Ana Costa', valor: 200, valorRecebido: 0, vencimento: '2026-02-28', recebido: false, criadoEm: now },
-    ]
-    saveAll(StorageKeys.CONTAS_RECEBER, seed)
-  }
-
-  const desp = getAll<Despesa>(StorageKeys.DESPESAS)
-  if (desp.length === 0) {
-    const now = todayISO()
-    const seed: Despesa[] = [
-      { _id: generateId(), nome: 'Aluguel', fornecedor: 'Imobiliaria ABC', tipo: 'fixa', valor: 2500, vencimento: '2026-02-28', pago: false, criadoEm: now },
-      { _id: generateId(), nome: 'Internet', fornecedor: 'Vivo', tipo: 'fixa', valor: 180, vencimento: '2026-02-15', pago: true, pagoEm: '2026-02-15', criadoEm: now },
-      { _id: generateId(), nome: 'Material de limpeza', tipo: 'variavel', valor: 120, vencimento: '2026-02-20', pago: false, criadoEm: now },
-    ]
-    saveAll(StorageKeys.DESPESAS, seed)
-  }
-}
-
 export function FinanceiroProvider({ children }: { children: ReactNode }) {
   const [contasPagar, setContasPagar] = useState<ContaPagar[]>([])
   const [contasReceber, setContasReceber] = useState<ContaReceber[]>([])
   const [despesas, setDespesas] = useState<Despesa[]>([])
   const toast = useToast()
 
-  const reload = useCallback(() => {
-    setContasPagar(getAll<ContaPagar>(StorageKeys.CONTAS_PAGAR))
-    setContasReceber(getAll<ContaReceber>(StorageKeys.CONTAS_RECEBER))
-    setDespesas(getAll<Despesa>(StorageKeys.DESPESAS))
+  const recarregar = useCallback(async () => {
+    try {
+      const [cpRes, crRes, dRes] = await Promise.all([
+        api.get('/financeiro/contas-pagar'),
+        api.get('/financeiro/contas-receber'),
+        api.get('/financeiro/despesas'),
+      ])
+      if (cpRes.success && cpRes.data) setContasPagar(cpRes.data)
+      if (crRes.success && crRes.data) setContasReceber(crRes.data)
+      if (dRes.success && dRes.data) setDespesas(dRes.data)
+    } catch {
+      // silencioso
+    }
   }, [])
 
   useEffect(() => {
-    seedFinanceiro()
-    reload()
-  }, [reload])
+    recarregar()
+  }, [recarregar])
 
   // ---- Contas a Pagar ----
-  const addContaPagar = useCallback((c: Omit<ContaPagar, '_id' | 'criadoEm'>) => {
-    const all = getAll<ContaPagar>(StorageKeys.CONTAS_PAGAR)
-    all.push({ ...c, _id: generateId(), criadoEm: todayISO() })
-    saveAll(StorageKeys.CONTAS_PAGAR, all)
-    reload()
-    toast.sucesso('Conta a pagar adicionada')
-  }, [reload, toast])
+  const addContaPagar = useCallback(async (c: Omit<ContaPagar, '_id' | 'criadoEm'>) => {
+    try {
+      await api.post('/financeiro/contas-pagar', c)
+      await recarregar()
+      toast.sucesso('Conta a pagar adicionada')
+    } catch (err: any) {
+      toast.erro(err.message || 'Erro ao adicionar conta')
+    }
+  }, [recarregar, toast])
 
-  const pagarConta = useCallback((id: string) => {
-    const all = getAll<ContaPagar>(StorageKeys.CONTAS_PAGAR)
-    const idx = all.findIndex(c => c._id === id)
-    if (idx === -1) return
-    all[idx].pago = true
-    all[idx].valorPago = all[idx].valor
-    all[idx].pagoEm = todayISO()
-    saveAll(StorageKeys.CONTAS_PAGAR, all)
-    reload()
-    toast.sucesso('Conta paga com sucesso')
-  }, [reload, toast])
+  const pagarConta = useCallback(async (id: string) => {
+    try {
+      await api.put(`/financeiro/contas-pagar/${id}/pagar`)
+      await recarregar()
+      toast.sucesso('Conta paga com sucesso')
+    } catch (err: any) {
+      toast.erro(err.message || 'Erro ao pagar conta')
+    }
+  }, [recarregar, toast])
 
-  const removeContaPagar = useCallback((id: string) => {
-    saveAll(StorageKeys.CONTAS_PAGAR, getAll<ContaPagar>(StorageKeys.CONTAS_PAGAR).filter(c => c._id !== id))
-    reload()
-    toast.sucesso('Conta removida')
-  }, [reload, toast])
+  const removeContaPagar = useCallback(async (id: string) => {
+    try {
+      await api.delete(`/financeiro/contas-pagar/${id}`)
+      await recarregar()
+      toast.sucesso('Conta removida')
+    } catch (err: any) {
+      toast.erro(err.message || 'Erro ao remover conta')
+    }
+  }, [recarregar, toast])
 
   // ---- Contas a Receber ----
-  const addContaReceber = useCallback((c: Omit<ContaReceber, '_id' | 'criadoEm'>) => {
-    const all = getAll<ContaReceber>(StorageKeys.CONTAS_RECEBER)
-    all.push({ ...c, _id: generateId(), criadoEm: todayISO() })
-    saveAll(StorageKeys.CONTAS_RECEBER, all)
-    reload()
-    toast.sucesso('Conta a receber adicionada')
-  }, [reload, toast])
+  const addContaReceber = useCallback(async (c: Omit<ContaReceber, '_id' | 'criadoEm'>) => {
+    try {
+      await api.post('/financeiro/contas-receber', c)
+      await recarregar()
+      toast.sucesso('Conta a receber adicionada')
+    } catch (err: any) {
+      toast.erro(err.message || 'Erro ao adicionar conta')
+    }
+  }, [recarregar, toast])
 
-  const receberConta = useCallback((id: string) => {
-    const all = getAll<ContaReceber>(StorageKeys.CONTAS_RECEBER)
-    const idx = all.findIndex(c => c._id === id)
-    if (idx === -1) return
-    all[idx].recebido = true
-    all[idx].valorRecebido = all[idx].valor
-    all[idx].recebidoEm = todayISO()
-    saveAll(StorageKeys.CONTAS_RECEBER, all)
-    reload()
-    toast.sucesso('Recebimento registrado')
-  }, [reload, toast])
+  const receberConta = useCallback(async (id: string) => {
+    try {
+      await api.put(`/financeiro/contas-receber/${id}/receber`)
+      await recarregar()
+      toast.sucesso('Recebimento registrado')
+    } catch (err: any) {
+      toast.erro(err.message || 'Erro ao registrar recebimento')
+    }
+  }, [recarregar, toast])
 
-  const removeContaReceber = useCallback((id: string) => {
-    saveAll(StorageKeys.CONTAS_RECEBER, getAll<ContaReceber>(StorageKeys.CONTAS_RECEBER).filter(c => c._id !== id))
-    reload()
-    toast.sucesso('Conta removida')
-  }, [reload, toast])
+  const removeContaReceber = useCallback(async (id: string) => {
+    try {
+      await api.delete(`/financeiro/contas-receber/${id}`)
+      await recarregar()
+      toast.sucesso('Conta removida')
+    } catch (err: any) {
+      toast.erro(err.message || 'Erro ao remover conta')
+    }
+  }, [recarregar, toast])
 
   // ---- Despesas ----
-  const addDespesa = useCallback((d: Omit<Despesa, '_id' | 'criadoEm'>) => {
-    const all = getAll<Despesa>(StorageKeys.DESPESAS)
-    all.push({ ...d, _id: generateId(), criadoEm: todayISO() })
-    saveAll(StorageKeys.DESPESAS, all)
-    reload()
-    toast.sucesso('Despesa adicionada')
-  }, [reload, toast])
+  const addDespesa = useCallback(async (d: Omit<Despesa, '_id' | 'criadoEm'>) => {
+    try {
+      await api.post('/financeiro/despesas', d)
+      await recarregar()
+      toast.sucesso('Despesa adicionada')
+    } catch (err: any) {
+      toast.erro(err.message || 'Erro ao adicionar despesa')
+    }
+  }, [recarregar, toast])
 
-  const updateDespesa = useCallback((id: string, updates: Partial<Despesa>) => {
-    const all = getAll<Despesa>(StorageKeys.DESPESAS)
-    const idx = all.findIndex(d => d._id === id)
-    if (idx === -1) return
-    all[idx] = { ...all[idx], ...updates }
-    saveAll(StorageKeys.DESPESAS, all)
-    reload()
-    toast.sucesso('Despesa atualizada')
-  }, [reload, toast])
+  const updateDespesa = useCallback(async (id: string, updates: Partial<Despesa>) => {
+    try {
+      await api.put(`/financeiro/despesas/${id}`, updates)
+      await recarregar()
+      toast.sucesso('Despesa atualizada')
+    } catch (err: any) {
+      toast.erro(err.message || 'Erro ao atualizar despesa')
+    }
+  }, [recarregar, toast])
 
-  const pagarDespesa = useCallback((id: string) => {
-    const all = getAll<Despesa>(StorageKeys.DESPESAS)
-    const idx = all.findIndex(d => d._id === id)
-    if (idx === -1) return
-    all[idx].pago = true
-    all[idx].pagoEm = todayISO()
-    saveAll(StorageKeys.DESPESAS, all)
-    reload()
-    toast.sucesso('Despesa paga')
-  }, [reload, toast])
+  const pagarDespesa = useCallback(async (id: string) => {
+    try {
+      await api.put(`/financeiro/despesas/${id}/pagar`)
+      await recarregar()
+      toast.sucesso('Despesa paga')
+    } catch (err: any) {
+      toast.erro(err.message || 'Erro ao pagar despesa')
+    }
+  }, [recarregar, toast])
 
-  const removeDespesa = useCallback((id: string) => {
-    saveAll(StorageKeys.DESPESAS, getAll<Despesa>(StorageKeys.DESPESAS).filter(d => d._id !== id))
-    reload()
-    toast.sucesso('Despesa removida')
-  }, [reload, toast])
+  const removeDespesa = useCallback(async (id: string) => {
+    try {
+      await api.delete(`/financeiro/despesas/${id}`)
+      await recarregar()
+      toast.sucesso('Despesa removida')
+    } catch (err: any) {
+      toast.erro(err.message || 'Erro ao remover despesa')
+    }
+  }, [recarregar, toast])
 
   const getDespesa = useCallback((id: string) => despesas.find(d => d._id === id), [despesas])
 
   // ---- Queries ----
+  const isInRange = (date: string, de: string, ate: string) => {
+    const d = date.substring(0, 10)
+    return d >= de && d <= ate
+  }
+
   const getContasPagarPeriodo = useCallback((de: string, ate: string) =>
-    contasPagar.filter(c => isDateInRange(c.vencimento, de, ate)), [contasPagar])
+    contasPagar.filter(c => isInRange(c.vencimento, de, ate)), [contasPagar])
 
   const getContasReceberPeriodo = useCallback((de: string, ate: string) =>
-    contasReceber.filter(c => isDateInRange(c.vencimento, de, ate)), [contasReceber])
+    contasReceber.filter(c => isInRange(c.vencimento, de, ate)), [contasReceber])
 
   const getDespesasPeriodo = useCallback((de: string, ate: string) =>
-    despesas.filter(d => isDateInRange(d.vencimento, de, ate)), [despesas])
+    despesas.filter(d => isInRange(d.vencimento, de, ate)), [despesas])
 
   const getTotalContasPagarPendentes = useCallback(() =>
     contasPagar.filter(c => !c.pago).reduce((s, c) => s + c.valor, 0), [contasPagar])
@@ -218,6 +210,7 @@ export function FinanceiroProvider({ children }: { children: ReactNode }) {
       getContasPagarPeriodo, getContasReceberPeriodo, getDespesasPeriodo,
       getTotalContasPagarPendentes, getTotalContasReceberPendentes,
       getContasPagarAtrasadas, getContasReceberAtrasadas,
+      recarregar,
     }}>
       {children}
     </FinanceiroContext.Provider>

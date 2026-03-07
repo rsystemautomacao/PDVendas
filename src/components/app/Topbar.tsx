@@ -15,7 +15,7 @@ import {
   Settings,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { StorageKeys, getAll } from '../../utils/storage'
+import { api } from '../../services/api'
 import type { Notificacao } from '../../types'
 
 const TAGLINE = 'SISTEMA DE GESTÃO E VENDAS ONLINE'
@@ -32,8 +32,17 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
-  const notificacoes = getAll<Notificacao>(StorageKeys.NOTIFICACOES)
-  const naoLidas = notificacoes.filter(n => !n.lida).length
+  const [naoLidas, setNaoLidas] = useState(0)
+
+  useEffect(() => {
+    api.get<Notificacao[]>('/notificacoes')
+      .then(res => {
+        if (res.success && res.data) {
+          setNaoLidas(res.data.filter(n => !n.lida).length)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {

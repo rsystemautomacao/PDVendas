@@ -2,9 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { Save, X, User, Lock, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../../contexts/ToastContext'
-import { maskPhone, verifyPassword, hashPassword } from '../../../utils/helpers'
-import { StorageKeys, getAll, saveAll } from '../../../utils/storage'
-import type { User as UserType } from '../../../types'
+import { maskPhone } from '../../../utils/helpers'
 
 export function MeuUsuarioPage() {
   const { user, updateUser } = useAuth()
@@ -42,6 +40,11 @@ export function MeuUsuarioPage() {
 
     setLoading(true)
     try {
+      const updates: Record<string, unknown> = {
+        nome: nome.trim(),
+        email: email.trim(),
+      }
+
       // Se o usuário preencheu os campos de senha
       if (mostrarSenha && (senhaAtual || novaSenha || confirmarSenha)) {
         if (!senhaAtual) {
@@ -60,44 +63,26 @@ export function MeuUsuarioPage() {
           return
         }
 
-        // Verificar senha atual - buscar user real no storage
-        const users = getAll<UserType>(StorageKeys.USERS)
-        const realUser = users.find(u => u._id === user?._id)
-        if (!realUser) {
-          erro('Usuário não encontrado')
-          setLoading(false)
-          return
-        }
+        updates.senhaAtual = senhaAtual
+        updates.novaSenha = novaSenha
+      }
 
-        const senhaValida = await verifyPassword(senhaAtual, realUser.senha)
-        if (!senhaValida) {
-          erro('Senha atual incorreta')
-          setLoading(false)
-          return
-        }
-
-        // Atualizar senha no storage
-        const novoHash = await hashPassword(novaSenha)
-        const idx = users.findIndex(u => u._id === user?._id)
-        if (idx !== -1) {
-          users[idx] = { ...users[idx], senha: novoHash }
-          saveAll(StorageKeys.USERS, users)
-        }
-
+      const result = await updateUser(updates)
+      if (result.ok) {
+        sucesso('Dados atualizados com sucesso!')
         setSenhaAtual('')
         setNovaSenha('')
         setConfirmarSenha('')
         setMostrarSenha(false)
+      } else {
+        erro(result.error || 'Erro ao salvar dados')
       }
-
-      updateUser({ nome: nome.trim(), email: email.trim() })
-      sucesso('Dados atualizados com sucesso!')
     } catch {
       erro('Erro ao salvar dados')
     } finally {
       setLoading(false)
     }
-  }, [nome, email, telefone, mostrarSenha, senhaAtual, novaSenha, confirmarSenha, user, updateUser, sucesso, erro])
+  }, [nome, email, telefone, mostrarSenha, senhaAtual, novaSenha, confirmarSenha, updateUser, sucesso, erro])
 
   const handleCancel = useCallback(() => {
     if (user) {

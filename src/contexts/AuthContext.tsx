@@ -1,8 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { User } from '../types'
-import { StorageKeys, getAll, saveAll, generateId } from '../utils/storage'
-import { hashPassword, verifyPassword } from '../utils/helpers'
+import { api } from '../services/api'
+
+const TOKEN_KEY = 'meupdv_token'
+const USER_KEY = 'meupdv_current_user'
 
 interface AuthContextType {
   user: User | null
@@ -10,7 +12,7 @@ interface AuthContextType {
   login: (email: string, senha: string) => Promise<{ ok: boolean; error?: string }>
   register: (dados: { nome: string; email: string; senha: string; empresa?: string }) => Promise<{ ok: boolean; error?: string }>
   logout: () => void
-  updateUser: (updates: Partial<User>) => void
+  updateUser: (updates: Record<string, unknown>) => Promise<{ ok: boolean; error?: string }>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -21,115 +23,89 @@ export function useAuth() {
   return ctx
 }
 
-function seedDefaultUser() {
-  const users = getAll<User>(StorageKeys.USERS)
-  if (users.length === 0) {
-    // Cria admin padrão
-    hashPassword('admin123').then(hash => {
-      const admin: User = {
-        _id: generateId(),
-        nome: 'Administrador',
-        email: 'admin@meupdv.com',
-        senha: hash,
-        role: 'admin',
-        ativo: true,
-        criadoEm: new Date().toISOString(),
-        empresa: {
-          nome: 'Minha Empresa',
-          cnpj: '',
-          telefone: '',
-          endereco: '',
-          cidade: '',
-          estado: '',
-        },
-      }
-      saveAll(StorageKeys.USERS, [admin])
-    })
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    seedDefaultUser()
-    // Restaurar sessão
-    try {
-      const saved = localStorage.getItem(StorageKeys.CURRENT_USER)
-      if (saved) {
-        setUser(JSON.parse(saved))
-      }
-    } catch { /* ignore */ }
-    setLoading(false)
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (token) {
+      api.get('/auth/me')
+        .then(res => {
+          if (res.success && res.data) {
+            setUser(res.data)
+            localStorage.setItem(USER_KEY, JSON.stringify(res.data))
+          } else {
+            localStorage.removeItem(TOKEN_KEY)
+            localStorage.removeItem(USER_KEY)
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem(TOKEN_KEY)
+          localStorage.removeItem(USER_KEY)
+        })
+        .finally(() => setLoading(false))
+    } else {
+      setLoading(false)
+    }
   }, [])
 
   const login = useCallback(async (email: string, senha: string) => {
-    const users = getAll<User>(StorageKeys.USERS)
-    const found = users.find(u => u.email.toLowerCase() === email.toLowerCase())
-    if (!found) return { ok: false, error: 'E-mail nao encontrado' }
-    if (!found.ativo) return { ok: false, error: 'Usuario inativo' }
-
-    const valid = await verifyPassword(senha, found.senha)
-    if (!valid) return { ok: false, error: 'Senha incorreta' }
-
-    // Atualizar ultimo login
-    found.ultimoLogin = new Date().toISOString()
-    const all = getAll<User>(StorageKeys.USERS)
-    const idx = all.findIndex(u => u._id === found._id)
-    if (idx !== -1) { all[idx] = found; saveAll(StorageKeys.USERS, all) }
-
-    const userSafe = { ...found, senha: '***' }
-    localStorage.setItem(StorageKeys.CURRENT_USER, JSON.stringify(userSafe))
-    setUser(userSafe)
-    return { ok: true }
+    try {
+      const res = await api.post('/auth/login', { email, senha })
+      if (res.success && res.data) {
+        const { user: userData, token } = res.data
+        localStorage.setItem(TOKEN_KEY, token)
+        localStorage.setItem(USER_KEY, JSON.stringify(userData))
+        setUser(userData)
+        return { ok: true }
+      }
+      return { ok: false, error: 'Erro ao fazer login' }
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'Erro ao fazer login' }
+    }
   }, [])
 
   const register = useCallback(async (dados: { nome: string; email: string; senha: string; empresa?: string }) => {
-    const users = getAll<User>(StorageKeys.USERS)
-    if (users.some(u => u.email.toLowerCase() === dados.email.toLowerCase())) {
-      return { ok: false, error: 'E-mail ja cadastrado' }
+    try {
+      const res = await api.post('/auth/register', {
+        nome: dados.nome,
+        email: dados.email,
+        senha: dados.senha,
+        empresa: dados.empresa ? { nome: dados.empresa } : undefined,
+      })
+      if (res.success && res.data) {
+        const { user: userData, token } = res.data
+        localStorage.setItem(TOKEN_KEY, token)
+        localStorage.setItem(USER_KEY, JSON.stringify(userData))
+        setUser(userData)
+        return { ok: true }
+      }
+      return { ok: false, error: 'Erro ao registrar' }
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'Erro ao registrar' }
     }
-
-    const hash = await hashPassword(dados.senha)
-    const newUser: User = {
-      _id: generateId(),
-      nome: dados.nome,
-      email: dados.email,
-      senha: hash,
-      role: 'admin',
-      ativo: true,
-      criadoEm: new Date().toISOString(),
-      empresa: {
-        nome: dados.empresa || 'Minha Empresa',
-      },
-    }
-    users.push(newUser)
-    saveAll(StorageKeys.USERS, users)
-
-    const userSafe = { ...newUser, senha: '***' }
-    localStorage.setItem(StorageKeys.CURRENT_USER, JSON.stringify(userSafe))
-    setUser(userSafe)
-    return { ok: true }
   }, [])
 
   const logout = useCallback(() => {
-    localStorage.removeItem(StorageKeys.CURRENT_USER)
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(USER_KEY)
     setUser(null)
   }, [])
 
-  const updateUser = useCallback((updates: Partial<User>) => {
-    if (!user) return
-    const users = getAll<User>(StorageKeys.USERS)
-    const idx = users.findIndex(u => u._id === user._id)
-    if (idx !== -1) {
-      users[idx] = { ...users[idx], ...updates }
-      saveAll(StorageKeys.USERS, users)
+  const updateUser = useCallback(async (updates: Record<string, unknown>) => {
+    try {
+      const res = await api.put('/auth/me', updates)
+      if (res.success && res.data) {
+        setUser(res.data)
+        localStorage.setItem(USER_KEY, JSON.stringify(res.data))
+        return { ok: true }
+      }
+      return { ok: false, error: 'Erro ao atualizar dados' }
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'Erro ao atualizar dados' }
     }
-    const updated = { ...user, ...updates, senha: '***' }
-    localStorage.setItem(StorageKeys.CURRENT_USER, JSON.stringify(updated))
-    setUser(updated)
-  }, [user])
+  }, [])
 
   return (
     <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>

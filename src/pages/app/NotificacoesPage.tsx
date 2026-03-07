@@ -1,44 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Bell, Check, CheckCheck, Trash2, AlertTriangle, Info } from 'lucide-react'
-import { StorageKeys, getAll, saveAll, generateId } from '../../utils/storage'
+import { api } from '../../services/api'
 import { useToast } from '../../contexts/ToastContext'
 import { formatDateTime } from '../../utils/helpers'
 import type { Notificacao } from '../../types'
-
-function seedNotificacoes() {
-  const existing = getAll<Notificacao>(StorageKeys.NOTIFICACOES)
-  if (existing.length > 0) return existing
-
-  const now = new Date()
-  const seed: Notificacao[] = [
-    {
-      _id: generateId(),
-      titulo: 'Bem-vindo ao MeuPDV!',
-      mensagem: 'Configure seu caixa e comece a vender. Acesse Configurações para personalizar o sistema.',
-      tipo: 'info',
-      lida: false,
-      criadoEm: new Date(now.getTime() - 1000 * 60 * 60).toISOString(),
-    },
-    {
-      _id: generateId(),
-      titulo: 'Dados de demonstração carregados',
-      mensagem: 'Produtos, clientes e dados financeiros de exemplo foram criados para você testar o sistema.',
-      tipo: 'sucesso',
-      lida: false,
-      criadoEm: new Date(now.getTime() - 1000 * 60 * 30).toISOString(),
-    },
-    {
-      _id: generateId(),
-      titulo: 'Estoque baixo detectado',
-      mensagem: 'Alguns produtos estão abaixo do estoque mínimo. Verifique a página de Produtos.',
-      tipo: 'alerta',
-      lida: false,
-      criadoEm: new Date(now.getTime() - 1000 * 60 * 10).toISOString(),
-    },
-  ]
-  saveAll(StorageKeys.NOTIFICACOES, seed)
-  return seed
-}
 
 const TIPO_CONFIG: Record<string, { cor: string; icon: typeof Bell }> = {
   info: { cor: 'text-blue-600', icon: Info },
@@ -52,43 +17,58 @@ export function NotificacoesPage() {
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([])
   const [filtro, setFiltro] = useState<'todas' | 'nao_lidas' | 'lidas'>('todas')
 
+  const carregar = useCallback(async () => {
+    try {
+      const res = await api.get('/notificacoes')
+      if (res.success && res.data) {
+        setNotificacoes(res.data)
+      }
+    } catch {
+      // silencioso
+    }
+  }, [])
+
   useEffect(() => {
-    setNotificacoes(seedNotificacoes())
-  }, [])
+    carregar()
+  }, [carregar])
 
-  const marcarComoLida = useCallback((id: string) => {
-    setNotificacoes(prev => {
-      const updated = prev.map(n => n._id === id ? { ...n, lida: true } : n)
-      saveAll(StorageKeys.NOTIFICACOES, updated)
-      return updated
-    })
-  }, [])
+  const marcarComoLida = useCallback(async (id: string) => {
+    try {
+      await api.patch(`/notificacoes/${id}/lida`)
+      await carregar()
+    } catch {
+      // silencioso
+    }
+  }, [carregar])
 
-  const marcarTodasComoLidas = useCallback(() => {
-    setNotificacoes(prev => {
-      const updated = prev.map(n => ({ ...n, lida: true }))
-      saveAll(StorageKeys.NOTIFICACOES, updated)
-      return updated
-    })
-    toastInfo('Todas as notificações foram marcadas como lidas')
-  }, [toastInfo])
+  const marcarTodasComoLidas = useCallback(async () => {
+    try {
+      await api.patch('/notificacoes/marcar-todas')
+      await carregar()
+      toastInfo('Todas as notificações foram marcadas como lidas')
+    } catch {
+      // silencioso
+    }
+  }, [carregar, toastInfo])
 
-  const removerNotificacao = useCallback((id: string) => {
-    setNotificacoes(prev => {
-      const updated = prev.filter(n => n._id !== id)
-      saveAll(StorageKeys.NOTIFICACOES, updated)
-      return updated
-    })
-  }, [])
+  const removerNotificacao = useCallback(async (id: string) => {
+    try {
+      await api.delete(`/notificacoes/${id}`)
+      await carregar()
+    } catch {
+      // silencioso
+    }
+  }, [carregar])
 
-  const removerTodasLidas = useCallback(() => {
-    setNotificacoes(prev => {
-      const updated = prev.filter(n => !n.lida)
-      saveAll(StorageKeys.NOTIFICACOES, updated)
-      return updated
-    })
-    toastSucesso('Notificações lidas removidas')
-  }, [toastSucesso])
+  const removerTodasLidas = useCallback(async () => {
+    try {
+      await api.delete('/notificacoes/lidas')
+      await carregar()
+      toastSucesso('Notificações lidas removidas')
+    } catch {
+      // silencioso
+    }
+  }, [carregar, toastSucesso])
 
   const filtradas = notificacoes.filter(n => {
     if (filtro === 'nao_lidas') return !n.lida

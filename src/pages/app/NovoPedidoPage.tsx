@@ -120,7 +120,7 @@ export function NovoPedidoPage() {
     setPagamentos(prev => prev.filter((_, i) => i !== index))
   }
 
-  const handleFinalizarVenda = () => {
+  const handleFinalizarVenda = async () => {
     if (pagamentos.length === 0) {
       toast.erro('Adicione pelo menos uma forma de pagamento')
       return
@@ -129,7 +129,7 @@ export function NovoPedidoPage() {
       toast.erro('Valor dos pagamentos insuficiente')
       return
     }
-    const venda = finalizarVenda(pagamentos)
+    const venda = await finalizarVenda(pagamentos)
     if (venda) {
       setVendaFinalizada(venda)
       setShowRecibo(true)

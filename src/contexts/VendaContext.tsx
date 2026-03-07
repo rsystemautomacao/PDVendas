@@ -1,9 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import type { Venda, ItemVenda, Pagamento } from '../types'
-import { StorageKeys, getAll, saveAll, generateId, getNextNumber } from '../utils/storage'
-import { todayISO, isDateInRange } from '../utils/helpers'
+import { api } from '../services/api'
 import { useToast } from './ToastContext'
-import { useAuth } from './AuthContext'
 import { useProdutos } from './ProdutoContext'
 import { useCaixa } from './CaixaContext'
 
@@ -30,14 +28,15 @@ interface VendaContextType {
   totalDesconto: number
   totalVenda: number
   // Finalização
-  finalizarVenda: (pagamentos: Pagamento[]) => Venda | null
-  cancelarVenda: (id: string, motivo: string) => void
+  finalizarVenda: (pagamentos: Pagamento[]) => Promise<Venda | null>
+  cancelarVenda: (id: string, motivo: string) => Promise<void>
   // Queries
   getVenda: (id: string) => Venda | undefined
   getVendasPorPeriodo: (de: string, ate: string) => Venda[]
   getVendasHoje: () => Venda[]
   getTotalVendasHoje: () => number
   getTotalVendasMes: () => number
+  recarregar: () => Promise<void>
 }
 
 const VendaContext = createContext<VendaContextType | null>(null)
@@ -59,18 +58,23 @@ export function VendaProvider({ children }: { children: ReactNode }) {
   const [observacoes, setObservacoesState] = useState('')
 
   const toast = useToast()
-  const { user } = useAuth()
-  const { getProduto, atualizarEstoque } = useProdutos()
-  const { caixaAberto, registrarVenda } = useCaixa()
+  const { getProduto, recarregar: recarregarProdutos } = useProdutos()
+  const { caixaAberto, recarregar: recarregarCaixas } = useCaixa()
 
-  const reload = useCallback(() => {
-    setVendas(getAll<Venda>(StorageKeys.VENDAS))
+  const recarregar = useCallback(async () => {
+    try {
+      const res = await api.get('/vendas?limit=9999')
+      if (res.success && res.data) {
+        setVendas(res.data)
+      }
+    } catch {
+      // silencioso
+    }
   }, [])
 
   useEffect(() => {
-    reload()
-    setLoading(false)
-  }, [reload])
+    recarregar().finally(() => setLoading(false))
+  }, [recarregar])
 
   // ---- Cálculos ----
   const subtotal = cart.reduce((sum, item) => sum + item.total, 0)
@@ -149,7 +153,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // ---- Finalização ----
-  const finalizarVenda = useCallback((pagamentos: Pagamento[]) => {
+  const finalizarVenda = useCallback(async (pagamentos: Pagamento[]) => {
     if (cart.length === 0) {
       toast.erro('Adicione pelo menos um item ao carrinho')
       return null
@@ -165,78 +169,58 @@ export function VendaProvider({ children }: { children: ReactNode }) {
       return null
     }
 
-    const numero = getNextNumber(StorageKeys.NEXT_VENDA_NUM)
     const troco = totalPago - totalVenda
 
-    const venda: Venda = {
-      _id: generateId(),
-      numero,
-      clienteId: clienteId || undefined,
-      clienteNome: clienteNome || 'Consumidor Final',
-      itens: [...cart],
-      subtotal,
-      desconto: totalDesconto,
-      descontoTipo,
-      total: totalVenda,
-      pagamentos,
-      troco,
-      status: 'finalizada',
-      caixaId: caixaAberto._id,
-      vendedorId: user?._id || '',
-      vendedorNome: user?.nome || 'Vendedor',
-      observacoes: observacoes || undefined,
-      criadoEm: todayISO(),
-    }
+    try {
+      const res = await api.post('/vendas', {
+        clienteId: clienteId || undefined,
+        clienteNome: clienteNome || 'Consumidor Final',
+        itens: cart,
+        subtotal,
+        desconto: totalDesconto,
+        descontoTipo,
+        total: totalVenda,
+        pagamentos,
+        troco,
+        status: 'finalizada',
+        caixaId: caixaAberto._id,
+        observacoes: observacoes || undefined,
+      })
 
-    // Salvar venda
-    const all = getAll<Venda>(StorageKeys.VENDAS)
-    all.push(venda)
-    saveAll(StorageKeys.VENDAS, all)
-
-    // Atualizar estoque
-    cart.forEach(item => {
-      const prod = getProduto(item.produtoId)
-      if (prod && prod.tipo === 'produto') {
-        atualizarEstoque(item.produtoId, -item.quantidade)
+      if (res.success && res.data) {
+        const venda = res.data as Venda
+        clearCart()
+        // Recarregar dados que foram alterados pelo backend (estoque, caixa, vendas)
+        await Promise.all([recarregar(), recarregarProdutos(), recarregarCaixas()])
+        toast.sucesso(`Venda #${venda.numero} finalizada! Total: R$ ${totalVenda.toFixed(2)}${troco > 0 ? ` | Troco: R$ ${troco.toFixed(2)}` : ''}`)
+        return venda
       }
-    })
+      return null
+    } catch (err: any) {
+      toast.erro(err.message || 'Erro ao finalizar venda')
+      return null
+    }
+  }, [cart, caixaAberto, totalVenda, clienteId, clienteNome, subtotal, totalDesconto, descontoTipo, observacoes, clearCart, recarregar, recarregarProdutos, recarregarCaixas, toast])
 
-    // Registrar no caixa
-    registrarVenda(caixaAberto._id, totalVenda, String(numero))
-
-    // Limpar carrinho
-    clearCart()
-    reload()
-
-    toast.sucesso(`Venda #${numero} finalizada! Total: R$ ${totalVenda.toFixed(2)}${troco > 0 ? ` | Troco: R$ ${troco.toFixed(2)}` : ''}`)
-    return venda
-  }, [cart, caixaAberto, totalVenda, clienteId, clienteNome, subtotal, totalDesconto, descontoTipo, observacoes, user, getProduto, atualizarEstoque, registrarVenda, clearCart, reload, toast])
-
-  const cancelarVenda = useCallback((id: string, motivo: string) => {
-    const all = getAll<Venda>(StorageKeys.VENDAS)
-    const idx = all.findIndex(v => v._id === id)
-    if (idx === -1) return
-
-    const venda = all[idx]
-    venda.status = 'cancelada'
-    venda.canceladoEm = todayISO()
-    venda.motivoCancelamento = motivo
-
-    // Devolver estoque
-    venda.itens.forEach(item => {
-      atualizarEstoque(item.produtoId, item.quantidade)
-    })
-
-    saveAll(StorageKeys.VENDAS, all)
-    reload()
-    toast.info(`Venda #${venda.numero} cancelada`)
-  }, [atualizarEstoque, reload, toast])
+  const cancelarVenda = useCallback(async (id: string, motivo: string) => {
+    try {
+      await api.put(`/vendas/${id}/cancelar`, { motivo })
+      await Promise.all([recarregar(), recarregarProdutos()])
+      toast.info('Venda cancelada')
+    } catch (err: any) {
+      toast.erro(err.message || 'Erro ao cancelar venda')
+    }
+  }, [recarregar, recarregarProdutos, toast])
 
   // ---- Queries ----
   const getVenda = useCallback((id: string) => vendas.find(v => v._id === id), [vendas])
 
   const getVendasPorPeriodo = useCallback((de: string, ate: string) => {
-    return vendas.filter(v => v.status === 'finalizada' && isDateInRange(v.criadoEm, de, ate))
+    return vendas.filter(v => {
+      if (v.status !== 'finalizada') return false
+      const d = v.criadoEm.substring(0, 10)
+      return d >= de && d <= ate
+    })
   }, [vendas])
 
   const getVendasHoje = useCallback(() => {
@@ -264,6 +248,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
       subtotal, totalDesconto, totalVenda,
       finalizarVenda, cancelarVenda,
       getVenda, getVendasPorPeriodo, getVendasHoje, getTotalVendasHoje, getTotalVendasMes,
+      recarregar,
     }}>
       {children}
     </VendaContext.Provider>
