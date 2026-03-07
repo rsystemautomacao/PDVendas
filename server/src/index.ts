@@ -12,7 +12,7 @@ const app = express();
 // Security & parsing
 app.use(helmet());
 app.use(corsConfig);
-app.use(morgan('dev'));
+app.use(morgan(env.NODE_ENV === 'production' ? 'short' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
 
 // Health check
@@ -34,9 +34,7 @@ app.use(errorHandler);
 // Start server
 connectDB().then(() => {
   app.listen(env.PORT, () => {
-    console.log(`🚀 MeuPDV Server rodando na porta ${env.PORT}`);
-    console.log(`📋 Health check: http://localhost:${env.PORT}/health`);
-    console.log(`📋 API base: http://localhost:${env.PORT}/api`);
+    console.log(`MeuPDV Server rodando na porta ${env.PORT} [${env.NODE_ENV}]`);
   });
 });
 
