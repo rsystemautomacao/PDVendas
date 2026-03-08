@@ -11,7 +11,7 @@ import { useClientes } from '../../contexts/ClienteContext'
 import { useCaixa } from '../../contexts/CaixaContext'
 import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { formatCurrency } from '../../utils/helpers'
+import { formatCurrency, isCodigoBalanca } from '../../utils/helpers'
 import type { Pagamento, FormaPagamento, Venda } from '../../types'
 
 export function NovoPedidoPage() {
@@ -19,12 +19,12 @@ export function NovoPedidoPage() {
   const toast = useToast()
   const { user } = useAuth()
   const {
-    cart, addToCart, removeFromCart, updateCartItem, clearCart,
+    cart, addToCart, addToCartBalanca, removeFromCart, updateCartItem, clearCart,
     subtotal, totalDesconto, totalVenda,
     setClienteVenda, clienteNome,
     setDesconto, finalizarVenda, setObservacoesVenda, observacoes,
   } = useVendas()
-  const { buscarProdutos } = useProdutos()
+  const { buscarProdutos, buscarPorCodigoBalanca } = useProdutos()
   const { buscarClientes } = useClientes()
   const { caixaAberto } = useCaixa()
 
@@ -66,8 +66,29 @@ export function NovoPedidoPage() {
     if (!caixaAberto) setShowCaixaModal(true)
   }, [caixaAberto])
 
-  // Product search
+  // Product search - com deteccao de codigo de balanca
   useEffect(() => {
+    // Detectar codigo de barras de balanca (13 digitos, comeca com 2)
+    const cleanTerm = searchTerm.replace(/\D/g, '')
+    if (isCodigoBalanca(cleanTerm)) {
+      const result = buscarPorCodigoBalanca(cleanTerm)
+      if (result) {
+        addToCartBalanca(
+          result.produto._id,
+          result.produto.nome,
+          result.produto.codigo,
+          result.peso,
+          result.produto.preco
+        )
+        setSearchTerm('')
+        setShowResults(false)
+        setSelectedProductIdx(-1)
+        searchRef.current?.focus()
+        return
+      }
+      // Se nao encontrou como balanca, tenta busca normal
+    }
+
     if (searchTerm.length >= 2) {
       setSearchResults(buscarProdutos(searchTerm))
       setShowResults(true)
@@ -77,7 +98,7 @@ export function NovoPedidoPage() {
       setShowResults(false)
       setSelectedProductIdx(-1)
     }
-  }, [searchTerm, buscarProdutos])
+  }, [searchTerm, buscarProdutos, buscarPorCodigoBalanca, addToCartBalanca])
 
   // Client search
   useEffect(() => {

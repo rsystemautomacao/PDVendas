@@ -17,6 +17,7 @@ interface VendaContextType {
   observacoes: string
   // Cart actions
   addToCart: (produtoId: string, quantidade?: number) => void
+  addToCartBalanca: (produtoId: string, nome: string, codigo: string, peso: number, precoKg: number) => void
   removeFromCart: (produtoId: string) => void
   updateCartItem: (produtoId: string, quantidade: number) => void
   clearCart: () => void
@@ -112,6 +113,23 @@ export function VendaProvider({ children }: { children: ReactNode }) {
       }]
     })
   }, [getProduto, toast])
+
+  // Adicionar produto de balanca com peso e preco pre-calculados
+  const addToCartBalanca = useCallback((produtoId: string, nome: string, codigo: string, peso: number, precoKg: number) => {
+    const total = Math.round(peso * precoKg * 100) / 100
+    setCart(prev => {
+      // Produtos de balanca sempre entram como nova linha (cada pesagem e unica)
+      return [...prev, {
+        produtoId,
+        nome: `${nome} (${peso.toFixed(3)}kg)`,
+        codigo,
+        quantidade: peso,
+        precoUnitario: precoKg,
+        desconto: 0,
+        total,
+      }]
+    })
+  }, [])
 
   const removeFromCart = useCallback((produtoId: string) => {
     setCart(prev => prev.filter(i => i.produtoId !== produtoId))
@@ -243,7 +261,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
   return (
     <VendaContext.Provider value={{
       vendas, loading, cart, clienteId, clienteNome, desconto, descontoTipo, observacoes,
-      addToCart, removeFromCart, updateCartItem, clearCart, setClienteVenda,
+      addToCart, addToCartBalanca, removeFromCart, updateCartItem, clearCart, setClienteVenda,
       setDesconto, setObservacoesVenda,
       subtotal, totalDesconto, totalVenda,
       finalizarVenda, cancelarVenda,

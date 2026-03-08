@@ -6,6 +6,7 @@ const produtoSchema = new Schema(
     codigo: { type: String, required: [true, 'Código é obrigatório'] },
     codigoBarras: String,
     tipo: { type: String, enum: ['produto', 'servico'], default: 'produto' },
+    modoVenda: { type: String, enum: ['normal', 'balanca'], default: 'normal' },
     preco: { type: Number, required: [true, 'Preço é obrigatório'], min: 0 },
     precoCusto: { type: Number, min: 0 },
     estoque: { type: Number, default: 0, min: 0 },

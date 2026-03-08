@@ -2,12 +2,20 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import type { Produto } from '../types'
 import { api } from '../services/api'
 import { useToast } from './ToastContext'
+import { isCodigoBalanca, parseCodigoBalanca } from '../utils/helpers'
+
+export interface BalancaResult {
+  produto: Produto
+  peso: number
+  valorTotal: number
+}
 
 interface ProdutoContextType {
   produtos: Produto[]
   loading: boolean
   getProduto: (id: string) => Produto | undefined
   buscarProdutos: (termo: string) => Produto[]
+  buscarPorCodigoBalanca: (codigoCompleto: string) => BalancaResult | null
   adicionarProduto: (p: Omit<Produto, '_id' | 'criadoEm' | 'atualizadoEm'>) => Promise<Produto | null>
   atualizarProduto: (id: string, updates: Partial<Produto>) => Promise<void>
   removerProduto: (id: string) => Promise<void>
@@ -57,6 +65,31 @@ export function ProdutoProvider({ children }: { children: ReactNode }) {
         (p.codigoBarras || '').includes(t)
       )
     )
+  }, [produtos])
+
+  const buscarPorCodigoBalanca = useCallback((codigoCompleto: string): BalancaResult | null => {
+    if (!isCodigoBalanca(codigoCompleto)) return null
+    const parsed = parseCodigoBalanca(codigoCompleto)
+    if (!parsed) return null
+
+    // Buscar produto pelo PLU (primeiros 7 digitos do codigo de barras)
+    const produto = produtos.find(p =>
+      p.ativo &&
+      p.modoVenda === 'balanca' &&
+      p.codigoBarras &&
+      p.codigoBarras.startsWith(parsed.plu.substring(0, 2)) &&
+      (p.codigoBarras === parsed.plu ||
+       p.codigoBarras.substring(0, 7) === parsed.plu ||
+       parsed.plu.startsWith(p.codigoBarras.substring(0, 7)))
+    )
+
+    if (!produto) return null
+
+    // Calcular valor: peso (em kg) * preco por kg
+    const peso = parsed.peso
+    const valorTotal = peso * produto.preco
+
+    return { produto, peso, valorTotal }
   }, [produtos])
 
   const adicionarProduto = useCallback(async (p: Omit<Produto, '_id' | 'criadoEm' | 'atualizadoEm'>) => {
@@ -109,9 +142,9 @@ export function ProdutoProvider({ children }: { children: ReactNode }) {
 
   return (
     <ProdutoContext.Provider value={{
-      produtos, loading, getProduto, buscarProdutos, adicionarProduto,
-      atualizarProduto, removerProduto, atualizarEstoque, produtosBaixoEstoque,
-      recarregar,
+      produtos, loading, getProduto, buscarProdutos, buscarPorCodigoBalanca,
+      adicionarProduto, atualizarProduto, removerProduto, atualizarEstoque,
+      produtosBaixoEstoque, recarregar,
     }}>
       {children}
     </ProdutoContext.Provider>

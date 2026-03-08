@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Scale, AlertCircle } from 'lucide-react'
 import { useProdutos } from '../../contexts/ProdutoContext'
 import { useToast } from '../../contexts/ToastContext'
 import { sanitize } from '../../utils/helpers'
@@ -19,6 +19,7 @@ export function ProdutoFormPage() {
   const [codigo, setCodigo] = useState('')
   const [codigoBarras, setCodigoBarras] = useState('')
   const [tipo, setTipo] = useState<'produto' | 'servico'>('produto')
+  const [modoVenda, setModoVenda] = useState<'normal' | 'balanca'>('normal')
   const [preco, setPreco] = useState('')
   const [precoCusto, setPrecoCusto] = useState('')
   const [estoque, setEstoque] = useState('')
@@ -41,6 +42,7 @@ export function ProdutoFormPage() {
         setCodigo(produto.codigo)
         setCodigoBarras(produto.codigoBarras || '')
         setTipo(produto.tipo)
+        setModoVenda(produto.modoVenda || 'normal')
         setPreco(String(produto.preco))
         setPrecoCusto(String(produto.precoCusto || ''))
         setEstoque(String(produto.estoque))
@@ -58,13 +60,26 @@ export function ProdutoFormPage() {
     }
   }, [isEdit, id, getProduto, navigate, toast])
 
+  // Auto-set unidade para KG quando modo balanca
+  useEffect(() => {
+    if (modoVenda === 'balanca') {
+      setUnidade('KG')
+    }
+  }, [modoVenda])
+
   const validate = useCallback(() => {
     const next: Record<string, string> = {}
     if (!nome.trim()) next.nome = 'Nome e obrigatorio'
     if (!preco || parseFloat(preco) <= 0) next.preco = 'Preco e obrigatorio'
+    if (modoVenda === 'balanca' && !codigoBarras.trim()) {
+      next.codigoBarras = 'Codigo de barras e obrigatorio para produtos de balanca'
+    }
+    if (modoVenda === 'balanca' && codigoBarras.trim() && codigoBarras.trim().length < 7) {
+      next.codigoBarras = 'Codigo PLU da balanca deve ter pelo menos 7 digitos'
+    }
     setErrors(next)
     return Object.keys(next).length === 0
-  }, [nome, preco])
+  }, [nome, preco, modoVenda, codigoBarras])
 
   const handleSave = useCallback(() => {
     if (!validate()) return
@@ -75,6 +90,7 @@ export function ProdutoFormPage() {
       codigo: codigo.trim() || String(Date.now()).slice(-6),
       codigoBarras: codigoBarras.trim() || undefined,
       tipo,
+      modoVenda,
       preco: parseFloat(preco) || 0,
       precoCusto: precoCusto ? parseFloat(precoCusto) : undefined,
       estoque: parseInt(estoque) || 0,
@@ -95,7 +111,7 @@ export function ProdutoFormPage() {
 
     setLoading(false)
     navigate('/app/produtos')
-  }, [nome, codigo, codigoBarras, tipo, preco, precoCusto, estoque, estoqueMinimo, unidade, grupo, marca, fornecedor, ativo, observacoes, isEdit, id, validate, adicionarProduto, atualizarProduto, navigate])
+  }, [nome, codigo, codigoBarras, tipo, modoVenda, preco, precoCusto, estoque, estoqueMinimo, unidade, grupo, marca, fornecedor, ativo, observacoes, isEdit, id, validate, adicionarProduto, atualizarProduto, navigate])
 
   return (
     <div className="p-4 md:p-6 pb-24">
@@ -129,9 +145,13 @@ export function ProdutoFormPage() {
 
             {/* Codigo de barras */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Codigo de Barras</label>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                {modoVenda === 'balanca' ? 'Codigo PLU da Balanca *' : 'Codigo de Barras'}
+              </label>
               <input type="text" value={codigoBarras} onChange={e => setCodigoBarras(e.target.value)}
-                placeholder="EAN/GTIN" className="input-field" />
+                placeholder={modoVenda === 'balanca' ? 'Ex: 2001234 (7 digitos PLU)' : 'EAN/GTIN'}
+                className={`input-field ${errors.codigoBarras ? 'border-red-500' : ''}`} />
+              {errors.codigoBarras && <p className="text-xs text-red-500 mt-1">{errors.codigoBarras}</p>}
             </div>
 
             {/* Tipo */}
@@ -144,12 +164,46 @@ export function ProdutoFormPage() {
                   <span className="text-sm">Produto</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" checked={tipo === 'servico'} onChange={() => setTipo('servico')}
+                  <input type="radio" checked={tipo === 'servico'} onChange={() => { setTipo('servico'); setModoVenda('normal') }}
                     className="text-primary focus:ring-primary" />
                   <span className="text-sm">Servico</span>
                 </label>
               </div>
             </div>
+
+            {/* Modo Venda (apenas para produto) */}
+            {tipo === 'produto' && (
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Modo de Venda</label>
+                <div className="flex gap-4 mt-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" checked={modoVenda === 'normal'} onChange={() => setModoVenda('normal')}
+                      className="text-primary focus:ring-primary" />
+                    <span className="text-sm">Normal</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" checked={modoVenda === 'balanca'} onChange={() => setModoVenda('balanca')}
+                      className="text-primary focus:ring-primary" />
+                    <Scale className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm">Balanca (pesavel)</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Balanca info box */}
+            {modoVenda === 'balanca' && tipo === 'produto' && (
+              <div className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <div className="flex gap-3">
+                  <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-semibold mb-1">Produto de Balanca</p>
+                    <p>O codigo de barras sera usado como PLU (primeiros 7 digitos). Quando a balanca gerar o codigo completo (13 digitos), o PDV extrai automaticamente o peso e calcula o valor.</p>
+                    <p className="mt-1 text-xs text-amber-600">Formato: 2PPPPP + VVVVV + D (P=PLU, V=valor/peso, D=digito verificador)</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Preco */}
             <div>

@@ -5,6 +5,7 @@ export const createProdutoSchema = z.object({
   codigo: z.string().min(1, 'Código é obrigatório'),
   codigoBarras: z.string().optional(),
   tipo: z.enum(['produto', 'servico']).default('produto'),
+  modoVenda: z.enum(['normal', 'balanca']).default('normal'),
   preco: z.number().min(0, 'Preço deve ser positivo'),
   precoCusto: z.number().min(0).optional(),
   estoque: z.number().min(0).default(0),

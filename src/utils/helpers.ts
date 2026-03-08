@@ -158,6 +158,42 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return computed === hash
 }
 
+// ---- Balanca (codigo de barras pesavel) ----
+
+/**
+ * Verifica se um codigo de barras e de balanca (pesavel).
+ * Padrao brasileiro: comeca com "2" e tem 13 digitos.
+ * Formato: 2PPPPP VVVVV D
+ *  - 2 = prefixo de balanca
+ *  - PPPPP = codigo PLU do produto (5 digitos)
+ *  - VVVVV = valor em centavos OU peso em gramas (5 digitos)
+ *  - D = digito verificador
+ */
+export function isCodigoBalanca(codigo: string): boolean {
+  const clean = codigo.replace(/\D/g, '')
+  return clean.length === 13 && clean.startsWith('2')
+}
+
+/**
+ * Extrai o PLU (codigo do produto) e o valor/peso de um codigo de balanca.
+ * Retorna { plu, valor } onde:
+ *  - plu = os primeiros 7 digitos (prefixo "2" + 5 digitos PLU + 1 digito separador)
+ *    Usa os primeiros 7 chars para buscar no cadastro
+ *  - valor = os 5 digitos seguintes interpretados como reais (VVVVV / 100)
+ *  - peso = os 5 digitos seguintes interpretados como peso (VVVVV / 1000)
+ */
+export function parseCodigoBalanca(codigo: string): { plu: string; valor: number; peso: number } | null {
+  const clean = codigo.replace(/\D/g, '')
+  if (!isCodigoBalanca(clean)) return null
+
+  const plu = clean.substring(0, 7) // 2 + PPPPP + 1 digito
+  const valorDigits = clean.substring(7, 12)
+  const valor = parseInt(valorDigits) / 100  // em reais (centavos)
+  const peso = parseInt(valorDigits) / 1000  // em kg (gramas)
+
+  return { plu, valor, peso }
+}
+
 // ---- Datas helpers ----
 
 export function startOfDay(date: Date): Date {

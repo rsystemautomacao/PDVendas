@@ -35,6 +35,7 @@ export interface Produto {
   codigo: string
   codigoBarras?: string
   tipo: 'produto' | 'servico'
+  modoVenda: 'normal' | 'balanca'
   preco: number
   precoCusto?: number
   estoque: number
