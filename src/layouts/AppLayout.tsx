@@ -1,15 +1,41 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
+import { ShieldCheck } from 'lucide-react'
 import { Topbar } from '../components/app/Topbar'
 import { FloatingHelp } from '../components/app/FloatingHelp'
 import { Sidebar } from '../components/app/Sidebar'
 import { RequireAuth } from '../contexts/AuthContext'
+import { usePermissao, ROTA_PERMISSAO } from '../hooks/usePermissao'
 import { ProdutoProvider } from '../contexts/ProdutoContext'
 import { ClienteProvider } from '../contexts/ClienteContext'
 import { CaixaProvider } from '../contexts/CaixaContext'
 import { VendaProvider } from '../contexts/VendaContext'
 import { FinanceiroProvider } from '../contexts/FinanceiroContext'
 import { OrdemServicoProvider } from '../contexts/OrdemServicoContext'
+
+function PermissionGate() {
+  const location = useLocation()
+  const { temPermissao } = usePermissao()
+
+  // Check if current route requires a permission
+  const permissaoNecessaria = Object.entries(ROTA_PERMISSAO).find(
+    ([rota]) => location.pathname === rota || location.pathname.startsWith(rota + '/')
+  )
+
+  if (permissaoNecessaria && !temPermissao(permissaoNecessaria[1])) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-500 p-6">
+        <ShieldCheck className="h-16 w-16 mb-4 opacity-30" />
+        <h2 className="text-xl font-bold text-gray-700 mb-2">Acesso Restrito</h2>
+        <p className="text-sm text-center max-w-sm">
+          Voce nao tem permissao para acessar esta pagina. Entre em contato com o administrador.
+        </p>
+      </div>
+    )
+  }
+
+  return <Outlet />
+}
 
 function AppLayoutInner() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -50,7 +76,7 @@ function AppLayoutInner() {
         className={`pt-14 min-h-screen transition-[padding] duration-200 ${drawerOpen ? 'lg:pl-72' : ''}`}
         role="main"
       >
-        <Outlet />
+        <PermissionGate />
       </main>
       <FloatingHelp />
     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Users, Plus, Pencil, Trash2, X, Save, ShieldCheck, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../../contexts/ToastContext'
@@ -70,12 +70,39 @@ function defaultPerms(role: string): Record<string, boolean> {
     if (role === 'gerente') {
       perms[i.id] = true
     } else {
-      // caixa: vendas + caixa + visualizacao
       perms[i.id] = i.id.startsWith('vendas.criar') || i.id.startsWith('vendas.visualizar') ||
         i.id.startsWith('caixa.') || i.id.includes('.visualizar')
     }
   }))
   return perms
+}
+
+/** Remove acentos de uma string */
+function removeAccents(str: string): string {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+/** Gera dominio a partir do nome da empresa.
+ *  Ex: "MR Drones Aplicacoes Agricolas" → "mrdrones"
+ *  Remove sufixos como LTDA, ME, EPP, EIRELI, SA, S/A
+ */
+function gerarDominio(nomeEmpresa: string): string {
+  if (!nomeEmpresa) return 'empresa'
+  let nome = removeAccents(nomeEmpresa).toLowerCase()
+  // Remove sufixos empresariais
+  nome = nome.replace(/\b(ltda|me|epp|eireli|s\.?a\.?|s\/a|micro\s*empresa)\b/gi, '')
+  // Remove tudo que nao for letra/numero
+  nome = nome.replace(/[^a-z0-9]/g, '')
+  return nome || 'empresa'
+}
+
+/** Gera username a partir do nome da pessoa.
+ *  Ex: "Laiane Lima" → "laiane.lima"
+ */
+function gerarUsername(nomePessoa: string): string {
+  if (!nomePessoa.trim()) return ''
+  const partes = removeAccents(nomePessoa.trim()).toLowerCase().split(/\s+/).filter(Boolean)
+  return partes.join('.')
 }
 
 export function UsuariosPage() {
@@ -89,7 +116,7 @@ export function UsuariosPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [nome, setNome] = useState('')
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [senha, setSenha] = useState('')
   const [role, setRole] = useState('caixa')
   const [perms, setPerms] = useState<Record<string, boolean>>({})
@@ -98,6 +125,16 @@ export function UsuariosPage() {
 
   // Delete confirmation
   const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  // Dominio da empresa
+  const dominio = useMemo(() => {
+    return gerarDominio(user?.empresa?.nome || '')
+  }, [user?.empresa?.nome])
+
+  const emailCompleto = useMemo(() => {
+    if (!username.trim()) return ''
+    return `${username.trim()}@${dominio}.com`
+  }, [username, dominio])
 
   const fetchUsuarios = useCallback(async () => {
     try {
@@ -116,7 +153,7 @@ export function UsuariosPage() {
     setShowForm(false)
     setEditingId(null)
     setNome('')
-    setEmail('')
+    setUsername('')
     setSenha('')
     setRole('caixa')
     setPerms(defaultPerms('caixa'))
@@ -133,7 +170,9 @@ export function UsuariosPage() {
   const handleEdit = useCallback((u: User) => {
     setEditingId(u._id)
     setNome(u.nome)
-    setEmail(u.email)
+    // Extrair username do email (parte antes do @)
+    const parts = u.email.split('@')
+    setUsername(parts[0] || '')
     setSenha('')
     setRole(u.role)
     setPerms(u.permissoes || defaultPerms(u.role))
@@ -141,6 +180,14 @@ export function UsuariosPage() {
     setShowPerms(false)
     setShowSenha(false)
   }, [])
+
+  // Auto-gerar username quando nome muda (apenas para novo usuario)
+  const handleNomeChange = useCallback((novoNome: string) => {
+    setNome(novoNome)
+    if (!editingId) {
+      setUsername(gerarUsername(novoNome))
+    }
+  }, [editingId])
 
   const handleRoleChange = useCallback((newRole: string) => {
     setRole(newRole)
@@ -150,14 +197,20 @@ export function UsuariosPage() {
   }, [editingId])
 
   const handleSave = useCallback(async () => {
-    if (!nome.trim() || !email.trim()) {
-      erro('Nome e email sao obrigatorios')
+    if (!nome.trim()) {
+      erro('Nome e obrigatorio')
+      return
+    }
+    if (!username.trim()) {
+      erro('Usuario (email) e obrigatorio')
       return
     }
     if (!editingId && !senha) {
       erro('Senha e obrigatoria para novo usuario')
       return
     }
+
+    const email = emailCompleto
 
     setSaving(true)
     try {
@@ -183,7 +236,7 @@ export function UsuariosPage() {
     } finally {
       setSaving(false)
     }
-  }, [nome, email, senha, role, perms, editingId, sucesso, erro, resetForm, fetchUsuarios])
+  }, [nome, username, emailCompleto, senha, role, perms, editingId, sucesso, erro, resetForm, fetchUsuarios])
 
   const handleToggleAtivo = useCallback(async (u: User) => {
     try {
@@ -299,11 +352,31 @@ export function UsuariosPage() {
               <div className="p-5 space-y-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-text-primary">Nome</label>
-                  <input type="text" value={nome} onChange={e => setNome(e.target.value)} className="input-field" placeholder="Nome do usuario" />
+                  <input
+                    type="text"
+                    value={nome}
+                    onChange={e => handleNomeChange(e.target.value)}
+                    className="input-field"
+                    placeholder="Nome do usuario"
+                  />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-text-primary">Email</label>
-                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input-field" placeholder="email@empresa.com" />
+                  <label className="mb-1 block text-sm font-medium text-text-primary">Email de acesso</label>
+                  <div className="flex">
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))}
+                      className="input-field rounded-r-none border-r-0 flex-1"
+                      placeholder="nome.sobrenome"
+                    />
+                    <span className="inline-flex items-center px-3 rounded-r-xl border border-l-0 border-gray-300 bg-gray-100 text-sm text-gray-500 font-medium whitespace-nowrap">
+                      @{dominio}.com
+                    </span>
+                  </div>
+                  {emailCompleto && (
+                    <p className="mt-1 text-xs text-gray-400">Login: <span className="font-medium text-gray-600">{emailCompleto}</span></p>
+                  )}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-text-primary">

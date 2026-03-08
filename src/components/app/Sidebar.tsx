@@ -7,6 +7,7 @@ import {
   ShieldCheck, Receipt, X, Pencil, Wrench, FileText,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { usePermissao } from '../../hooks/usePermissao'
 
 interface SidebarProps { onClose?: () => void }
 
@@ -14,6 +15,7 @@ export function Sidebar({ onClose }: SidebarProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
+  const { temPermissao, isAdmin } = usePermissao()
   const [configOpen, setConfigOpen] = useState(false)
 
   const handleSair = () => {
@@ -30,13 +32,16 @@ export function Sidebar({ onClose }: SidebarProps) {
       isActive(path) ? 'bg-primary/10 text-primary font-semibold border-l-[3px] border-primary pl-2.5' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
     }`
 
-  const MenuItem = ({ to, icon: Icon, label }: { to: string; icon: typeof Home; label: string }) => (
-    <li>
-      <Link to={to} className={linkClass(to)} onClick={onClose}>
-        <Icon className="h-4 w-4 flex-shrink-0" /> {label}
-      </Link>
-    </li>
-  )
+  const MenuItem = ({ to, icon: Icon, label, perm }: { to: string; icon: typeof Home; label: string; perm?: string }) => {
+    if (perm && !temPermissao(perm)) return null
+    return (
+      <li>
+        <Link to={to} className={linkClass(to)} onClick={onClose}>
+          <Icon className="h-4 w-4 flex-shrink-0" /> {label}
+        </Link>
+      </li>
+    )
+  }
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -90,8 +95,8 @@ export function Sidebar({ onClose }: SidebarProps) {
         <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Principal</p>
         <ul className="space-y-0.5">
           <MenuItem to="/app" icon={Home} label="Inicio" />
-          <MenuItem to="/app/novo-pedido" icon={ShoppingCart} label="Nova Venda (PDV)" />
-          <MenuItem to="/app/vendas" icon={ShoppingCart} label="Vendas" />
+          <MenuItem to="/app/novo-pedido" icon={ShoppingCart} label="Nova Venda (PDV)" perm="vendas.criar" />
+          <MenuItem to="/app/vendas" icon={ShoppingCart} label="Vendas" perm="vendas.visualizar" />
         </ul>
 
         <p className="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Assistencia Tecnica</p>
@@ -100,48 +105,62 @@ export function Sidebar({ onClose }: SidebarProps) {
           <MenuItem to="/app/orcamentos" icon={FileText} label="Orcamentos" />
         </ul>
 
-        <p className="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Cadastros</p>
-        <ul className="space-y-0.5">
-          <MenuItem to="/app/clientes" icon={Users} label="Clientes" />
-          <MenuItem to="/app/produtos" icon={Box} label="Produtos" />
-        </ul>
+        {(temPermissao('produtos.visualizar') || temPermissao('clientes.visualizar')) && (
+          <>
+            <p className="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Cadastros</p>
+            <ul className="space-y-0.5">
+              <MenuItem to="/app/clientes" icon={Users} label="Clientes" perm="clientes.visualizar" />
+              <MenuItem to="/app/produtos" icon={Box} label="Produtos" perm="produtos.visualizar" />
+            </ul>
+          </>
+        )}
 
-        <p className="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Financeiro</p>
-        <ul className="space-y-0.5">
-          <MenuItem to="/app/caixas" icon={LayoutDashboard} label="Caixas" />
-          <MenuItem to="/app/contas-a-pagar" icon={DollarSign} label="Contas a Pagar" />
-          <MenuItem to="/app/contas-a-receber" icon={DollarSign} label="Contas a Receber" />
-          <MenuItem to="/app/despesas" icon={Receipt} label="Despesas" />
-          <MenuItem to="/app/fluxo-de-caixa" icon={TrendingUp} label="Fluxo de Caixa" />
-        </ul>
+        {(temPermissao('caixa.abrir') || temPermissao('financeiro.contas_pagar') || temPermissao('financeiro.contas_receber') || temPermissao('financeiro.despesas') || temPermissao('financeiro.fluxo_caixa')) && (
+          <>
+            <p className="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Financeiro</p>
+            <ul className="space-y-0.5">
+              <MenuItem to="/app/caixas" icon={LayoutDashboard} label="Caixas" perm="caixa.abrir" />
+              <MenuItem to="/app/contas-a-pagar" icon={DollarSign} label="Contas a Pagar" perm="financeiro.contas_pagar" />
+              <MenuItem to="/app/contas-a-receber" icon={DollarSign} label="Contas a Receber" perm="financeiro.contas_receber" />
+              <MenuItem to="/app/despesas" icon={Receipt} label="Despesas" perm="financeiro.despesas" />
+              <MenuItem to="/app/fluxo-de-caixa" icon={TrendingUp} label="Fluxo de Caixa" perm="financeiro.fluxo_caixa" />
+            </ul>
+          </>
+        )}
 
-        <p className="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Relatorios</p>
-        <ul className="space-y-0.5">
-          <MenuItem to="/app/relatorios-graficos" icon={BarChart3} label="Relatorios" />
-          <MenuItem to="/app/catalogo" icon={Store} label="Catalogo" />
-        </ul>
+        {temPermissao('relatorios.visualizar') && (
+          <>
+            <p className="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Relatorios</p>
+            <ul className="space-y-0.5">
+              <MenuItem to="/app/relatorios-graficos" icon={BarChart3} label="Relatorios" perm="relatorios.visualizar" />
+              <MenuItem to="/app/catalogo" icon={Store} label="Catalogo" perm="relatorios.visualizar" />
+            </ul>
+          </>
+        )}
 
         <p className="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Sistema</p>
         <ul className="space-y-0.5">
-          <li>
-            <button
-              type="button"
-              onClick={() => setConfigOpen(o => !o)}
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              <span className="flex items-center gap-2.5"><Settings className="h-4 w-4" /> Configuracoes</span>
-              <ChevronRight className={`h-4 w-4 transition-transform ${configOpen ? 'rotate-90' : ''}`} />
-            </button>
-            {configOpen && (
-              <ul className="ml-4 mt-1 space-y-0.5 border-l border-gray-200 pl-2 animate-fade-in">
-                <li><Link to="/app/config/meu-usuario" className={linkClass('/app/config/meu-usuario')} onClick={onClose}>Meu usuario</Link></li>
-                <li><Link to="/app/config/minha-empresa" className={linkClass('/app/config/minha-empresa')} onClick={onClose}>Minha empresa</Link></li>
-                <li><Link to="/app/config/parametros" className={linkClass('/app/config/parametros')} onClick={onClose}>Parametros</Link></li>
-                <li><Link to="/app/config/usuarios" className={linkClass('/app/config/usuarios')} onClick={onClose}>Usuarios</Link></li>
-                <li><Link to="/app/config/permissoes" className={linkClass('/app/config/permissoes')} onClick={onClose}>Permissoes</Link></li>
-              </ul>
-            )}
-          </li>
+          {isAdmin && (
+            <li>
+              <button
+                type="button"
+                onClick={() => setConfigOpen(o => !o)}
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                <span className="flex items-center gap-2.5"><Settings className="h-4 w-4" /> Configuracoes</span>
+                <ChevronRight className={`h-4 w-4 transition-transform ${configOpen ? 'rotate-90' : ''}`} />
+              </button>
+              {configOpen && (
+                <ul className="ml-4 mt-1 space-y-0.5 border-l border-gray-200 pl-2 animate-fade-in">
+                  <li><Link to="/app/config/meu-usuario" className={linkClass('/app/config/meu-usuario')} onClick={onClose}>Meu usuario</Link></li>
+                  <li><Link to="/app/config/minha-empresa" className={linkClass('/app/config/minha-empresa')} onClick={onClose}>Minha empresa</Link></li>
+                  <li><Link to="/app/config/parametros" className={linkClass('/app/config/parametros')} onClick={onClose}>Parametros</Link></li>
+                  <li><Link to="/app/config/usuarios" className={linkClass('/app/config/usuarios')} onClick={onClose}>Usuarios</Link></li>
+                  <li><Link to="/app/config/permissoes" className={linkClass('/app/config/permissoes')} onClick={onClose}>Permissoes</Link></li>
+                </ul>
+              )}
+            </li>
+          )}
           <MenuItem to="/app/ajuda" icon={HelpCircle} label="Ajuda" />
         </ul>
       </nav>
