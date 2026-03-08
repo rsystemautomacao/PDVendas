@@ -230,6 +230,107 @@ export interface LogAtividade {
   criadoEm: string
 }
 
+// ---- Ordem de Serviço (OS) ----
+export interface Dispositivo {
+  tipo: 'celular' | 'tablet' | 'notebook' | 'outro'
+  marca: string
+  modelo: string
+  cor?: string
+  imei?: string
+  serial?: string
+  senhaDispositivo?: string
+  acessorios?: string
+  estadoVisual?: string
+}
+
+export interface ServicoOS {
+  descricao: string
+  valor: number
+}
+
+export interface PecaOS {
+  produtoId?: string
+  nome: string
+  quantidade: number
+  valorUnitario: number
+  total: number
+}
+
+export type StatusOS =
+  | 'aberta'
+  | 'em_analise'
+  | 'orcamento_enviado'
+  | 'aprovada'
+  | 'em_execucao'
+  | 'concluida'
+  | 'entregue'
+  | 'cancelada'
+
+export interface OrdemServico {
+  _id: string
+  numero: number
+  clienteId?: string
+  clienteNome: string
+  clienteTelefone?: string
+  dispositivo: Dispositivo
+  defeitoRelatado: string
+  laudoTecnico?: string
+  servicos: ServicoOS[]
+  pecas: PecaOS[]
+  valorServicos: number
+  valorPecas: number
+  desconto: number
+  total: number
+  status: StatusOS
+  prioridade: 'baixa' | 'normal' | 'alta' | 'urgente'
+  tecnicoId?: string
+  tecnicoNome?: string
+  prazoEstimado?: string
+  pagamentos: Pagamento[]
+  observacoes?: string
+  orcamentoId?: string
+  criadoEm: string
+  atualizadoEm: string
+  concluidaEm?: string
+  entregueEm?: string
+  canceladaEm?: string
+  motivoCancelamento?: string
+}
+
+// ---- Orçamento ----
+export interface ItemOrcamento {
+  tipo: 'servico' | 'peca'
+  descricao: string
+  produtoId?: string
+  quantidade: number
+  valorUnitario: number
+  total: number
+}
+
+export type StatusOrcamento = 'pendente' | 'enviado' | 'aprovado' | 'recusado' | 'expirado' | 'convertido'
+
+export interface Orcamento {
+  _id: string
+  numero: number
+  clienteId?: string
+  clienteNome: string
+  clienteTelefone?: string
+  dispositivo: Dispositivo
+  defeitoRelatado: string
+  itens: ItemOrcamento[]
+  subtotal: number
+  desconto: number
+  total: number
+  validade: number // dias
+  status: StatusOrcamento
+  osGeradaId?: string
+  observacoes?: string
+  criadoEm: string
+  atualizadoEm: string
+  aprovadoEm?: string
+  recusadoEm?: string
+}
+
 // ---- Toast / Feedback ----
 export interface Toast {
   id: string

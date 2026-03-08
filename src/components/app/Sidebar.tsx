@@ -4,7 +4,7 @@ import {
   Home, HelpCircle, Store, Settings, LayoutDashboard,
   ShoppingCart, Users, Box, DollarSign, BarChart3,
   TrendingUp, LogOut, ChevronRight, User, Building2,
-  ShieldCheck, Receipt, X, Pencil,
+  ShieldCheck, Receipt, X, Pencil, Wrench, FileText,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -92,6 +92,12 @@ export function Sidebar({ onClose }: SidebarProps) {
           <MenuItem to="/app" icon={Home} label="Inicio" />
           <MenuItem to="/app/novo-pedido" icon={ShoppingCart} label="Nova Venda (PDV)" />
           <MenuItem to="/app/vendas" icon={ShoppingCart} label="Vendas" />
+        </ul>
+
+        <p className="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Assistencia Tecnica</p>
+        <ul className="space-y-0.5">
+          <MenuItem to="/app/ordens-servico" icon={Wrench} label="Ordens de Servico" />
+          <MenuItem to="/app/orcamentos" icon={FileText} label="Orcamentos" />
         </ul>
 
         <p className="px-3 mt-5 mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Cadastros</p>

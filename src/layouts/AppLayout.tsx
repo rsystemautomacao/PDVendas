@@ -9,6 +9,7 @@ import { ClienteProvider } from '../contexts/ClienteContext'
 import { CaixaProvider } from '../contexts/CaixaContext'
 import { VendaProvider } from '../contexts/VendaContext'
 import { FinanceiroProvider } from '../contexts/FinanceiroContext'
+import { OrdemServicoProvider } from '../contexts/OrdemServicoContext'
 
 function AppLayoutInner() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -64,7 +65,9 @@ export function AppLayout() {
           <CaixaProvider>
             <VendaProvider>
               <FinanceiroProvider>
-                <AppLayoutInner />
+                <OrdemServicoProvider>
+                  <AppLayoutInner />
+                </OrdemServicoProvider>
               </FinanceiroProvider>
             </VendaProvider>
           </CaixaProvider>

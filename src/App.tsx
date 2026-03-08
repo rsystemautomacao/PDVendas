@@ -21,6 +21,10 @@ import { ProdutoFormPage } from './pages/app/ProdutoFormPage'
 import { NovoPedidoPage } from './pages/app/NovoPedidoPage'
 import { VendasPage } from './pages/app/VendasPage'
 import { ComprasPage } from './pages/app/ComprasPage'
+import { OrdensServicoPage } from './pages/app/OrdensServicoPage'
+import { OrdemServicoFormPage } from './pages/app/OrdemServicoFormPage'
+import { OrcamentosPage } from './pages/app/OrcamentosPage'
+import { OrcamentoFormPage } from './pages/app/OrcamentoFormPage'
 import { AjudaPage } from './pages/app/AjudaPage'
 import { NotificacoesPage } from './pages/app/NotificacoesPage'
 import { CatalogoPage } from './pages/app/CatalogoPage'
@@ -59,6 +63,12 @@ function App() {
         <Route path="produtos/:id" element={<ProdutoFormPage />} />
         <Route path="novo-pedido" element={<NovoPedidoPage />} />
         <Route path="vendas" element={<VendasPage />} />
+        <Route path="ordens-servico" element={<OrdensServicoPage />} />
+        <Route path="ordens-servico/nova" element={<OrdemServicoFormPage />} />
+        <Route path="ordens-servico/:id" element={<OrdemServicoFormPage />} />
+        <Route path="orcamentos" element={<OrcamentosPage />} />
+        <Route path="orcamentos/novo" element={<OrcamentoFormPage />} />
+        <Route path="orcamentos/:id" element={<OrcamentoFormPage />} />
         <Route path="compras" element={<ComprasPage />} />
         <Route path="ajuda" element={<AjudaPage />} />
         <Route path="notificacoes" element={<NotificacoesPage />} />

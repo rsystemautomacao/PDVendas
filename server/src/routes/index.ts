@@ -8,6 +8,8 @@ import financeiroRoutes from './financeiro.routes';
 import compraRoutes from './compra.routes';
 import notificacaoRoutes from './notificacao.routes';
 import dashboardRoutes from './dashboard.routes';
+import osRoutes from './os.routes';
+import orcamentoRoutes from './orcamento.routes';
 
 const router = Router();
 
@@ -20,5 +22,7 @@ router.use('/financeiro', financeiroRoutes);
 router.use('/compras', compraRoutes);
 router.use('/notificacoes', notificacaoRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/ordens-servico', osRoutes);
+router.use('/orcamentos', orcamentoRoutes);
 
 export default router;
