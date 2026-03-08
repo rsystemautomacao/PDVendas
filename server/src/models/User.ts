@@ -9,6 +9,7 @@ const empresaSchema = new Schema(
     endereco: String,
     cidade: String,
     estado: String,
+    logoBase64: String,
   },
   { _id: false }
 );
@@ -30,6 +31,8 @@ const userSchema = new Schema(
     resetToken: { type: String, select: false },
     resetTokenExpires: { type: Date, select: false },
     empresa: empresaSchema,
+    adminId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    permissoes: { type: Schema.Types.Mixed, default: {} },
   },
   {
     timestamps: { createdAt: 'criadoEm', updatedAt: false },

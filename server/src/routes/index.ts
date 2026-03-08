@@ -10,6 +10,7 @@ import notificacaoRoutes from './notificacao.routes';
 import dashboardRoutes from './dashboard.routes';
 import osRoutes from './os.routes';
 import orcamentoRoutes from './orcamento.routes';
+import userRoutes from './user.routes';
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use('/notificacoes', notificacaoRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/ordens-servico', osRoutes);
 router.use('/orcamentos', orcamentoRoutes);
+router.use('/usuarios', userRoutes);
 
 export default router;

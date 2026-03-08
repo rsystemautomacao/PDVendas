@@ -10,12 +10,14 @@ import { useProdutos } from '../../contexts/ProdutoContext'
 import { useClientes } from '../../contexts/ClienteContext'
 import { useCaixa } from '../../contexts/CaixaContext'
 import { useToast } from '../../contexts/ToastContext'
+import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency } from '../../utils/helpers'
 import type { Pagamento, FormaPagamento, Venda } from '../../types'
 
 export function NovoPedidoPage() {
   const navigate = useNavigate()
   const toast = useToast()
+  const { user } = useAuth()
   const {
     cart, addToCart, removeFromCart, updateCartItem, clearCart,
     subtotal, totalDesconto, totalVenda,
@@ -30,12 +32,16 @@ export function NovoPedidoPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<ReturnType<typeof buscarProdutos>>([])
   const [showResults, setShowResults] = useState(false)
+  const [selectedProductIdx, setSelectedProductIdx] = useState(-1)
   const searchRef = useRef<HTMLInputElement>(null)
 
   // Client search
   const [clientSearch, setClientSearch] = useState('')
   const [clientResults, setClientResults] = useState<ReturnType<typeof buscarClientes>>([])
   const [showClientResults, setShowClientResults] = useState(false)
+  const [selectedClientIdx, setSelectedClientIdx] = useState(-1)
+  const clientSearchRef = useRef<HTMLInputElement>(null)
+  const valorPagamentoRef = useRef<HTMLInputElement>(null)
 
   // Payment modal
   const [showPayment, setShowPayment] = useState(false)
@@ -65,9 +71,11 @@ export function NovoPedidoPage() {
     if (searchTerm.length >= 2) {
       setSearchResults(buscarProdutos(searchTerm))
       setShowResults(true)
+      setSelectedProductIdx(0)
     } else {
       setSearchResults([])
       setShowResults(false)
+      setSelectedProductIdx(-1)
     }
   }, [searchTerm, buscarProdutos])
 
@@ -76,9 +84,11 @@ export function NovoPedidoPage() {
     if (clientSearch.length >= 2) {
       setClientResults(buscarClientes(clientSearch))
       setShowClientResults(true)
+      setSelectedClientIdx(0)
     } else {
       setClientResults([])
       setShowClientResults(false)
+      setSelectedClientIdx(-1)
     }
   }, [clientSearch, buscarClientes])
 
@@ -86,6 +96,7 @@ export function NovoPedidoPage() {
     addToCart(produtoId)
     setSearchTerm('')
     setShowResults(false)
+    setSelectedProductIdx(-1)
     searchRef.current?.focus()
   }, [addToCart])
 
@@ -93,7 +104,42 @@ export function NovoPedidoPage() {
     setClienteVenda(id, nome)
     setClientSearch('')
     setShowClientResults(false)
+    setSelectedClientIdx(-1)
   }, [setClienteVenda])
+
+  // Keyboard nav for product search dropdown
+  const handleProductSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!showResults || searchResults.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelectedProductIdx(prev => (prev + 1) % searchResults.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelectedProductIdx(prev => (prev - 1 + searchResults.length) % searchResults.length)
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      if (selectedProductIdx >= 0 && selectedProductIdx < searchResults.length) {
+        e.preventDefault()
+        handleAddProduct(searchResults[selectedProductIdx]._id)
+      }
+    }
+  }, [showResults, searchResults, selectedProductIdx, handleAddProduct])
+
+  // Keyboard nav for client search dropdown
+  const handleClientSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!showClientResults || clientResults.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelectedClientIdx(prev => (prev + 1) % clientResults.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelectedClientIdx(prev => (prev - 1 + clientResults.length) % clientResults.length)
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      if (selectedClientIdx >= 0 && selectedClientIdx < clientResults.length) {
+        e.preventDefault()
+        handleSelectClient(clientResults[selectedClientIdx]._id, clientResults[selectedClientIdx].nome)
+      }
+    }
+  }, [showClientResults, clientResults, selectedClientIdx, handleSelectClient])
 
   const handleApplyDesconto = () => {
     const val = parseFloat(descontoInput) || 0
@@ -148,20 +194,47 @@ export function NovoPedidoPage() {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Don't handle shortcuts when typing in inputs (except F-keys)
+      const isInput = (e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA'
+
       if (e.key === 'F2') { e.preventDefault(); searchRef.current?.focus() }
-      if (e.key === 'F9') { e.preventDefault(); if (cart.length > 0) setShowPayment(true) }
-      if (e.key === 'Escape') { setShowPayment(false); setShowDesconto(false); setShowRecibo(false); setShowResults(false) }
+      if (e.key === 'F4') { e.preventDefault(); clientSearchRef.current?.focus() }
+      if (e.key === 'F9') { e.preventDefault(); if (cart.length > 0 && caixaAberto) setShowPayment(true) }
+      if (e.key === 'Escape') {
+        setShowPayment(false); setShowDesconto(false); setShowRecibo(false)
+        setShowResults(false); setShowClientResults(false)
+      }
+
+      // Payment modal shortcuts: 1-5 to select payment method
+      if (showPayment && !isInput) {
+        const paymentKeys: Record<string, FormaPagamento> = {
+          '1': 'dinheiro', '2': 'credito', '3': 'debito', '4': 'pix', '5': 'crediario'
+        }
+        if (paymentKeys[e.key]) {
+          e.preventDefault()
+          setFormaPagamento(paymentKeys[e.key])
+          valorPagamentoRef.current?.focus()
+        }
+      }
+
+      // F10: Quick finalize (add remaining as current payment method + finalize)
+      if (e.key === 'F10' && showPayment) {
+        e.preventDefault()
+        if (restante > 0) {
+          setPagamentos(prev => [...prev, { forma: formaPagamento, valor: restante }])
+        }
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [cart.length])
+  }, [cart.length, caixaAberto, showPayment, formaPagamento, restante])
 
-  const formasPagamento: { key: FormaPagamento; label: string; icon: typeof Banknote }[] = [
-    { key: 'dinheiro', label: 'Dinheiro', icon: Banknote },
-    { key: 'credito', label: 'Credito', icon: CreditCard },
-    { key: 'debito', label: 'Debito', icon: CreditCard },
-    { key: 'pix', label: 'PIX', icon: Smartphone },
-    { key: 'crediario', label: 'Crediario', icon: FileText },
+  const formasPagamento: { key: FormaPagamento; label: string; icon: typeof Banknote; shortcut: string }[] = [
+    { key: 'dinheiro', label: 'Dinheiro', icon: Banknote, shortcut: '1' },
+    { key: 'credito', label: 'Credito', icon: CreditCard, shortcut: '2' },
+    { key: 'debito', label: 'Debito', icon: CreditCard, shortcut: '3' },
+    { key: 'pix', label: 'PIX', icon: Smartphone, shortcut: '4' },
+    { key: 'crediario', label: 'Crediario', icon: FileText, shortcut: '5' },
   ]
 
   return (
@@ -199,10 +272,12 @@ export function NovoPedidoPage() {
               </div>
             ) : (
               <input
+                ref={clientSearchRef}
                 type="text"
-                placeholder="Buscar cliente (opcional)..."
+                placeholder="Buscar cliente (opcional)... (F4)"
                 value={clientSearch}
                 onChange={e => setClientSearch(e.target.value)}
+                onKeyDown={handleClientSearchKeyDown}
                 onBlur={() => setTimeout(() => setShowClientResults(false), 200)}
                 className="flex-1 text-sm border-0 border-b border-gray-200 py-1.5 focus:border-primary focus:ring-0 bg-transparent"
               />
@@ -210,9 +285,11 @@ export function NovoPedidoPage() {
           </div>
           {showClientResults && clientResults.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-40 overflow-y-auto animate-scale-in">
-              {clientResults.map(c => (
+              {clientResults.map((c, idx) => (
                 <button key={c._id} onClick={() => handleSelectClient(c._id, c.nome)}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 border-b last:border-0 flex items-center justify-between">
+                  className={`w-full text-left px-4 py-2.5 text-sm border-b last:border-0 flex items-center justify-between ${
+                    idx === selectedClientIdx ? 'bg-blue-50 ring-1 ring-inset ring-primary/30' : 'hover:bg-gray-50'
+                  }`}>
                   <span className="font-medium">{c.nome}</span>
                   <span className="text-xs text-gray-400">{c.cpfCnpj}</span>
                 </button>
@@ -230,6 +307,7 @@ export function NovoPedidoPage() {
             placeholder="Buscar produto por nome, codigo ou codigo de barras... (F2)"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
+            onKeyDown={handleProductSearchKeyDown}
             onBlur={() => setTimeout(() => setShowResults(false), 200)}
             onFocus={() => { if (searchTerm.length >= 2) setShowResults(true) }}
             className="input-field pl-10"
@@ -240,9 +318,11 @@ export function NovoPedidoPage() {
               {searchResults.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-gray-500">Nenhum produto encontrado</p>
               ) : (
-                searchResults.map(p => (
+                searchResults.map((p, idx) => (
                   <button key={p._id} onClick={() => handleAddProduct(p._id)}
-                    className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b last:border-0 flex items-center justify-between transition-colors">
+                    className={`w-full text-left px-4 py-3 border-b last:border-0 flex items-center justify-between transition-colors ${
+                      idx === selectedProductIdx ? 'bg-blue-50 ring-1 ring-inset ring-primary/30' : 'hover:bg-blue-50'
+                    }`}>
                     <div>
                       <p className="font-medium text-sm text-gray-800">{p.nome}</p>
                       <p className="text-xs text-gray-400">Cod: {p.codigo} | Estoque: {p.estoque} {p.unidade}</p>
@@ -364,8 +444,9 @@ export function NovoPedidoPage() {
           >
             <DollarSign size={18} /> Finalizar Venda (F9)
           </button>
-          <div className="flex gap-2 text-xs text-gray-400 justify-center">
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-gray-400 justify-center">
             <span>F2: Buscar</span>
+            <span>F4: Cliente</span>
             <span>F9: Pagar</span>
             <span>ESC: Fechar</span>
           </div>
@@ -438,10 +519,11 @@ export function NovoPedidoPage() {
                 <p className="text-sm font-medium text-gray-700 mb-2">Forma de Pagamento</p>
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {formasPagamento.map(f => (
-                    <button key={f.key} onClick={() => setFormaPagamento(f.key)}
-                      className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-xs font-medium ${
+                    <button key={f.key} onClick={() => { setFormaPagamento(f.key); valorPagamentoRef.current?.focus() }}
+                      className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-xs font-medium relative ${
                         formaPagamento === f.key ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 text-gray-600 hover:border-gray-300'
                       }`}>
+                      <span className="absolute top-1 right-1.5 text-[10px] text-gray-400 font-mono">{f.shortcut}</span>
                       <f.icon size={20} />
                       {f.label}
                     </button>
@@ -453,7 +535,7 @@ export function NovoPedidoPage() {
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Valor</label>
-                  <input type="number" step="0.01" value={valorPagamento}
+                  <input ref={valorPagamentoRef} type="number" step="0.01" value={valorPagamento}
                     onChange={e => setValorPagamento(e.target.value)}
                     placeholder={restante > 0 ? restante.toFixed(2) : '0.00'}
                     className="input-field"
@@ -562,7 +644,14 @@ export function NovoPedidoPage() {
 
               {/* Recibo */}
               <div className="recibo-print border border-gray-200 rounded-lg p-4 my-4">
-                <div className="centro bold">MEUPDV - COMPROVANTE</div>
+                {user?.empresa?.logoBase64 && (
+                  <div className="flex justify-center mb-2">
+                    <img src={user.empresa.logoBase64} alt="Logo" className="max-h-16 max-w-[160px] object-contain" />
+                  </div>
+                )}
+                <div className="centro bold">{user?.empresa?.nome || 'COMPROVANTE DE VENDA'}</div>
+                {user?.empresa?.cnpj && <div className="centro text-[10px]">CNPJ: {user.empresa.cnpj}</div>}
+                {user?.empresa?.telefone && <div className="centro text-[10px]">Tel: {user.empresa.telefone}</div>}
                 <div className="linha" />
                 <div>Venda #{vendaFinalizada.numero}</div>
                 <div>Data: {new Date(vendaFinalizada.criadoEm).toLocaleString('pt-BR')}</div>

@@ -137,6 +137,7 @@ export function Sidebar({ onClose }: SidebarProps) {
                 <li><Link to="/app/config/meu-usuario" className={linkClass('/app/config/meu-usuario')} onClick={onClose}>Meu usuario</Link></li>
                 <li><Link to="/app/config/minha-empresa" className={linkClass('/app/config/minha-empresa')} onClick={onClose}>Minha empresa</Link></li>
                 <li><Link to="/app/config/parametros" className={linkClass('/app/config/parametros')} onClick={onClose}>Parametros</Link></li>
+                <li><Link to="/app/config/usuarios" className={linkClass('/app/config/usuarios')} onClick={onClose}>Usuarios</Link></li>
                 <li><Link to="/app/config/permissoes" className={linkClass('/app/config/permissoes')} onClick={onClose}>Permissoes</Link></li>
               </ul>
             )}

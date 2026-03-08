@@ -3,14 +3,8 @@ import { ShieldCheck, Save, X } from 'lucide-react'
 import { Switch } from '../../../components/app/Switch'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../../contexts/ToastContext'
-
-const STORAGE_KEY = 'meupdv_permissoes'
-
-const PAPEIS = [
-  { value: 'admin', label: 'Administrador' },
-  { value: 'gerente', label: 'Gerente' },
-  { value: 'caixa', label: 'Operador de Caixa' },
-]
+import { api } from '../../../services/api'
+import type { User } from '../../../types'
 
 const PERMISSOES_GRUPOS: { titulo: string; itens: { id: string; label: string }[] }[] = [
   {
@@ -28,7 +22,7 @@ const PERMISSOES_GRUPOS: { titulo: string; itens: { id: string; label: string }[
       { id: 'caixa.abrir', label: 'Abrir caixa' },
       { id: 'caixa.fechar', label: 'Fechar caixa' },
       { id: 'caixa.sangria', label: 'Realizar sangria' },
-      { id: 'caixa.reforco', label: 'Realizar reforço' },
+      { id: 'caixa.reforco', label: 'Realizar reforco' },
     ],
   },
   {
@@ -50,77 +44,59 @@ const PERMISSOES_GRUPOS: { titulo: string; itens: { id: string; label: string }[
     ],
   },
   {
-    titulo: 'Relatórios',
+    titulo: 'Relatorios',
     itens: [
-      { id: 'relatorios.visualizar', label: 'Visualizar relatórios' },
-      { id: 'relatorios.exportar', label: 'Exportar relatórios' },
+      { id: 'relatorios.visualizar', label: 'Visualizar relatorios' },
+      { id: 'relatorios.exportar', label: 'Exportar relatorios' },
     ],
   },
   {
-    titulo: 'Configurações',
+    titulo: 'Configuracoes',
     itens: [
       { id: 'config.empresa', label: 'Dados da empresa' },
-      { id: 'config.parametros', label: 'Parâmetros do sistema' },
-      { id: 'config.permissoes', label: 'Gerenciar permissões' },
+      { id: 'config.parametros', label: 'Parametros do sistema' },
     ],
   },
 ]
 
-function allPermIds(): string[] {
-  return PERMISSOES_GRUPOS.flatMap(g => g.itens.map(i => i.id))
-}
-
-function loadPerms(papel: string): Record<string, boolean> {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      const all = JSON.parse(saved)
-      if (all[papel]) return all[papel]
-    }
-  } catch { /* ignore */ }
-  // Default: admin tem tudo, demais tem vendas/caixa/cadastros.visualizar
-  const o: Record<string, boolean> = {}
-  allPermIds().forEach(id => {
-    if (papel === 'admin') {
-      o[id] = true
-    } else if (papel === 'gerente') {
-      o[id] = !id.includes('config.permissoes')
-    } else {
-      o[id] = id.startsWith('vendas.criar') || id.startsWith('vendas.visualizar') || id.startsWith('caixa.') || id.includes('.visualizar')
-    }
-  })
-  return o
-}
-
-function savePerms(papel: string, perms: Record<string, boolean>) {
-  let all: Record<string, Record<string, boolean>> = {}
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) all = JSON.parse(saved)
-  } catch { /* ignore */ }
-  all[papel] = perms
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(all))
-}
-
 export function PermissoesPage() {
   const { user } = useAuth()
-  const { sucesso } = useToast()
-  const [loading, setLoading] = useState(false)
-  const [papel, setPapel] = useState('admin')
-  const [perms, setPerms] = useState<Record<string, boolean>>(() => loadPerms('admin'))
+  const { sucesso, erro } = useToast()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [usuarios, setUsuarios] = useState<User[]>([])
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [perms, setPerms] = useState<Record<string, boolean>>({})
 
-  useEffect(() => {
-    setPerms(loadPerms(papel))
-  }, [papel])
+  const fetchUsuarios = useCallback(async () => {
+    try {
+      const res = await api.get('/usuarios')
+      if (res.success) {
+        setUsuarios(res.data || [])
+        if (res.data?.length > 0 && !selectedUserId) {
+          setSelectedUserId(res.data[0]._id)
+          setPerms(res.data[0].permissoes || {})
+        }
+      }
+    } catch {
+      // Not an admin or no sub-users
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedUserId])
 
-  const setPerm = useCallback((id: string, value: boolean) => {
-    setPerms(prev => ({ ...prev, [id]: value }))
-  }, [])
+  useEffect(() => { fetchUsuarios() }, [fetchUsuarios])
+
+  const handleSelectUser = useCallback((userId: string) => {
+    setSelectedUserId(userId)
+    const u = usuarios.find(u => u._id === userId)
+    setPerms(u?.permissoes || {})
+  }, [usuarios])
 
   const handleMarcarTodos = useCallback(() => {
     setPerms(prev => {
       const next = { ...prev }
-      Object.keys(next).forEach(k => { next[k] = true })
+      PERMISSOES_GRUPOS.forEach(g => g.itens.forEach(i => { next[i.id] = true }))
       return next
     })
   }, [])
@@ -128,23 +104,40 @@ export function PermissoesPage() {
   const handleDesmarcarTodos = useCallback(() => {
     setPerms(prev => {
       const next = { ...prev }
-      Object.keys(next).forEach(k => { next[k] = false })
+      PERMISSOES_GRUPOS.forEach(g => g.itens.forEach(i => { next[i.id] = false }))
       return next
     })
   }, [])
 
-  const handleSave = useCallback(() => {
-    setLoading(true)
+  const handleSave = useCallback(async () => {
+    if (!selectedUserId) return
+    setSaving(true)
     try {
-      savePerms(papel, perms)
-      sucesso(`Permissões do perfil "${PAPEIS.find(p => p.value === papel)?.label}" salvas!`)
+      const res = await api.put(`/usuarios/${selectedUserId}`, { permissoes: perms })
+      if (res.success) {
+        sucesso('Permissoes salvas!')
+        fetchUsuarios()
+      }
+    } catch (err: any) {
+      erro(err.message || 'Erro ao salvar permissoes')
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
-  }, [papel, perms, sucesso])
+  }, [selectedUserId, perms, sucesso, erro, fetchUsuarios])
 
+  const selectedUser = usuarios.find(u => u._id === selectedUserId)
   const ativos = Object.values(perms).filter(Boolean).length
-  const total = Object.keys(perms).length
+  const total = PERMISSOES_GRUPOS.reduce((s, g) => s + g.itens.length, 0)
+
+  if (user?.role !== 'admin') {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        <ShieldCheck className="h-12 w-12 mx-auto mb-3 opacity-30" />
+        <p className="font-medium">Acesso restrito</p>
+        <p className="text-sm mt-1">Apenas administradores podem gerenciar permissoes.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="p-4 md:p-6 pb-24">
@@ -154,87 +147,96 @@ export function PermissoesPage() {
             <ShieldCheck className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-text-primary">
-              Permissões {user?.nome ? `- ${user.nome}` : ''}
-            </h1>
-            <p className="text-sm text-text-secondary">Gerencie as permissões por perfil de usuário.</p>
+            <h1 className="text-xl font-bold text-text-primary">Permissoes</h1>
+            <p className="text-sm text-text-secondary">Gerencie as permissoes de cada usuario.</p>
           </div>
         </div>
 
-        <div className="mt-6 space-y-4">
-          {/* Seletor de Perfil */}
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-card">
-            <h2 className="mb-4 font-semibold text-text-primary">Perfil de Usuário</h2>
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="flex-1 min-w-[200px]">
-                <label className="mb-1 block text-sm font-medium text-text-primary">Papel</label>
-                <select
-                  value={papel}
-                  onChange={(e) => setPapel(e.target.value)}
-                  className="input-field"
-                >
-                  {PAPEIS.map(p => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+          </div>
+        ) : usuarios.length === 0 ? (
+          <div className="mt-6 rounded-xl border border-gray-200 bg-white p-12 text-center shadow-card">
+            <ShieldCheck className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+            <p className="font-medium text-gray-600">Nenhum usuario cadastrado</p>
+            <p className="text-sm text-gray-400 mt-1">Crie usuarios em Configuracoes &gt; Usuarios para gerenciar permissoes.</p>
+          </div>
+        ) : (
+          <div className="mt-6 space-y-4">
+            {/* User Selector */}
+            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-card">
+              <h2 className="mb-4 font-semibold text-text-primary">Selecionar Usuario</h2>
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="flex-1 min-w-[200px]">
+                  <select
+                    value={selectedUserId || ''}
+                    onChange={(e) => handleSelectUser(e.target.value)}
+                    className="input-field"
+                  >
+                    {usuarios.map(u => (
+                      <option key={u._id} value={u._id}>
+                        {u.nome} ({u.role === 'gerente' ? 'Gerente' : 'Caixa'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={handleMarcarTodos} className="text-sm font-medium text-primary hover:underline">
+                    Marcar todos
+                  </button>
+                  <span className="text-text-muted">|</span>
+                  <button type="button" onClick={handleDesmarcarTodos} className="text-sm font-medium text-amber-600 hover:underline">
+                    Desmarcar todos
+                  </button>
+                </div>
+              </div>
+              {selectedUser && (
+                <p className="mt-3 text-sm text-text-secondary">
+                  {ativos} de {total} permissoes ativas para <strong>{selectedUser.nome}</strong>
+                </p>
+              )}
+            </div>
+
+            {/* Permission Groups */}
+            {PERMISSOES_GRUPOS.map(grupo => (
+              <div key={grupo.titulo} className="rounded-xl border border-gray-200 bg-white p-6 shadow-card">
+                <h3 className="mb-4 font-semibold text-text-primary">{grupo.titulo}</h3>
+                <ul className="space-y-3">
+                  {grupo.itens.map(p => (
+                    <li key={p.id} className="flex items-center justify-between">
+                      <span className="text-sm text-text-primary">{p.label}</span>
+                      <Switch
+                        id={p.id}
+                        checked={perms[p.id] ?? false}
+                        onChange={(v) => setPerms(prev => ({ ...prev, [p.id]: v }))}
+                        rightLabel="Sim"
+                        leftLabel="Nao"
+                      />
+                    </li>
                   ))}
-                </select>
+                </ul>
               </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={handleMarcarTodos} className="text-sm font-medium text-primary hover:underline">
-                  Marcar todos
-                </button>
-                <span className="text-text-muted">|</span>
-                <button type="button" onClick={handleDesmarcarTodos} className="text-sm font-medium text-amber-600 hover:underline">
-                  Desmarcar todos
-                </button>
-              </div>
-            </div>
-            <p className="mt-3 text-sm text-text-secondary">
-              {ativos} de {total} permissões ativas
-            </p>
+            ))}
           </div>
+        )}
 
-          {papel === 'admin' && (
-            <div className="rounded-xl border border-primary/30 bg-primary-pale px-4 py-3 text-sm text-text-primary">
-              O perfil <strong>Administrador</strong> possui acesso total ao sistema. Algumas permissões não podem ser desabilitadas.
-            </div>
-          )}
-
-          {/* Grupos de Permissões */}
-          {PERMISSOES_GRUPOS.map(grupo => (
-            <div key={grupo.titulo} className="rounded-xl border border-gray-200 bg-white p-6 shadow-card">
-              <h3 className="mb-4 font-semibold text-text-primary">{grupo.titulo}</h3>
-              <ul className="space-y-3">
-                {grupo.itens.map(p => (
-                  <li key={p.id} className="flex items-center justify-between">
-                    <span className="text-sm text-text-primary">{p.label}</span>
-                    <Switch
-                      id={p.id}
-                      checked={perms[p.id] ?? false}
-                      onChange={(v) => setPerm(p.id, v)}
-                      rightLabel="Sim"
-                      leftLabel="Não"
-                    />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        {/* Botões */}
-        <div className="mt-6 flex justify-end gap-3">
-          <button type="button" onClick={() => setPerms(loadPerms(papel))} className="btn-secondary">
-            <X className="h-4 w-4" /> Cancelar
-          </button>
-          <button type="button" onClick={handleSave} disabled={loading} className="btn-primary">
-            {loading ? (
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            Salvar
-          </button>
-        </div>
+        {/* Save */}
+        {usuarios.length > 0 && (
+          <div className="mt-6 flex justify-end gap-3">
+            <button type="button" onClick={() => { if (selectedUser) setPerms(selectedUser.permissoes || {}) }} className="btn-secondary">
+              <X className="h-4 w-4" /> Cancelar
+            </button>
+            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
+              {saving ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Salvar
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

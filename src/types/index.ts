@@ -14,6 +14,8 @@ export interface User {
   criadoEm: string
   ultimoLogin?: string
   empresa?: EmpresaInfo
+  adminId?: string
+  permissoes?: Record<string, boolean>
 }
 
 export interface EmpresaInfo {
@@ -23,6 +25,7 @@ export interface EmpresaInfo {
   endereco?: string
   cidade?: string
   estado?: string
+  logoBase64?: string
 }
 
 // ---- Produto ----

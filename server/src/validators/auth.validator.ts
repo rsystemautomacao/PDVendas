@@ -33,6 +33,7 @@ export const updateUserSchema = z.object({
     endereco: z.string().optional(),
     cidade: z.string().optional(),
     estado: z.string().optional(),
+    logoBase64: z.string().optional(),
   }).optional(),
 }).refine(
   (data) => {
