@@ -67,15 +67,26 @@ export function ProdutoFormPage() {
     }
   }, [modoVenda])
 
+  // Handler do codigo de barras: limita a 7 digitos no modo balanca
+  const handleCodigoBarrasChange = useCallback((value: string) => {
+    if (modoVenda === 'balanca') {
+      // Apenas digitos, max 7
+      const clean = value.replace(/\D/g, '').substring(0, 7)
+      setCodigoBarras(clean)
+    } else {
+      setCodigoBarras(value)
+    }
+  }, [modoVenda])
+
   const validate = useCallback(() => {
     const next: Record<string, string> = {}
     if (!nome.trim()) next.nome = 'Nome e obrigatorio'
     if (!preco || parseFloat(preco) <= 0) next.preco = 'Preco e obrigatorio'
     if (modoVenda === 'balanca' && !codigoBarras.trim()) {
-      next.codigoBarras = 'Codigo de barras e obrigatorio para produtos de balanca'
+      next.codigoBarras = 'Codigo PLU e obrigatorio para produtos de balanca'
     }
-    if (modoVenda === 'balanca' && codigoBarras.trim() && codigoBarras.trim().length < 7) {
-      next.codigoBarras = 'Codigo PLU da balanca deve ter pelo menos 7 digitos'
+    if (modoVenda === 'balanca' && codigoBarras.trim() && codigoBarras.trim().length !== 7) {
+      next.codigoBarras = 'Codigo PLU deve ter exatamente 7 digitos'
     }
     setErrors(next)
     return Object.keys(next).length === 0
@@ -136,24 +147,6 @@ export function ProdutoFormPage() {
               {errors.nome && <p className="text-xs text-red-500 mt-1">{errors.nome}</p>}
             </div>
 
-            {/* Codigo */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Codigo</label>
-              <input type="text" value={codigo} onChange={e => setCodigo(e.target.value)}
-                placeholder="Codigo interno (auto se vazio)" className="input-field" />
-            </div>
-
-            {/* Codigo de barras */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                {modoVenda === 'balanca' ? 'Codigo PLU da Balanca *' : 'Codigo de Barras'}
-              </label>
-              <input type="text" value={codigoBarras} onChange={e => setCodigoBarras(e.target.value)}
-                placeholder={modoVenda === 'balanca' ? 'Ex: 2001234 (7 digitos PLU)' : 'EAN/GTIN'}
-                className={`input-field ${errors.codigoBarras ? 'border-red-500' : ''}`} />
-              {errors.codigoBarras && <p className="text-xs text-red-500 mt-1">{errors.codigoBarras}</p>}
-            </div>
-
             {/* Tipo */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Tipo</label>
@@ -179,13 +172,13 @@ export function ProdutoFormPage() {
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="radio" checked={modoVenda === 'normal'} onChange={() => setModoVenda('normal')}
                       className="text-primary focus:ring-primary" />
-                    <span className="text-sm">Normal</span>
+                    <span className="text-sm">Codigo padrao</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="radio" checked={modoVenda === 'balanca'} onChange={() => setModoVenda('balanca')}
                       className="text-primary focus:ring-primary" />
                     <Scale className="h-4 w-4 text-amber-600" />
-                    <span className="text-sm">Balanca (pesavel)</span>
+                    <span className="text-sm">Balanca</span>
                   </label>
                 </div>
               </div>
@@ -198,12 +191,37 @@ export function ProdutoFormPage() {
                   <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-amber-800">
                     <p className="font-semibold mb-1">Produto de Balanca</p>
-                    <p>O codigo de barras sera usado como PLU (primeiros 7 digitos). Quando a balanca gerar o codigo completo (13 digitos), o PDV extrai automaticamente o peso e calcula o valor.</p>
-                    <p className="mt-1 text-xs text-amber-600">Formato: 2PPPPP + VVVVV + D (P=PLU, V=valor/peso, D=digito verificador)</p>
+                    <p>Cadastre apenas os 7 primeiros digitos do codigo de barras (PLU). Quando a balanca gerar o codigo completo (13 digitos), o PDV extrai automaticamente o valor total da etiqueta.</p>
+                    <p className="mt-1 text-xs text-amber-600">Formato da etiqueta: 2PPPPP + VVVVV + D (P=PLU, V=valor em centavos, D=verificador)</p>
                   </div>
                 </div>
               </div>
             )}
+
+            {/* Codigo */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Codigo</label>
+              <input type="text" value={codigo} onChange={e => setCodigo(e.target.value)}
+                placeholder="Codigo interno (auto se vazio)" className="input-field" />
+            </div>
+
+            {/* Codigo de barras / PLU */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                {modoVenda === 'balanca' ? 'Codigo PLU da Balanca * (7 digitos)' : 'Codigo de Barras'}
+              </label>
+              <input type="text" value={codigoBarras} onChange={e => handleCodigoBarrasChange(e.target.value)}
+                placeholder={modoVenda === 'balanca' ? 'Ex: 2124900' : 'EAN/GTIN'}
+                maxLength={modoVenda === 'balanca' ? 7 : undefined}
+                className={`input-field ${errors.codigoBarras ? 'border-red-500' : ''}`} />
+              {errors.codigoBarras && <p className="text-xs text-red-500 mt-1">{errors.codigoBarras}</p>}
+              {modoVenda === 'balanca' && codigoBarras.length > 0 && codigoBarras.length < 7 && (
+                <p className="text-xs text-amber-500 mt-1">{codigoBarras.length}/7 digitos</p>
+              )}
+              {modoVenda === 'balanca' && codigoBarras.length === 7 && (
+                <p className="text-xs text-green-600 mt-1">PLU completo</p>
+              )}
+            </div>
 
             {/* Preco */}
             <div>

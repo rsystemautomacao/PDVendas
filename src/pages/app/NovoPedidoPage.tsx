@@ -78,7 +78,8 @@ export function NovoPedidoPage() {
           result.produto.nome,
           result.produto.codigo,
           result.peso,
-          result.produto.preco
+          result.produto.preco,
+          result.valorTotal
         )
         setSearchTerm('')
         setShowResults(false)

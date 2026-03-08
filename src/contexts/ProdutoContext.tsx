@@ -72,22 +72,20 @@ export function ProdutoProvider({ children }: { children: ReactNode }) {
     const parsed = parseCodigoBalanca(codigoCompleto)
     if (!parsed) return null
 
-    // Buscar produto pelo PLU (primeiros 7 digitos do codigo de barras)
+    // Buscar produto pelo PLU (primeiros 7 digitos do codigo de barras cadastrado)
     const produto = produtos.find(p =>
       p.ativo &&
       p.modoVenda === 'balanca' &&
       p.codigoBarras &&
-      p.codigoBarras.startsWith(parsed.plu.substring(0, 2)) &&
-      (p.codigoBarras === parsed.plu ||
-       p.codigoBarras.substring(0, 7) === parsed.plu ||
-       parsed.plu.startsWith(p.codigoBarras.substring(0, 7)))
+      p.codigoBarras === parsed.plu
     )
 
     if (!produto) return null
 
-    // Calcular valor: peso (em kg) * preco por kg
-    const peso = parsed.peso
-    const valorTotal = peso * produto.preco
+    // O codigo da balanca embute o VALOR TOTAL (em centavos), nao o peso
+    // Peso = valorTotal / precoKg
+    const valorTotal = parsed.valorTotal
+    const peso = produto.preco > 0 ? Math.round((valorTotal / produto.preco) * 1000) / 1000 : 0
 
     return { produto, peso, valorTotal }
   }, [produtos])

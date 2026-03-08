@@ -166,8 +166,13 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * Formato: 2PPPPP VVVVV D
  *  - 2 = prefixo de balanca
  *  - PPPPP = codigo PLU do produto (5 digitos)
- *  - VVVVV = valor em centavos OU peso em gramas (5 digitos)
+ *  - VVVVV = valor total em centavos (5 digitos)
  *  - D = digito verificador
+ *
+ * Exemplo real: 2124900001061
+ *  - PLU: 2124900
+ *  - Valor: 00106 → R$ 1,06
+ *  - D: 1
  */
 export function isCodigoBalanca(codigo: string): boolean {
   const clean = codigo.replace(/\D/g, '')
@@ -175,23 +180,23 @@ export function isCodigoBalanca(codigo: string): boolean {
 }
 
 /**
- * Extrai o PLU (codigo do produto) e o valor/peso de um codigo de balanca.
- * Retorna { plu, valor } onde:
- *  - plu = os primeiros 7 digitos (prefixo "2" + 5 digitos PLU + 1 digito separador)
- *    Usa os primeiros 7 chars para buscar no cadastro
- *  - valor = os 5 digitos seguintes interpretados como reais (VVVVV / 100)
- *  - peso = os 5 digitos seguintes interpretados como peso (VVVVV / 1000)
+ * Extrai o PLU (codigo do produto) e o valor total de um codigo de balanca.
+ * O codigo da balanca embute o VALOR TOTAL (em centavos), nao o peso.
+ * Para obter o peso: valor / precoKg.
+ *
+ * @returns { plu, valorTotal } onde:
+ *  - plu = primeiros 7 digitos (usado para buscar o produto cadastrado)
+ *  - valorTotal = valor em reais (VVVVV / 100)
  */
-export function parseCodigoBalanca(codigo: string): { plu: string; valor: number; peso: number } | null {
+export function parseCodigoBalanca(codigo: string): { plu: string; valorTotal: number } | null {
   const clean = codigo.replace(/\D/g, '')
   if (!isCodigoBalanca(clean)) return null
 
   const plu = clean.substring(0, 7) // 2 + PPPPP + 1 digito
   const valorDigits = clean.substring(7, 12)
-  const valor = parseInt(valorDigits) / 100  // em reais (centavos)
-  const peso = parseInt(valorDigits) / 1000  // em kg (gramas)
+  const valorTotal = parseInt(valorDigits) / 100  // centavos → reais
 
-  return { plu, valor, peso }
+  return { plu, valorTotal }
 }
 
 // ---- Datas helpers ----
