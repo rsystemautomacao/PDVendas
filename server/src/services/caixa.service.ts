@@ -17,7 +17,7 @@ export const caixaService = {
     return Caixa.findOne({ status: 'aberto', empresaId });
   },
 
-  async open(operadorId: string, operadorNome: string, valorAbertura: number, observacoes?: string, empresaId?: string) {
+  async open(operadorId: string, operadorNome: string, valorAbertura: number, empresaId: string, observacoes?: string) {
     const existing = await Caixa.findOne({ status: 'aberto', empresaId });
     if (existing) throw new AppError('Já existe um caixa aberto', 409);
 
@@ -34,7 +34,7 @@ export const caixaService = {
     });
   },
 
-  async close(id: string, observacoes?: string, empresaId?: string) {
+  async close(id: string, empresaId: string, observacoes?: string) {
     const caixa = await Caixa.findOne({ _id: id, empresaId });
     if (!caixa) throw new AppError('Caixa não encontrado', 404);
     if (caixa.status === 'fechado') throw new AppError('Caixa já está fechado', 400);
