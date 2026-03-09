@@ -6,9 +6,10 @@ import { AppError } from '../middleware/errorHandler';
 import { getNextSequence } from './counter.service';
 
 export const vendaService = {
-  async list(query: any) {
+  async list(query: any, empresaId: string) {
     const { de, ate, clienteId, status, vendedorId, page = 1, limit = 50 } = query;
     const filter: any = {};
+    filter.empresaId = empresaId;
 
     if (de || ate) {
       filter.criadoEm = {};
@@ -36,30 +37,31 @@ export const vendaService = {
     };
   },
 
-  async getById(id: string) {
-    const venda = await Venda.findById(id);
+  async getById(id: string, empresaId: string) {
+    const venda = await Venda.findOne({ _id: id, empresaId });
     if (!venda) throw new AppError('Venda não encontrada', 404);
     return venda;
   },
 
-  async create(data: any, vendedorId: string, vendedorNome: string) {
+  async create(data: any, vendedorId: string, vendedorNome: string, empresaId: string) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
       // Verificar caixa aberto
-      const caixa = await Caixa.findById(data.caixaId).session(session);
+      const caixa = await Caixa.findOne({ _id: data.caixaId, empresaId }).session(session);
       if (!caixa || caixa.status !== 'aberto') {
         throw new AppError('Caixa não está aberto', 400);
       }
 
       // Gerar número sequencial
-      const numero = await getNextSequence('venda_num');
+      const numero = await getNextSequence('venda_num', empresaId);
 
       // Criar venda
       const [venda] = await Venda.create(
         [{
           ...data,
+          empresaId,
           numero,
           vendedorId,
           vendedorNome,
@@ -70,8 +72,8 @@ export const vendaService = {
       // Atualizar estoque de cada item
       if (data.status === 'finalizada') {
         for (const item of data.itens) {
-          const result = await Produto.findByIdAndUpdate(
-            item.produtoId,
+          const result = await Produto.findOneAndUpdate(
+            { _id: item.produtoId, empresaId },
             { $inc: { estoque: -item.quantidade } },
             { session }
           );
@@ -99,27 +101,27 @@ export const vendaService = {
     }
   },
 
-  async cancel(id: string, motivo: string) {
+  async cancel(id: string, motivo: string, empresaId: string) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-      const venda = await Venda.findById(id).session(session);
+      const venda = await Venda.findOne({ _id: id, empresaId }).session(session);
       if (!venda) throw new AppError('Venda não encontrada', 404);
       if (venda.status === 'cancelada') throw new AppError('Venda já está cancelada', 400);
 
       // Restaurar estoque
       if (venda.status === 'finalizada') {
         for (const item of [...venda.itens]) {
-          await Produto.findByIdAndUpdate(
-            item.produtoId,
+          await Produto.findOneAndUpdate(
+            { _id: item.produtoId, empresaId },
             { $inc: { estoque: item.quantidade } },
             { session }
           );
         }
 
         // Registrar estorno no caixa
-        const caixa = await Caixa.findById(venda.caixaId).session(session);
+        const caixa = await Caixa.findOne({ _id: venda.caixaId, empresaId }).session(session);
         if (caixa && caixa.status === 'aberto') {
           caixa.movimentacoes.push({
             tipo: 'estorno',
@@ -147,20 +149,21 @@ export const vendaService = {
     }
   },
 
-  async getToday() {
+  async getToday(empresaId: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     return Venda.find({
+      empresaId,
       criadoEm: { $gte: today, $lt: tomorrow },
       status: 'finalizada',
     }).sort({ criadoEm: -1 });
   },
 
-  async getStats(de?: string, ate?: string) {
-    const match: any = { status: 'finalizada' };
+  async getStats(de?: string, ate?: string, empresaId?: string) {
+    const match: any = { status: 'finalizada', empresaId: new mongoose.Types.ObjectId(empresaId) };
     if (de || ate) {
       match.criadoEm = {};
       if (de) match.criadoEm.$gte = new Date(de + 'T00:00:00.000Z');

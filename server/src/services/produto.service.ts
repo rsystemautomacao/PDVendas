@@ -2,9 +2,10 @@ import { Produto } from '../models/Produto';
 import { AppError } from '../middleware/errorHandler';
 
 export const produtoService = {
-  async list(query: any) {
+  async list(query: any, empresaId: string) {
     const { busca, tipo, ativo, grupo, page = 1, limit = 50 } = query;
     const filter: any = {};
+    filter.empresaId = empresaId;
 
     if (busca) {
       filter.$or = [
@@ -34,30 +35,30 @@ export const produtoService = {
     };
   },
 
-  async getById(id: string) {
-    const produto = await Produto.findById(id);
+  async getById(id: string, empresaId: string) {
+    const produto = await Produto.findOne({ _id: id, empresaId });
     if (!produto) throw new AppError('Produto não encontrado', 404);
     return produto;
   },
 
-  async create(data: any) {
-    return Produto.create(data);
+  async create(data: any, empresaId: string) {
+    return Produto.create({ ...data, empresaId });
   },
 
-  async update(id: string, data: any) {
-    const produto = await Produto.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+  async update(id: string, data: any, empresaId: string) {
+    const produto = await Produto.findOneAndUpdate({ _id: id, empresaId }, data, { new: true, runValidators: true });
     if (!produto) throw new AppError('Produto não encontrado', 404);
     return produto;
   },
 
-  async remove(id: string) {
-    const produto = await Produto.findByIdAndDelete(id);
+  async remove(id: string, empresaId: string) {
+    const produto = await Produto.findOneAndDelete({ _id: id, empresaId });
     if (!produto) throw new AppError('Produto não encontrado', 404);
     return produto;
   },
 
-  async updateStock(id: string, quantidade: number, operacao: string = 'set') {
-    const produto = await Produto.findById(id);
+  async updateStock(id: string, quantidade: number, operacao: string = 'set', empresaId: string) {
+    const produto = await Produto.findOne({ _id: id, empresaId });
     if (!produto) throw new AppError('Produto não encontrado', 404);
 
     if (operacao === 'add') {
@@ -71,8 +72,9 @@ export const produtoService = {
     return produto;
   },
 
-  async getLowStock() {
+  async getLowStock(empresaId: string) {
     return Produto.find({
+      empresaId,
       ativo: true,
       tipo: 'produto',
       $expr: { $lte: ['$estoque', '$estoqueMinimo'] },

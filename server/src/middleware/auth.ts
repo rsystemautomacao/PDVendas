@@ -1,11 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
+import { User } from '../models/User';
 
 export interface JwtPayload {
   _id: string;
   email: string;
   role: string;
+  empresaId: string;
 }
 
 // Estender Request do Express com user
@@ -19,8 +21,9 @@ declare global {
 
 /**
  * Middleware que verifica o token JWT no header Authorization.
+ * Resolve empresaId: admin = proprio _id, sub-user = adminId.
  */
-export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -33,8 +36,23 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
-    req.user = decoded;
+    const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload & { empresaId?: string };
+
+    if (decoded.empresaId) {
+      // Token novo: já tem empresaId
+      req.user = decoded as JwtPayload;
+    } else {
+      // Token antigo (sem empresaId): resolver via DB
+      const user = await User.findById(decoded._id).lean();
+      if (!user) {
+        return res.status(401).json({ success: false, error: 'Usuário não encontrado' });
+      }
+      const empresaId = user.role === 'admin'
+        ? user._id.toString()
+        : (user.adminId ? user.adminId.toString() : user._id.toString());
+      req.user = { ...decoded, empresaId };
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({

@@ -2,6 +2,7 @@ import mongoose, { Schema } from 'mongoose';
 
 const notificacaoSchema = new Schema(
   {
+    empresaId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     titulo: { type: String, required: true },
     mensagem: { type: String, required: true },
     tipo: { type: String, enum: ['info', 'sucesso', 'alerta', 'erro'], default: 'info' },

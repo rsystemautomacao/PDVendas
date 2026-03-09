@@ -37,7 +37,8 @@ const itemOrcamentoSchema = new Schema(
 
 const orcamentoSchema = new Schema(
   {
-    numero: { type: Number, required: true, unique: true },
+    empresaId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    numero: { type: Number, required: true },
     clienteId: { type: Schema.Types.ObjectId, ref: 'Cliente' },
     clienteNome: { type: String, required: true },
     clienteTelefone: String,
@@ -62,5 +63,7 @@ const orcamentoSchema = new Schema(
     timestamps: { createdAt: 'criadoEm', updatedAt: 'atualizadoEm' },
   }
 );
+
+orcamentoSchema.index({ empresaId: 1, numero: 1 }, { unique: true });
 
 export const Orcamento = mongoose.model('Orcamento', orcamentoSchema);

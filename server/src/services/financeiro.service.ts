@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { ContaPagar } from '../models/ContaPagar';
 import { ContaReceber } from '../models/ContaReceber';
 import { Despesa } from '../models/Despesa';
@@ -5,9 +6,10 @@ import { AppError } from '../middleware/errorHandler';
 
 export const financeiroService = {
   // ===== CONTAS A PAGAR =====
-  async listCP(query: any) {
+  async listCP(query: any, empresaId: string) {
     const { de, ate, pago, page = 1, limit = 50 } = query;
     const filter: any = {};
+    filter.empresaId = empresaId;
     if (de) filter.vencimento = { ...filter.vencimento, $gte: de };
     if (ate) filter.vencimento = { ...filter.vencimento, $lte: ate };
     if (pago !== undefined) filter.pago = pago === 'true';
@@ -20,12 +22,12 @@ export const financeiroService = {
     return { data, pagination: { total, page: Number(page), limit: Number(limit), pages: Math.ceil(total / Number(limit)) } };
   },
 
-  async createCP(data: any) {
-    return ContaPagar.create(data);
+  async createCP(data: any, empresaId: string) {
+    return ContaPagar.create({ ...data, empresaId });
   },
 
-  async payCP(id: string) {
-    const conta = await ContaPagar.findById(id);
+  async payCP(id: string, empresaId: string) {
+    const conta = await ContaPagar.findOne({ _id: id, empresaId });
     if (!conta) throw new AppError('Conta não encontrada', 404);
     conta.pago = true;
     conta.pagoEm = new Date().toISOString().split('T')[0];
@@ -34,16 +36,17 @@ export const financeiroService = {
     return conta;
   },
 
-  async deleteCP(id: string) {
-    const conta = await ContaPagar.findByIdAndDelete(id);
+  async deleteCP(id: string, empresaId: string) {
+    const conta = await ContaPagar.findOneAndDelete({ _id: id, empresaId });
     if (!conta) throw new AppError('Conta não encontrada', 404);
     return conta;
   },
 
   // ===== CONTAS A RECEBER =====
-  async listCR(query: any) {
+  async listCR(query: any, empresaId: string) {
     const { de, ate, recebido, page = 1, limit = 50 } = query;
     const filter: any = {};
+    filter.empresaId = empresaId;
     if (de) filter.vencimento = { ...filter.vencimento, $gte: de };
     if (ate) filter.vencimento = { ...filter.vencimento, $lte: ate };
     if (recebido !== undefined) filter.recebido = recebido === 'true';
@@ -56,12 +59,12 @@ export const financeiroService = {
     return { data, pagination: { total, page: Number(page), limit: Number(limit), pages: Math.ceil(total / Number(limit)) } };
   },
 
-  async createCR(data: any) {
-    return ContaReceber.create(data);
+  async createCR(data: any, empresaId: string) {
+    return ContaReceber.create({ ...data, empresaId });
   },
 
-  async receiveCR(id: string) {
-    const conta = await ContaReceber.findById(id);
+  async receiveCR(id: string, empresaId: string) {
+    const conta = await ContaReceber.findOne({ _id: id, empresaId });
     if (!conta) throw new AppError('Conta não encontrada', 404);
     conta.recebido = true;
     conta.recebidoEm = new Date().toISOString().split('T')[0];
@@ -70,16 +73,17 @@ export const financeiroService = {
     return conta;
   },
 
-  async deleteCR(id: string) {
-    const conta = await ContaReceber.findByIdAndDelete(id);
+  async deleteCR(id: string, empresaId: string) {
+    const conta = await ContaReceber.findOneAndDelete({ _id: id, empresaId });
     if (!conta) throw new AppError('Conta não encontrada', 404);
     return conta;
   },
 
   // ===== DESPESAS =====
-  async listDespesas(query: any) {
+  async listDespesas(query: any, empresaId: string) {
     const { de, ate, tipo, pago, page = 1, limit = 50 } = query;
     const filter: any = {};
+    filter.empresaId = empresaId;
     if (de) filter.vencimento = { ...filter.vencimento, $gte: de };
     if (ate) filter.vencimento = { ...filter.vencimento, $lte: ate };
     if (tipo) filter.tipo = tipo;
@@ -93,24 +97,24 @@ export const financeiroService = {
     return { data, pagination: { total, page: Number(page), limit: Number(limit), pages: Math.ceil(total / Number(limit)) } };
   },
 
-  async getDespesa(id: string) {
-    const despesa = await Despesa.findById(id);
+  async getDespesa(id: string, empresaId: string) {
+    const despesa = await Despesa.findOne({ _id: id, empresaId });
     if (!despesa) throw new AppError('Despesa não encontrada', 404);
     return despesa;
   },
 
-  async createDespesa(data: any) {
-    return Despesa.create(data);
+  async createDespesa(data: any, empresaId: string) {
+    return Despesa.create({ ...data, empresaId });
   },
 
-  async updateDespesa(id: string, data: any) {
-    const despesa = await Despesa.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+  async updateDespesa(id: string, data: any, empresaId: string) {
+    const despesa = await Despesa.findOneAndUpdate({ _id: id, empresaId }, data, { new: true, runValidators: true });
     if (!despesa) throw new AppError('Despesa não encontrada', 404);
     return despesa;
   },
 
-  async payDespesa(id: string) {
-    const despesa = await Despesa.findById(id);
+  async payDespesa(id: string, empresaId: string) {
+    const despesa = await Despesa.findOne({ _id: id, empresaId });
     if (!despesa) throw new AppError('Despesa não encontrada', 404);
     despesa.pago = true;
     despesa.pagoEm = new Date().toISOString().split('T')[0];
@@ -118,15 +122,16 @@ export const financeiroService = {
     return despesa;
   },
 
-  async deleteDespesa(id: string) {
-    const despesa = await Despesa.findByIdAndDelete(id);
+  async deleteDespesa(id: string, empresaId: string) {
+    const despesa = await Despesa.findOneAndDelete({ _id: id, empresaId });
     if (!despesa) throw new AppError('Despesa não encontrada', 404);
     return despesa;
   },
 
   // ===== RESUMO =====
-  async summary() {
+  async summary(empresaId: string) {
     const hoje = new Date().toISOString().split('T')[0];
+    const empresaObjId = new mongoose.Types.ObjectId(empresaId);
 
     const [
       totalAPagar,
@@ -134,10 +139,10 @@ export const financeiroService = {
       totalDespesasPendentes,
       contasVencidas,
     ] = await Promise.all([
-      ContaPagar.aggregate([{ $match: { pago: false } }, { $group: { _id: null, total: { $sum: '$valor' } } }]),
-      ContaReceber.aggregate([{ $match: { recebido: false } }, { $group: { _id: null, total: { $sum: '$valor' } } }]),
-      Despesa.aggregate([{ $match: { pago: false } }, { $group: { _id: null, total: { $sum: '$valor' } } }]),
-      ContaPagar.countDocuments({ pago: false, vencimento: { $lt: hoje } }),
+      ContaPagar.aggregate([{ $match: { pago: false, empresaId: empresaObjId } }, { $group: { _id: null, total: { $sum: '$valor' } } }]),
+      ContaReceber.aggregate([{ $match: { recebido: false, empresaId: empresaObjId } }, { $group: { _id: null, total: { $sum: '$valor' } } }]),
+      Despesa.aggregate([{ $match: { pago: false, empresaId: empresaObjId } }, { $group: { _id: null, total: { $sum: '$valor' } } }]),
+      ContaPagar.countDocuments({ pago: false, empresaId, vencimento: { $lt: hoje } }),
     ]);
 
     return {

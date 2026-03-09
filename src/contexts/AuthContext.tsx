@@ -9,6 +9,7 @@ const USER_KEY = 'meupdv_current_user'
 interface AuthContextType {
   user: User | null
   loading: boolean
+  needsOnboarding: boolean
   login: (email: string, senha: string) => Promise<{ ok: boolean; error?: string }>
   register: (dados: { nome: string; email: string; senha: string; empresa?: string }) => Promise<{ ok: boolean; error?: string }>
   logout: () => void
@@ -107,8 +108,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const needsOnboarding = !!(user && user.role === 'admin' && !user.empresaSetupComplete)
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, needsOnboarding, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

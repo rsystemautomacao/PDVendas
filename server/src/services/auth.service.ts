@@ -5,8 +5,12 @@ import { env } from '../config/env';
 import { AppError } from '../middleware/errorHandler';
 
 function generateToken(user: any): string {
+  const empresaId = user.role === 'admin'
+    ? user._id.toString()
+    : (user.adminId ? user.adminId.toString() : user._id.toString());
+
   return jwt.sign(
-    { _id: user._id.toString(), email: user.email, role: user.role },
+    { _id: user._id.toString(), email: user.email, role: user.role, empresaId },
     env.JWT_SECRET,
     { expiresIn: env.JWT_EXPIRES_IN as any }
   );
@@ -19,7 +23,13 @@ export const authService = {
 
     const user = await User.create(data);
     const token = generateToken(user);
-    return { user: user.toJSON(), token };
+    const json = user.toJSON();
+    const empresaSetupComplete = !!(
+      user.empresa?.nome &&
+      user.empresa?.cnpj &&
+      user.empresa.cnpj.replace(/\D/g, '').length === 14
+    );
+    return { user: { ...json, empresaSetupComplete }, token };
   },
 
   async login(email: string, senha: string) {
@@ -34,13 +44,26 @@ export const authService = {
     await user.save();
 
     const token = generateToken(user);
-    return { user: user.toJSON(), token };
+    const loginJson = user.toJSON();
+    const loginSetupComplete = !!(
+      user.empresa?.nome &&
+      user.empresa?.cnpj &&
+      user.empresa.cnpj.replace(/\D/g, '').length === 14
+    );
+    return { user: { ...loginJson, empresaSetupComplete: loginSetupComplete }, token };
   },
 
   async getMe(userId: string) {
     const user = await User.findById(userId);
     if (!user) throw new AppError('Usuário não encontrado', 404);
-    return user.toJSON();
+    const json = user.toJSON();
+    // Verificar se perfil da empresa esta completo
+    const empresaSetupComplete = !!(
+      user.empresa?.nome &&
+      user.empresa?.cnpj &&
+      user.empresa.cnpj.replace(/\D/g, '').length === 14
+    );
+    return { ...json, empresaSetupComplete };
   },
 
   async updateMe(userId: string, data: any) {
@@ -62,7 +85,13 @@ export const authService = {
     if (data.empresa) user.empresa = { ...(user.empresa as any), ...data.empresa };
 
     await user.save();
-    return user.toJSON();
+    const json = user.toJSON();
+    const empresaSetupComplete = !!(
+      user.empresa?.nome &&
+      user.empresa?.cnpj &&
+      user.empresa.cnpj.replace(/\D/g, '').length === 14
+    );
+    return { ...json, empresaSetupComplete };
   },
 
   async requestReset(email: string) {

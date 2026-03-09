@@ -36,6 +36,7 @@ import { ParametrosPage } from './pages/app/config/ParametrosPage'
 import { PermissoesPage } from './pages/app/config/PermissoesPage'
 import { UsuariosPage } from './pages/app/config/UsuariosPage'
 import { MinhaAssinaturaPage } from './pages/app/config/MinhaAssinaturaPage'
+import { OnboardingPage } from './pages/app/OnboardingPage'
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
       <Route path="/register/step-3" element={<RegisterStep3 />} />
       <Route path="/forgot" element={<ForgotPassword />} />
       <Route path="/app" element={<AppLayout />}>
+        <Route path="onboarding" element={<OnboardingPage />} />
         <Route index element={<DashboardPage />} />
         <Route path="clientes" element={<ClientesPage />} />
         <Route path="clientes/relatorios" element={<RelatoriosMenuPage />} />

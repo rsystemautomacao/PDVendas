@@ -2,6 +2,7 @@ import mongoose, { Schema } from 'mongoose';
 
 const despesaSchema = new Schema(
   {
+    empresaId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     nome: { type: String, required: [true, 'Nome é obrigatório'] },
     fornecedor: String,
     tipo: { type: String, enum: ['fixa', 'variavel'], default: 'variavel' },

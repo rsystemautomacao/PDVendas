@@ -14,6 +14,7 @@ export interface User {
   criadoEm: string
   ultimoLogin?: string
   empresa?: EmpresaInfo
+  empresaSetupComplete?: boolean
   adminId?: string
   permissoes?: Record<string, boolean>
 }

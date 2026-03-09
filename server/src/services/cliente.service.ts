@@ -2,9 +2,10 @@ import { Cliente } from '../models/Cliente';
 import { AppError } from '../middleware/errorHandler';
 
 export const clienteService = {
-  async list(query: any) {
+  async list(query: any, empresaId: string) {
     const { busca, tipo, ativo, page = 1, limit = 50 } = query;
     const filter: any = {};
+    filter.empresaId = empresaId;
 
     if (busca) {
       filter.$or = [
@@ -33,31 +34,31 @@ export const clienteService = {
     };
   },
 
-  async getById(id: string) {
-    const cliente = await Cliente.findById(id);
+  async getById(id: string, empresaId: string) {
+    const cliente = await Cliente.findOne({ _id: id, empresaId });
     if (!cliente) throw new AppError('Cliente não encontrado', 404);
     return cliente;
   },
 
-  async create(data: any) {
-    return Cliente.create(data);
+  async create(data: any, empresaId: string) {
+    return Cliente.create({ ...data, empresaId });
   },
 
-  async update(id: string, data: any) {
-    const cliente = await Cliente.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+  async update(id: string, data: any, empresaId: string) {
+    const cliente = await Cliente.findOneAndUpdate({ _id: id, empresaId }, data, { new: true, runValidators: true });
     if (!cliente) throw new AppError('Cliente não encontrado', 404);
     return cliente;
   },
 
-  async remove(id: string) {
-    const cliente = await Cliente.findByIdAndDelete(id);
+  async remove(id: string, empresaId: string) {
+    const cliente = await Cliente.findOneAndDelete({ _id: id, empresaId });
     if (!cliente) throw new AppError('Cliente não encontrado', 404);
     return cliente;
   },
 
-  async updateSaldo(id: string, saldoDevedor: number) {
-    const cliente = await Cliente.findByIdAndUpdate(
-      id,
+  async updateSaldo(id: string, saldoDevedor: number, empresaId: string) {
+    const cliente = await Cliente.findOneAndUpdate(
+      { _id: id, empresaId },
       { saldoDevedor },
       { new: true, runValidators: true }
     );

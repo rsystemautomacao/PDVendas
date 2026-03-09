@@ -5,9 +5,10 @@ import { AppError } from '../middleware/errorHandler';
 import { getNextSequence } from './counter.service';
 
 export const osService = {
-  async list(query: any) {
+  async list(query: any, empresaId: string) {
     const { de, ate, clienteId, status, tecnicoId, prioridade, page = 1, limit = 50 } = query;
     const filter: any = {};
+    filter.empresaId = empresaId;
 
     if (de || ate) {
       filter.criadoEm = {};
@@ -36,20 +37,20 @@ export const osService = {
     };
   },
 
-  async getById(id: string) {
-    const os = await OrdemServico.findById(id);
+  async getById(id: string, empresaId: string) {
+    const os = await OrdemServico.findOne({ _id: id, empresaId });
     if (!os) throw new AppError('Ordem de serviço não encontrada', 404);
     return os;
   },
 
-  async create(data: any) {
-    const numero = await getNextSequence('os_num');
-    const os = await OrdemServico.create({ ...data, numero });
+  async create(data: any, empresaId: string) {
+    const numero = await getNextSequence('os_num', empresaId);
+    const os = await OrdemServico.create({ ...data, empresaId, numero });
     return os;
   },
 
-  async update(id: string, data: any) {
-    const os = await OrdemServico.findById(id);
+  async update(id: string, data: any, empresaId: string) {
+    const os = await OrdemServico.findOne({ _id: id, empresaId });
     if (!os) throw new AppError('Ordem de serviço não encontrada', 404);
 
     // Impedir edição de OS cancelada ou entregue
@@ -77,8 +78,8 @@ export const osService = {
         try {
           for (const peca of [...pecas]) {
             if (peca.produtoId) {
-              await Produto.findByIdAndUpdate(
-                peca.produtoId,
+              await Produto.findOneAndUpdate(
+                { _id: peca.produtoId, empresaId },
                 { $inc: { estoque: -peca.quantidade } },
                 { session }
               );
@@ -102,8 +103,8 @@ export const osService = {
     return os;
   },
 
-  async cancel(id: string, motivo: string) {
-    const os = await OrdemServico.findById(id);
+  async cancel(id: string, motivo: string, empresaId: string) {
+    const os = await OrdemServico.findOne({ _id: id, empresaId });
     if (!os) throw new AppError('Ordem de serviço não encontrada', 404);
     if (os.status === 'cancelada') throw new AppError('OS já está cancelada', 400);
     if (os.status === 'entregue') throw new AppError('Não é possível cancelar uma OS entregue', 400);
@@ -115,8 +116,9 @@ export const osService = {
     return os;
   },
 
-  async getStats(de?: string, ate?: string) {
-    const match: any = { status: { $ne: 'cancelada' } };
+  async getStats(de?: string, ate?: string, empresaId?: string) {
+    const empresaObjId = new mongoose.Types.ObjectId(empresaId);
+    const match: any = { status: { $ne: 'cancelada' }, empresaId: empresaObjId };
     if (de || ate) {
       match.criadoEm = {};
       if (de) match.criadoEm.$gte = new Date(de + 'T00:00:00.000Z');
@@ -125,7 +127,7 @@ export const osService = {
 
     const [porStatus, totais] = await Promise.all([
       OrdemServico.aggregate([
-        { $match: de || ate ? match : {} },
+        { $match: de || ate ? match : { empresaId: empresaObjId } },
         { $group: { _id: '$status', count: { $sum: 1 } } },
       ]),
       OrdemServico.aggregate([

@@ -29,7 +29,8 @@ const pagamentoSchema = new Schema(
 
 const vendaSchema = new Schema(
   {
-    numero: { type: Number, required: true, unique: true },
+    empresaId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    numero: { type: Number, required: true },
     clienteId: { type: Schema.Types.ObjectId, ref: 'Cliente' },
     clienteNome: String,
     itens: [itemVendaSchema],
@@ -55,5 +56,7 @@ const vendaSchema = new Schema(
     timestamps: { createdAt: 'criadoEm', updatedAt: false },
   }
 );
+
+vendaSchema.index({ empresaId: 1, numero: 1 }, { unique: true });
 
 export const Venda = mongoose.model('Venda', vendaSchema);

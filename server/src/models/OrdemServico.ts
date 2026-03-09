@@ -54,7 +54,8 @@ const pagamentoSchema = new Schema(
 
 const ordemServicoSchema = new Schema(
   {
-    numero: { type: Number, required: true, unique: true },
+    empresaId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    numero: { type: Number, required: true },
     clienteId: { type: Schema.Types.ObjectId, ref: 'Cliente' },
     clienteNome: { type: String, required: true },
     clienteTelefone: String,
@@ -101,5 +102,7 @@ const ordemServicoSchema = new Schema(
     timestamps: { createdAt: 'criadoEm', updatedAt: 'atualizadoEm' },
   }
 );
+
+ordemServicoSchema.index({ empresaId: 1, numero: 1 }, { unique: true });
 
 export const OrdemServico = mongoose.model('OrdemServico', ordemServicoSchema);

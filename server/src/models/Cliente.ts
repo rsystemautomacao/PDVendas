@@ -15,6 +15,7 @@ const enderecoSchema = new Schema(
 
 const clienteSchema = new Schema(
   {
+    empresaId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     tipo: { type: String, enum: ['fisica', 'juridica'], default: 'fisica' },
     nome: { type: String, required: [true, 'Nome é obrigatório'] },
     email: { type: String, lowercase: true, trim: true },

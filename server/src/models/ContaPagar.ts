@@ -2,6 +2,7 @@ import mongoose, { Schema } from 'mongoose';
 
 const contaPagarSchema = new Schema(
   {
+    empresaId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     descricao: { type: String, required: [true, 'Descrição é obrigatória'] },
     fornecedor: String,
     valor: { type: Number, required: [true, 'Valor é obrigatório'], min: 0 },

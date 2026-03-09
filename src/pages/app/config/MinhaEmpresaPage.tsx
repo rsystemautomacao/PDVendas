@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { Save, X, Building2, Upload, Trash2, ImageIcon } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../../contexts/ToastContext'
-import { maskCNPJ, maskPhone, maskCEP } from '../../../utils/helpers'
+import { maskCNPJ, maskPhone, maskCEP, isValidCNPJ } from '../../../utils/helpers'
 
 const ESTADOS = [
   '', 'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
@@ -80,6 +80,11 @@ export function MinhaEmpresaPage() {
   const handleSave = useCallback(async () => {
     if (!razaoSocial.trim() && !nomeFantasia.trim()) {
       erro('Informe pelo menos o nome da empresa')
+      return
+    }
+
+    if (cnpj && !isValidCNPJ(cnpj)) {
+      erro('CNPJ invalido. Verifique os digitos.')
       return
     }
 

@@ -2,6 +2,7 @@ import mongoose, { Schema } from 'mongoose';
 
 const produtoSchema = new Schema(
   {
+    empresaId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     nome: { type: String, required: [true, 'Nome é obrigatório'] },
     codigo: { type: String, required: [true, 'Código é obrigatório'] },
     codigoBarras: String,

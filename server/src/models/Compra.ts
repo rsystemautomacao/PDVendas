@@ -13,7 +13,8 @@ const itemCompraSchema = new Schema(
 
 const compraSchema = new Schema(
   {
-    numero: { type: Number, required: true, unique: true },
+    empresaId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    numero: { type: Number, required: true },
     fornecedor: { type: String, required: [true, 'Fornecedor é obrigatório'] },
     itens: [itemCompraSchema],
     total: { type: Number, required: true, min: 0 },
@@ -25,5 +26,7 @@ const compraSchema = new Schema(
     timestamps: { createdAt: 'criadoEm', updatedAt: false },
   }
 );
+
+compraSchema.index({ empresaId: 1, numero: 1 }, { unique: true });
 
 export const Compra = mongoose.model('Compra', compraSchema);

@@ -1,12 +1,13 @@
+import mongoose from 'mongoose';
 import { Orcamento } from '../models/Orcamento';
 import { OrdemServico } from '../models/OrdemServico';
 import { AppError } from '../middleware/errorHandler';
 import { getNextSequence } from './counter.service';
 
 export const orcamentoService = {
-  async list(query: any) {
+  async list(query: any, empresaId: string) {
     const { de, ate, clienteId, status, page = 1, limit = 50 } = query;
-    const filter: any = {};
+    const filter: any = { empresaId };
 
     if (de || ate) {
       filter.criadoEm = {};
@@ -33,20 +34,20 @@ export const orcamentoService = {
     };
   },
 
-  async getById(id: string) {
-    const orcamento = await Orcamento.findById(id);
+  async getById(id: string, empresaId: string) {
+    const orcamento = await Orcamento.findOne({ _id: id, empresaId });
     if (!orcamento) throw new AppError('Orçamento não encontrado', 404);
     return orcamento;
   },
 
-  async create(data: any) {
-    const numero = await getNextSequence('orcamento_num');
-    const orcamento = await Orcamento.create({ ...data, numero });
+  async create(data: any, empresaId: string) {
+    const numero = await getNextSequence('orcamento_num', empresaId);
+    const orcamento = await Orcamento.create({ ...data, numero, empresaId });
     return orcamento;
   },
 
-  async update(id: string, data: any) {
-    const orcamento = await Orcamento.findById(id);
+  async update(id: string, data: any, empresaId: string) {
+    const orcamento = await Orcamento.findOne({ _id: id, empresaId });
     if (!orcamento) throw new AppError('Orçamento não encontrado', 404);
 
     if (orcamento.status === 'convertido') {
@@ -66,8 +67,8 @@ export const orcamentoService = {
     return orcamento;
   },
 
-  async convertToOS(id: string) {
-    const orcamento = await Orcamento.findById(id);
+  async convertToOS(id: string, empresaId: string) {
+    const orcamento = await Orcamento.findOne({ _id: id, empresaId });
     if (!orcamento) throw new AppError('Orçamento não encontrado', 404);
 
     if (orcamento.status !== 'aprovado') {
@@ -95,9 +96,10 @@ export const orcamentoService = {
     const valorServicos = servicos.reduce((s: number, sv: any) => s + sv.valor, 0);
     const valorPecas = pecas.reduce((s: number, p: any) => s + p.total, 0);
 
-    const osNumero = await getNextSequence('os_num');
+    const osNumero = await getNextSequence('os_num', empresaId);
 
     const os = await OrdemServico.create({
+      empresaId,
       numero: osNumero,
       clienteId: orcamento.clienteId,
       clienteNome: orcamento.clienteNome,
@@ -123,8 +125,9 @@ export const orcamentoService = {
     return os;
   },
 
-  async getStats(de?: string, ate?: string) {
+  async getStats(de?: string, ate?: string, empresaId?: string) {
     const match: any = {};
+    if (empresaId) match.empresaId = new mongoose.Types.ObjectId(empresaId);
     if (de || ate) {
       match.criadoEm = {};
       if (de) match.criadoEm.$gte = new Date(de + 'T00:00:00.000Z');

@@ -3,38 +3,39 @@ import { AppError } from '../middleware/errorHandler';
 import { getNextSequence } from './counter.service';
 
 export const caixaService = {
-  async list() {
-    return Caixa.find().sort({ abertoEm: -1 });
+  async list(empresaId: string) {
+    return Caixa.find({ empresaId }).sort({ abertoEm: -1 });
   },
 
-  async getById(id: string) {
-    const caixa = await Caixa.findById(id);
+  async getById(id: string, empresaId: string) {
+    const caixa = await Caixa.findOne({ _id: id, empresaId });
     if (!caixa) throw new AppError('Caixa não encontrado', 404);
     return caixa;
   },
 
-  async getOpen() {
-    return Caixa.findOne({ status: 'aberto' });
+  async getOpen(empresaId: string) {
+    return Caixa.findOne({ status: 'aberto', empresaId });
   },
 
-  async open(operadorId: string, operadorNome: string, valorAbertura: number, observacoes?: string) {
-    const existing = await Caixa.findOne({ status: 'aberto' });
+  async open(operadorId: string, operadorNome: string, valorAbertura: number, observacoes?: string, empresaId?: string) {
+    const existing = await Caixa.findOne({ status: 'aberto', empresaId });
     if (existing) throw new AppError('Já existe um caixa aberto', 409);
 
-    const numero = await getNextSequence('caixa_num');
+    const numero = await getNextSequence('caixa_num', empresaId!);
     return Caixa.create({
       numero,
       operadorId,
       operadorNome,
       valorAbertura,
       observacoes,
+      empresaId,
       status: 'aberto',
       abertoEm: new Date(),
     });
   },
 
-  async close(id: string, observacoes?: string) {
-    const caixa = await Caixa.findById(id);
+  async close(id: string, observacoes?: string, empresaId?: string) {
+    const caixa = await Caixa.findOne({ _id: id, empresaId });
     if (!caixa) throw new AppError('Caixa não encontrado', 404);
     if (caixa.status === 'fechado') throw new AppError('Caixa já está fechado', 400);
 
@@ -47,8 +48,8 @@ export const caixaService = {
     return caixa;
   },
 
-  async addMovement(id: string, mov: { tipo: string; valor: number; descricao: string }) {
-    const caixa = await Caixa.findById(id);
+  async addMovement(id: string, mov: { tipo: string; valor: number; descricao: string }, empresaId: string) {
+    const caixa = await Caixa.findOne({ _id: id, empresaId });
     if (!caixa) throw new AppError('Caixa não encontrado', 404);
     if (caixa.status === 'fechado') throw new AppError('Caixa está fechado', 400);
 

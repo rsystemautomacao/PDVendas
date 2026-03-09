@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
 import { Topbar } from '../components/app/Topbar'
 import { FloatingHelp } from '../components/app/FloatingHelp'
 import { Sidebar } from '../components/app/Sidebar'
-import { RequireAuth } from '../contexts/AuthContext'
+import { RequireAuth, useAuth } from '../contexts/AuthContext'
 import { usePermissao, ROTA_PERMISSAO } from '../hooks/usePermissao'
 import { ProdutoProvider } from '../contexts/ProdutoContext'
 import { ClienteProvider } from '../contexts/ClienteContext'
@@ -12,6 +12,22 @@ import { CaixaProvider } from '../contexts/CaixaContext'
 import { VendaProvider } from '../contexts/VendaContext'
 import { FinanceiroProvider } from '../contexts/FinanceiroContext'
 import { OrdemServicoProvider } from '../contexts/OrdemServicoContext'
+
+function OnboardingGate() {
+  const { needsOnboarding } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (needsOnboarding &&
+        !location.pathname.includes('/onboarding') &&
+        !location.pathname.includes('/config/minha-empresa')) {
+      navigate('/app/onboarding', { replace: true })
+    }
+  }, [needsOnboarding, location.pathname, navigate])
+
+  return <PermissionGate />
+}
 
 function PermissionGate() {
   const location = useLocation()
@@ -76,7 +92,7 @@ function AppLayoutInner() {
         className={`pt-14 min-h-screen transition-[padding] duration-200 ${drawerOpen ? 'lg:pl-72' : ''}`}
         role="main"
       >
-        <PermissionGate />
+        <OnboardingGate />
       </main>
       <FloatingHelp />
     </div>

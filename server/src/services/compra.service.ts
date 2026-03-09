@@ -5,9 +5,10 @@ import { AppError } from '../middleware/errorHandler';
 import { getNextSequence } from './counter.service';
 
 export const compraService = {
-  async list(query: any) {
+  async list(query: any, empresaId: string) {
     const { status, page = 1, limit = 50 } = query;
     const filter: any = {};
+    filter.empresaId = empresaId;
     if (status) filter.status = status;
 
     const skip = (Number(page) - 1) * Number(limit);
@@ -18,22 +19,22 @@ export const compraService = {
     return { data, pagination: { total, page: Number(page), limit: Number(limit), pages: Math.ceil(total / Number(limit)) } };
   },
 
-  async create(data: any) {
-    const numero = await getNextSequence('compra_num');
-    return Compra.create({ ...data, numero });
+  async create(data: any, empresaId: string) {
+    const numero = await getNextSequence('compra_num', empresaId);
+    return Compra.create({ ...data, numero, empresaId });
   },
 
-  async update(id: string, data: any) {
-    const compra = await Compra.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+  async update(id: string, data: any, empresaId: string) {
+    const compra = await Compra.findOneAndUpdate({ _id: id, empresaId }, data, { new: true, runValidators: true });
     if (!compra) throw new AppError('Compra não encontrada', 404);
     return compra;
   },
 
-  async receive(id: string) {
+  async receive(id: string, empresaId: string) {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-      const compra = await Compra.findById(id).session(session);
+      const compra = await Compra.findOne({ _id: id, empresaId }).session(session);
       if (!compra) throw new AppError('Compra não encontrada', 404);
       if (compra.status === 'recebida') throw new AppError('Compra já recebida', 400);
 
