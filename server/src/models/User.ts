@@ -34,6 +34,10 @@ const userSchema = new Schema(
     adminId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     permissoes: { type: Schema.Types.Mixed, default: {} },
     maxLicencas: { type: Number, default: 1 },
+    // Assinatura / Vencimento
+    dataVencimento: { type: Date, default: null },
+    statusAssinatura: { type: String, enum: ['ativa', 'expirando', 'vencida', 'teste'], default: 'teste' },
+    notificacaoVencimentoEnviada: { type: Boolean, default: false },
   },
   {
     timestamps: { createdAt: 'criadoEm', updatedAt: false },
@@ -59,6 +63,7 @@ userSchema.set('toJSON', {
     if (ret._id) ret._id = ret._id.toString();
     if (ret.criadoEm instanceof Date) ret.criadoEm = ret.criadoEm.toISOString();
     if (ret.ultimoLogin instanceof Date) ret.ultimoLogin = ret.ultimoLogin.toISOString();
+    if (ret.dataVencimento instanceof Date) ret.dataVencimento = ret.dataVencimento.toISOString();
     delete ret.senha;
     delete ret.__v;
     delete ret.id;

@@ -5,6 +5,7 @@ import {
   Eye, UserCheck, UserX, TrendingUp, Calendar,
   LogOut, AlertCircle, Loader2, Monitor,
   Key, Trash2, X, Wifi, WifiOff,
+  Bell, Clock, UserPlus,
 } from 'lucide-react'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
@@ -20,6 +21,8 @@ interface Tenant {
   subUserCount: number
   activeSessions: number
   maxLicencas: number
+  dataVencimento?: string
+  statusAssinatura?: string
 }
 
 interface SessionInfo {
@@ -52,6 +55,9 @@ interface Stats {
   inactiveUsers: number
   totalActiveSessions: number
   monthlyRegistrations: { _id: string; count: number }[]
+  vencidos: number
+  vencendoEm7dias: number
+  novosCadastros: number
 }
 
 // Separate API helper for admin (doesn't redirect to /login on 401)
@@ -117,6 +123,9 @@ export function AdminPage() {
   const [newLicenseCount, setNewLicenseCount] = useState(1)
   const [licenseLoading, setLicenseLoading] = useState(false)
   const [kickingSession, setKickingSession] = useState<string | null>(null)
+  const [vencimentoModal, setVencimentoModal] = useState<{ id: string; nome: string; current?: string } | null>(null)
+  const [newVencimento, setNewVencimento] = useState('')
+  const [vencimentoLoading, setVencimentoLoading] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
 
   const showToast = (msg: string, type: 'ok' | 'err' = 'ok') => {
@@ -287,6 +296,39 @@ export function AdminPage() {
     }
   }
 
+  const handleSetVencimento = async () => {
+    if (!vencimentoModal || !newVencimento) return
+    setVencimentoLoading(true)
+    try {
+      await adminApi(`/admin/tenants/${vencimentoModal.id}/vencimento`, {
+        method: 'PATCH',
+        body: JSON.stringify({ dataVencimento: newVencimento }),
+      })
+      showToast('Vencimento atualizado com sucesso')
+      setVencimentoModal(null)
+      await loadData()
+      if (selectedTenant?._id === vencimentoModal.id) {
+        const res = await adminApi(`/admin/tenants/${vencimentoModal.id}`)
+        setSelectedTenant(res.data)
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Erro ao atualizar vencimento', 'err')
+    } finally {
+      setVencimentoLoading(false)
+    }
+  }
+
+  function getVencimentoStatus(dataVencimento?: string) {
+    if (!dataVencimento) return { label: 'SEM VENCIMENTO', color: 'bg-gray-500/20 text-gray-400', urgency: 'none' }
+    const now = new Date()
+    const venc = new Date(dataVencimento)
+    const dias = Math.ceil((venc.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+    if (dias < 0) return { label: `VENCIDO (${Math.abs(dias)}d)`, color: 'bg-red-500/20 text-red-400', urgency: 'expired' }
+    if (dias <= 3) return { label: `VENCE EM ${dias}d`, color: 'bg-red-500/20 text-red-400', urgency: 'critical' }
+    if (dias <= 7) return { label: `VENCE EM ${dias}d`, color: 'bg-amber-500/20 text-amber-400', urgency: 'warning' }
+    return { label: `${dias}d restantes`, color: 'bg-emerald-500/20 text-emerald-400', urgency: 'ok' }
+  }
+
   const filteredTenants = tenants.filter(t =>
     t.nome.toLowerCase().includes(search.toLowerCase()) ||
     t.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -405,67 +447,138 @@ export function AdminPage() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-            <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 to-indigo-500" />
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                  <Building2 size={16} className="text-violet-400" />
-                </div>
-                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">PDVs</span>
+          <>
+            {/* Alert banner for expiring/expired tenants */}
+            {(stats.vencidos > 0 || stats.vencendoEm7dias > 0 || stats.novosCadastros > 0) && (
+              <div className="flex flex-wrap gap-3 mb-6">
+                {stats.novosCadastros > 0 && (
+                  <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/30 rounded-2xl px-5 py-3 flex-1 min-w-[200px]">
+                    <UserPlus size={20} className="text-blue-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold text-blue-300">{stats.novosCadastros} novo(s) cadastro(s)</p>
+                      <p className="text-xs text-blue-400/70">nas ultimas 48 horas</p>
+                    </div>
+                  </div>
+                )}
+                {stats.vencendoEm7dias > 0 && (
+                  <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl px-5 py-3 flex-1 min-w-[200px]">
+                    <Clock size={20} className="text-amber-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold text-amber-300">{stats.vencendoEm7dias} assinatura(s) vencendo</p>
+                      <p className="text-xs text-amber-400/70">nos proximos 7 dias</p>
+                    </div>
+                  </div>
+                )}
+                {stats.vencidos > 0 && (
+                  <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/30 rounded-2xl px-5 py-3 flex-1 min-w-[200px]">
+                    <AlertCircle size={20} className="text-red-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold text-red-300">{stats.vencidos} assinatura(s) vencida(s)</p>
+                      <p className="text-xs text-red-400/70">necessitam atencao</p>
+                    </div>
+                  </div>
+                )}
               </div>
-              <p className="text-3xl font-bold text-white">{stats.totalAdmins}</p>
-              <p className="text-xs text-gray-500 mt-1">contas admin</p>
-            </div>
+            )}
 
-            <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-500" />
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                  <Users size={16} className="text-blue-400" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
+              <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 to-indigo-500" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                    <Building2 size={16} className="text-violet-400" />
+                  </div>
+                  <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">PDVs</span>
                 </div>
-                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Usuarios</span>
+                <p className="text-3xl font-bold text-white">{stats.totalAdmins}</p>
+                <p className="text-xs text-gray-500 mt-1">contas admin</p>
               </div>
-              <p className="text-3xl font-bold text-white">{stats.totalUsers}</p>
-              <p className="text-xs text-gray-500 mt-1">total</p>
-            </div>
 
-            <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-green-500" />
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                  <UserCheck size={16} className="text-emerald-400" />
+              <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-500" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <Users size={16} className="text-blue-400" />
+                  </div>
+                  <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Usuarios</span>
                 </div>
-                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Ativos</span>
+                <p className="text-3xl font-bold text-white">{stats.totalUsers}</p>
+                <p className="text-xs text-gray-500 mt-1">total</p>
               </div>
-              <p className="text-3xl font-bold text-emerald-400">{stats.activeUsers}</p>
-              <p className="text-xs text-gray-500 mt-1">usuarios ativos</p>
-            </div>
 
-            <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-rose-500 to-red-500" />
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
-                  <UserX size={16} className="text-rose-400" />
+              <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-green-500" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                    <UserCheck size={16} className="text-emerald-400" />
+                  </div>
+                  <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Ativos</span>
                 </div>
-                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Inativos</span>
+                <p className="text-3xl font-bold text-emerald-400">{stats.activeUsers}</p>
+                <p className="text-xs text-gray-500 mt-1">usuarios ativos</p>
               </div>
-              <p className="text-3xl font-bold text-rose-400">{stats.inactiveUsers}</p>
-              <p className="text-xs text-gray-500 mt-1">usuarios inativos</p>
-            </div>
 
-            <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500" />
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                  <Monitor size={16} className="text-amber-400" />
+              <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-rose-500 to-red-500" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
+                    <UserX size={16} className="text-rose-400" />
+                  </div>
+                  <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Inativos</span>
                 </div>
-                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Sessoes</span>
+                <p className="text-3xl font-bold text-rose-400">{stats.inactiveUsers}</p>
+                <p className="text-xs text-gray-500 mt-1">usuarios inativos</p>
               </div>
-              <p className="text-3xl font-bold text-amber-400">{stats.totalActiveSessions}</p>
-              <p className="text-xs text-gray-500 mt-1">sessoes ativas</p>
+
+              <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                    <Monitor size={16} className="text-amber-400" />
+                  </div>
+                  <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Sessoes</span>
+                </div>
+                <p className="text-3xl font-bold text-amber-400">{stats.totalActiveSessions}</p>
+                <p className="text-xs text-gray-500 mt-1">sessoes ativas</p>
+              </div>
+
+              <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-500 to-blue-500" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                    <UserPlus size={16} className="text-cyan-400" />
+                  </div>
+                  <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Novos</span>
+                </div>
+                <p className="text-3xl font-bold text-cyan-400">{stats.novosCadastros}</p>
+                <p className="text-xs text-gray-500 mt-1">ultimas 48h</p>
+              </div>
+
+              <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-500 to-amber-500" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center">
+                    <Clock size={16} className="text-yellow-400" />
+                  </div>
+                  <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Vencendo</span>
+                </div>
+                <p className="text-3xl font-bold text-yellow-400">{stats.vencendoEm7dias}</p>
+                <p className="text-xs text-gray-500 mt-1">em 7 dias</p>
+              </div>
+
+              <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-red-600 to-rose-500" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
+                    <Bell size={16} className="text-red-400" />
+                  </div>
+                  <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Vencidos</span>
+                </div>
+                <p className="text-3xl font-bold text-red-400">{stats.vencidos}</p>
+                <p className="text-xs text-gray-500 mt-1">assinaturas</p>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* Monthly registrations */}
@@ -557,6 +670,17 @@ export function AdminPage() {
                         <p>sessoes/lic.</p>
                       </div>
                       <div className="text-center">
+                        {(() => {
+                          const vs = getVencimentoStatus(t.dataVencimento)
+                          return (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${vs.color}`}>
+                              {vs.label}
+                            </span>
+                          )
+                        })()}
+                        <p>vencimento</p>
+                      </div>
+                      <div className="text-center">
                         <p className="font-medium text-gray-400">{formatDate(t.criadoEm).split(',')[0]}</p>
                         <p>registro</p>
                       </div>
@@ -631,6 +755,24 @@ export function AdminPage() {
                   </div>
                   {/* Action buttons */}
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => {
+                        setVencimentoModal({ id: selectedTenant._id, nome: selectedTenant.nome, current: (selectedTenant as any).dataVencimento })
+                        setNewVencimento((selectedTenant as any).dataVencimento ? new Date((selectedTenant as any).dataVencimento).toISOString().split('T')[0] : '')
+                      }}
+                      className={`px-3 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all ${
+                        (() => {
+                          const vs = getVencimentoStatus((selectedTenant as any).dataVencimento)
+                          return vs.urgency === 'expired' || vs.urgency === 'critical'
+                            ? 'bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20'
+                            : vs.urgency === 'warning'
+                            ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
+                            : 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20'
+                        })()
+                      }`}
+                    >
+                      <Calendar size={14} /> Vencimento
+                    </button>
                     <button
                       onClick={() => {
                         setLicenseModal({ id: selectedTenant._id, nome: selectedTenant.nome, current: selectedTenant.maxLicencas })
@@ -728,6 +870,28 @@ export function AdminPage() {
                       <span className={`font-bold ${sessions.length > 0 ? 'text-emerald-400' : 'text-gray-600'}`}>
                         {sessions.length}
                       </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">Vencimento</span>
+                      <div className="flex items-center gap-2">
+                        {(selectedTenant as any).dataVencimento ? (
+                          <>
+                            <span className="text-gray-300 font-medium">
+                              {formatDate((selectedTenant as any).dataVencimento).split(',')[0]}
+                            </span>
+                            {(() => {
+                              const vs = getVencimentoStatus((selectedTenant as any).dataVencimento)
+                              return (
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${vs.color}`}>
+                                  {vs.label}
+                                </span>
+                              )
+                            })()}
+                          </>
+                        ) : (
+                          <span className="text-gray-600">Nao definido</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -959,6 +1123,67 @@ export function AdminPage() {
                 className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
               >
                 {licenseLoading ? <Loader2 size={16} className="animate-spin" /> : <Monitor size={16} />}
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Vencimento Modal */}
+      {vencimentoModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Calendar size={20} className="text-cyan-400" /> Data de Vencimento
+              </h3>
+              <button onClick={() => setVencimentoModal(null)} className="text-gray-500 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-400 mb-2">
+              Definir vencimento da assinatura de <span className="font-semibold text-white">{vencimentoModal.nome}</span>
+            </p>
+            {vencimentoModal.current && (
+              <p className="text-xs text-gray-600 mb-4">
+                Atual: {formatDate(vencimentoModal.current).split(',')[0]}
+              </p>
+            )}
+            <input
+              type="date"
+              value={newVencimento}
+              onChange={e => setNewVencimento(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-800/60 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all mb-2"
+              autoFocus
+            />
+            <div className="flex flex-wrap gap-2 mb-4">
+              {[7, 15, 30, 60, 90, 365].map(dias => (
+                <button
+                  key={dias}
+                  onClick={() => {
+                    const d = new Date()
+                    d.setDate(d.getDate() + dias)
+                    setNewVencimento(d.toISOString().split('T')[0])
+                  }}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 hover:border-cyan-500/50 transition-all"
+                >
+                  +{dias}d
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setVencimentoModal(null)}
+                className="flex-1 px-4 py-3 border border-gray-700 rounded-xl font-semibold text-gray-400 hover:bg-gray-800 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSetVencimento}
+                disabled={vencimentoLoading || !newVencimento}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-semibold hover:from-cyan-600 hover:to-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
+              >
+                {vencimentoLoading ? <Loader2 size={16} className="animate-spin" /> : <Calendar size={16} />}
                 Salvar
               </button>
             </div>
