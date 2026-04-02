@@ -38,7 +38,12 @@ async function request<T = any>(path: string, options?: RequestInit): Promise<Ap
     throw new Error('Sessao expirada');
   }
 
-  const data = await res.json();
+  let data: any;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error('Servidor indisponivel. Verifique se o backend esta rodando.');
+  }
 
   if (!res.ok) {
     throw new Error(data.error || 'Erro desconhecido');

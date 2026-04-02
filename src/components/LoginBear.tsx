@@ -38,9 +38,11 @@ export function LoginBear({ state, lookAt }: LoginBearProps) {
   const eyesClosed = blinking && !isHiding
 
   // Paw position for covering eyes
-  const leftPawY = isHiding ? -18 : 10
+  // Hiding: both paws up covering eyes
+  // Peeking: left paw stays up (covering left eye), right paw goes down (revealing right eye)
+  const leftPawY = isHiding || isPeeking ? -18 : 10
   const rightPawY = isHiding ? -18 : 10
-  const leftPawX = isHiding ? 6 : 0
+  const leftPawX = isHiding ? 6 : isPeeking ? 4 : 0
   const rightPawX = isHiding ? -6 : 0
 
   return (
@@ -65,9 +67,10 @@ export function LoginBear({ state, lookAt }: LoginBearProps) {
 
         {/* === EYES === */}
         <g style={{ transition: 'opacity 0.2s ease' }} opacity={showEyes ? 1 : 0}>
-          {/* Left eye */}
-          <g style={{ transition: 'transform 0.15s ease-out' }}
-             transform={`translate(${eyeX}, ${eyeY})`}>
+          {/* Left eye - hidden when peeking (covered by left paw) */}
+          <g style={{ transition: 'transform 0.15s ease-out, opacity 0.2s ease' }}
+             transform={`translate(${eyeX}, ${eyeY})`}
+             opacity={isPeeking ? 0 : 1}>
             {/* Eye white */}
             <ellipse cx="45" cy="42" rx="8" ry={eyesClosed ? 0.5 : 7} fill="white"
               style={{ transition: 'ry 0.1s ease' }} />
@@ -80,7 +83,7 @@ export function LoginBear({ state, lookAt }: LoginBearProps) {
             )}
           </g>
 
-          {/* Right eye */}
+          {/* Right eye - visible when peeking (half-closed, sneaky look) */}
           <g style={{ transition: 'transform 0.15s ease-out' }}
              transform={`translate(${eyeX}, ${eyeY})`}>
             {/* Peeking: right eye half closed */}
@@ -102,9 +105,11 @@ export function LoginBear({ state, lookAt }: LoginBearProps) {
           </g>
 
           {/* Eyebrows - subtle */}
+          {/* Left eyebrow hidden when peeking */}
           <path d={`M37 ${isHiding ? 33 : 34} Q45 ${isHiding ? 30 : 31} 53 ${isHiding ? 33 : 34}`}
             fill="none" stroke="#b08850" strokeWidth="1.2" strokeLinecap="round"
-            style={{ transition: 'all 0.3s ease' }} />
+            style={{ transition: 'all 0.3s ease' }}
+            opacity={isPeeking ? 0 : 1} />
           <path d={`M67 ${isHiding ? 33 : 34} Q75 ${isHiding ? 30 : 31} 83 ${isHiding ? 33 : 34}`}
             fill="none" stroke="#b08850" strokeWidth="1.2" strokeLinecap="round"
             style={{ transition: 'all 0.3s ease' }} />
@@ -208,9 +213,12 @@ export function useLoginBear() {
   const togglePasswordVisibility = useCallback(() => {
     setPasswordVisible(prev => {
       const next = !prev
-      if (focusedField.current === 'password') {
-        setBearState(next ? 'peeking' : 'hiding')
-      }
+      // Always update bear state when toggling - treat as if password field is focused
+      // because the toggle button is part of the password field UX
+      focusedField.current = 'password'
+      setBearState(next ? 'peeking' : 'hiding')
+      // Re-focus password field so blur doesn't reset state
+      setTimeout(() => passwordRef.current?.focus(), 10)
       return next
     })
   }, [])

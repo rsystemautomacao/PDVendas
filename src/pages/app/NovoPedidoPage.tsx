@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Minus, Trash2, User,
   CreditCard, Banknote, Smartphone, FileText, Printer,
-  X, AlertCircle, Receipt, DollarSign, Percent,
+  X, AlertCircle, Receipt, DollarSign, Percent, Package,
 } from 'lucide-react'
 import { useVendas } from '../../contexts/VendaContext'
 import { useProdutos } from '../../contexts/ProdutoContext'
@@ -24,7 +24,7 @@ export function NovoPedidoPage() {
     setClienteVenda, clienteId, clienteNome,
     setDesconto, finalizarVenda, setObservacoesVenda, observacoes,
   } = useVendas()
-  const { buscarProdutos, buscarPorCodigoBalanca } = useProdutos()
+  const { produtos, buscarProdutos, buscarPorCodigoBalanca } = useProdutos()
   const { buscarClientes } = useClientes()
   const { caixaAberto } = useCaixa()
 
@@ -74,8 +74,14 @@ export function NovoPedidoPage() {
   // Payment phase: 'method' = selecting payment method, 'value' = entering value
   const [paymentPhase, setPaymentPhase] = useState<'method' | 'value'>('method')
 
-  // Cart management modal (F3)
+  // Cart management modal
   const [showCartModal, setShowCartModal] = useState(false)
+
+  // Product catalog modal (F3)
+  const [showProductCatalog, setShowProductCatalog] = useState(false)
+  const [catalogSelectedIdx, setCatalogSelectedIdx] = useState(0)
+  const [catalogSearch, setCatalogSearch] = useState('')
+  const catalogSearchRef = useRef<HTMLInputElement>(null)
 
   // Crediario client modal
   const [showCrediarioClientModal, setShowCrediarioClientModal] = useState(false)
@@ -134,6 +140,46 @@ export function NovoPedidoPage() {
   useEffect(() => {
     if (!caixaAberto) setShowCaixaModal(true)
   }, [caixaAberto])
+
+  // Sorted product catalog for F3 modal
+  const catalogProducts = useMemo(() => {
+    const active = produtos.filter(p => p.ativo)
+    const sorted = active.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+    if (!catalogSearch.trim()) return sorted
+    const term = catalogSearch.toLowerCase()
+    return sorted.filter(p =>
+      p.nome.toLowerCase().includes(term) ||
+      p.codigo.toLowerCase().includes(term)
+    )
+  }, [produtos, catalogSearch])
+
+  // Auto-focus catalog search when modal opens
+  useEffect(() => {
+    if (showProductCatalog) {
+      setCatalogSelectedIdx(0)
+      setCatalogSearch('')
+      setTimeout(() => catalogSearchRef.current?.focus(), 100)
+    }
+  }, [showProductCatalog])
+
+  // Enter fullscreen when page mounts, exit on unmount
+  useEffect(() => {
+    const enterFullscreen = async () => {
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen()
+        }
+      } catch { /* user may deny fullscreen */ }
+    }
+    enterFullscreen()
+    return () => {
+      try {
+        if (document.fullscreenElement) {
+          document.exitFullscreen()
+        }
+      } catch { /* ignore */ }
+    }
+  }, [])
 
   // Keep selectedCartIdx in bounds when cart changes
   useEffect(() => {
@@ -511,7 +557,7 @@ export function NovoPedidoPage() {
         return
       }
 
-      // === Modal Carrinho (F3) ===
+      // === Modal Carrinho ===
       if (showCartModal) {
         if (e.key === 'Escape') { e.preventDefault(); setShowCartModal(false); setSelectedCartIdx(-1); searchRef.current?.focus(); return }
         if (e.key === 'ArrowDown') {
@@ -541,6 +587,49 @@ export function NovoPedidoPage() {
           } else {
             updateCartItem(selectedCartIdx, cart[selectedCartIdx].quantidade - 1)
           }
+          return
+        }
+        return
+      }
+
+      // === Modal Catalogo de Produtos (F3) ===
+      if (showProductCatalog) {
+        if (e.key === 'Escape') { e.preventDefault(); setShowProductCatalog(false); searchRef.current?.focus(); return }
+        if (e.key === 'F3') { e.preventDefault(); setShowProductCatalog(false); searchRef.current?.focus(); return }
+        // Allow typing in search
+        if (document.activeElement === catalogSearchRef.current) {
+          if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            setCatalogSelectedIdx(prev => prev < catalogProducts.length - 1 ? prev + 1 : 0)
+            return
+          }
+          if (e.key === 'ArrowUp') {
+            e.preventDefault()
+            setCatalogSelectedIdx(prev => prev > 0 ? prev - 1 : catalogProducts.length - 1)
+            return
+          }
+          if (e.key === 'Enter' && catalogSelectedIdx >= 0 && catalogSelectedIdx < catalogProducts.length) {
+            e.preventDefault()
+            handleAddProduct(catalogProducts[catalogSelectedIdx]._id)
+            setShowProductCatalog(false)
+            return
+          }
+          return
+        }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          setCatalogSelectedIdx(prev => prev < catalogProducts.length - 1 ? prev + 1 : 0)
+          return
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          setCatalogSelectedIdx(prev => prev > 0 ? prev - 1 : catalogProducts.length - 1)
+          return
+        }
+        if (e.key === 'Enter' && catalogSelectedIdx >= 0 && catalogSelectedIdx < catalogProducts.length) {
+          e.preventDefault()
+          handleAddProduct(catalogProducts[catalogSelectedIdx]._id)
+          setShowProductCatalog(false)
           return
         }
         return
@@ -702,7 +791,7 @@ export function NovoPedidoPage() {
 
       // F-keys (funcionam sempre, inclusive quando busca esta focada)
       if (e.key === 'F2') { e.preventDefault(); setSelectedCartIdx(-1); searchRef.current?.focus(); return }
-      if (e.key === 'F3') { e.preventDefault(); if (cart.length > 0) { setShowCartModal(true); setSelectedCartIdx(0) }; return }
+      if (e.key === 'F3') { e.preventDefault(); setShowProductCatalog(true); return }
       if (e.key === 'F4') { e.preventDefault(); clientSearchRef.current?.focus(); return }
       if (e.key === 'F6') { e.preventDefault(); navigate('/app/clientes/novo', { state: { returnTo: '/app/novo-pedido' } }); return }
       if (e.key === 'F9') { e.preventDefault(); if (cart.length > 0 && caixaAberto) setShowPayment(true); return }
@@ -749,7 +838,7 @@ export function NovoPedidoPage() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [cart, caixaAberto, showPayment, showDesconto, showRecibo, showResults, showClientResults, showNotFoundModal, showCartModal, showCrediarioClientModal, showCancelVendaModal, showNavGuardModal, showRefreshGuardModal, pendingNavPath, notFoundBarcode, notFoundModalReady, formaPagamento, formasPagamento, restante, totalPago, totalVenda, pagamentos, parcelas, selectedCartIdx, confirmDeleteIdx, selectedPaymentIdx, paymentPhase, valorPagamento, clienteId, crediarioClientResults, crediarioSelectedIdx, removeFromCart, updateCartItem, clearCart, handleFinalizarVenda, handleNovaVenda, handleSelectFormaPagamento, handleCrediarioClientSelect, finalizarVenda, navigate, toast])
+  }, [cart, caixaAberto, showPayment, showDesconto, showRecibo, showResults, showClientResults, showNotFoundModal, showCartModal, showCrediarioClientModal, showCancelVendaModal, showNavGuardModal, showRefreshGuardModal, showProductCatalog, catalogProducts, catalogSelectedIdx, pendingNavPath, notFoundBarcode, notFoundModalReady, formaPagamento, formasPagamento, restante, totalPago, totalVenda, pagamentos, parcelas, selectedCartIdx, confirmDeleteIdx, selectedPaymentIdx, paymentPhase, valorPagamento, clienteId, crediarioClientResults, crediarioSelectedIdx, removeFromCart, updateCartItem, clearCart, handleFinalizarVenda, handleNovaVenda, handleSelectFormaPagamento, handleCrediarioClientSelect, handleAddProduct, finalizarVenda, navigate, toast])
 
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-56px)]">
@@ -879,6 +968,7 @@ export function NovoPedidoPage() {
               </div>
               <div className="mt-6 flex flex-wrap justify-center gap-3 text-xs text-gray-400">
                 <span className="bg-gray-100 px-3 py-1.5 rounded-lg font-medium">F2 Buscar</span>
+                <span className="bg-gray-100 px-3 py-1.5 rounded-lg font-medium">F3 Produtos</span>
                 <span className="bg-gray-100 px-3 py-1.5 rounded-lg font-medium">F4 Cliente</span>
                 <span className="bg-gray-100 px-3 py-1.5 rounded-lg font-medium">F9 Pagamento</span>
               </div>
@@ -993,7 +1083,7 @@ export function NovoPedidoPage() {
           </button>
           <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-gray-400 justify-center">
             <span>F2: Buscar</span>
-            <span>F3: Carrinho</span>
+            <span>F3: Produtos</span>
             <span>F4: Cliente</span>
             <span>F6: Novo Cliente</span>
             <span>F9: Pagar</span>
@@ -1004,7 +1094,7 @@ export function NovoPedidoPage() {
         </div>
       </div>
 
-      {/* ====== MODAL: Gerenciar Carrinho (F3) ====== */}
+      {/* ====== MODAL: Gerenciar Carrinho ====== */}
       {showCartModal && cart.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-scale-in max-h-[80vh] flex flex-col">
@@ -1048,6 +1138,81 @@ export function NovoPedidoPage() {
                 <span>↑↓: Navegar</span>
                 <span>+/-: Quantidade</span>
                 <span>Delete: Remover</span>
+                <span>Esc: Fechar</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== MODAL: Catalogo de Produtos (F3) ====== */}
+      {showProductCatalog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-scale-in max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b">
+              <div className="flex items-center gap-2">
+                <Package size={20} className="text-primary" />
+                <h3 className="text-lg font-bold text-gray-800">Produtos Cadastrados</h3>
+                <span className="text-xs text-gray-400 ml-1">({catalogProducts.length})</span>
+              </div>
+              <button onClick={() => { setShowProductCatalog(false); searchRef.current?.focus() }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <div className="px-5 pt-3 pb-2">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  ref={catalogSearchRef}
+                  type="text"
+                  placeholder="Filtrar produtos..."
+                  value={catalogSearch}
+                  onChange={e => { setCatalogSearch(e.target.value); setCatalogSelectedIdx(0) }}
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-0.5">
+              {catalogProducts.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  {catalogSearch ? 'Nenhum produto encontrado' : 'Nenhum produto cadastrado'}
+                </div>
+              ) : (
+                catalogProducts.map((prod, idx) => (
+                  <button
+                    key={prod._id}
+                    data-catalog-item
+                    onClick={() => { handleAddProduct(prod._id); setShowProductCatalog(false) }}
+                    className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all ${
+                      catalogSelectedIdx === idx
+                        ? 'bg-primary/10 border-2 border-primary ring-1 ring-primary/20'
+                        : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                    }`}
+                    ref={el => {
+                      if (catalogSelectedIdx === idx && el) {
+                        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+                      }
+                    }}
+                  >
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold flex-shrink-0 ${
+                      catalogSelectedIdx === idx ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm text-gray-800 truncate">{prod.nome}</p>
+                      <p className="text-xs text-gray-400">
+                        Cod: {prod.codigo} | Estoque: {prod.estoque} {prod.unidade}
+                      </p>
+                    </div>
+                    <p className="font-bold text-sm text-primary flex-shrink-0">{formatCurrency(prod.preco)}</p>
+                    <Plus size={14} className="text-gray-300 flex-shrink-0" />
+                  </button>
+                ))
+              )}
+            </div>
+            <div className="p-4 border-t">
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-400 justify-center">
+                <span>↑↓: Navegar</span>
+                <span>Enter: Adicionar ao carrinho</span>
                 <span>Esc: Fechar</span>
               </div>
             </div>
