@@ -71,7 +71,12 @@ async function adminApi(path: string, options?: RequestInit) {
       ...options?.headers,
     },
   })
-  const data = await res.json()
+  let data: any
+  try {
+    data = await res.json()
+  } catch {
+    throw new Error('Servidor indisponivel. Verifique se o backend esta rodando.')
+  }
   if (!res.ok) throw new Error(data.error || 'Erro')
   return data
 }
@@ -153,18 +158,39 @@ export function AdminPage() {
     e.preventDefault()
     setLoginError('')
     setLoginLoading(true)
+    // Limpar token antigo antes de tentar login
+    sessionStorage.removeItem('meupdv_admin_token')
     try {
-      const loginRes = await adminApi('/auth/login', {
+      // Primeiro tentar login normal
+      let loginRes = await adminApi('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, senha }),
       })
-      const token = loginRes.data.token
+
+      // Se requer confirmacao de licenca, forcar login (admin sempre tem prioridade)
+      if (loginRes.data?.requiresConfirmation) {
+        loginRes = await adminApi('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, senha, forceLogin: true }),
+        })
+      }
+
+      const token = loginRes.data?.token
+      if (!token) {
+        throw new Error('Resposta de login invalida. Verifique suas credenciais.')
+      }
+
       sessionStorage.setItem('meupdv_admin_token', token)
       await adminApi('/admin/verify')
       setAuthenticated(true)
     } catch (err: any) {
       sessionStorage.removeItem('meupdv_admin_token')
-      setLoginError(err.message === 'Acesso restrito' ? 'Acesso negado. Apenas superadmin.' : err.message)
+      const msg = err.message || 'Erro desconhecido'
+      setLoginError(
+        msg === 'Acesso restrito' ? 'Acesso negado. Apenas superadmin.' :
+        msg.includes('Token') ? 'Sessao expirada. Tente novamente.' :
+        msg
+      )
     } finally {
       setLoginLoading(false)
     }
