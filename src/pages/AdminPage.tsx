@@ -610,24 +610,38 @@ export function AdminPage() {
         {/* Monthly registrations */}
         {stats && stats.monthlyRegistrations.length > 0 && (
           <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-6 mb-8">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                <TrendingUp size={16} className="text-violet-400" />
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                  <TrendingUp size={16} className="text-violet-400" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-300">Novos PDVs por Mes</h3>
               </div>
-              <h3 className="text-sm font-bold text-gray-300">Novos PDVs por Mes</h3>
+              <span className="text-xs text-gray-600">Ultimos 6 meses</span>
             </div>
-            <div className="flex items-end gap-2 h-32">
+            <div className="space-y-3">
               {stats.monthlyRegistrations.map(m => {
                 const max = Math.max(...stats.monthlyRegistrations.map(x => x.count))
-                const height = max > 0 ? (m.count / max) * 100 : 0
+                const width = max > 0 ? (m.count / max) * 100 : 0
+                const [year, month] = m._id.split('-')
+                const monthNames = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+                const label = `${monthNames[parseInt(month)]} ${year}`
                 return (
-                  <div key={m._id} className="flex-1 flex flex-col items-center gap-1">
-                    <span className="text-xs font-bold text-violet-400">{m.count}</span>
-                    <div
-                      className="w-full bg-gradient-to-t from-violet-600 to-indigo-500 rounded-t-lg transition-all duration-500"
-                      style={{ height: `${Math.max(4, height)}%` }}
-                    />
-                    <span className="text-[10px] text-gray-600">{m._id.substring(5)}</span>
+                  <div key={m._id} className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-gray-400 w-20 text-right">{label}</span>
+                    <div className="flex-1 h-8 bg-gray-800/50 rounded-lg overflow-hidden relative">
+                      <div
+                        className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 rounded-lg transition-all duration-700 flex items-center justify-end pr-3"
+                        style={{ width: `${Math.max(8, width)}%` }}
+                      >
+                        {width >= 20 && (
+                          <span className="text-xs font-bold text-white">{m.count}</span>
+                        )}
+                      </div>
+                      {width < 20 && (
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-violet-400">{m.count}</span>
+                      )}
+                    </div>
                   </div>
                 )
               })}
