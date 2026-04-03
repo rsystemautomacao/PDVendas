@@ -9,6 +9,14 @@ const itemVendaSchema = new Schema(
     precoUnitario: { type: Number, required: true, min: 0 },
     desconto: { type: Number, default: 0, min: 0 },
     total: { type: Number, required: true, min: 0 },
+    // Dados de variação (roupas)
+    variacaoId: { type: Schema.Types.ObjectId },
+    tamanho: String,
+    cor: String,
+    // Número de série (informática)
+    serialNumero: String,
+    // Garantia
+    garantiaAte: Date,
   },
   { _id: false }
 );

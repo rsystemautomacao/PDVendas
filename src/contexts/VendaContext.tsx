@@ -17,6 +17,7 @@ interface VendaContextType {
   observacoes: string
   // Cart actions
   addToCart: (produtoId: string, quantidade?: number) => void
+  addToCartComVariacao: (produtoId: string, extras?: { variacaoId?: string; tamanho?: string; cor?: string; preco?: number; serialNumero?: string; garantiaAte?: string }) => void
   addToCartBalanca: (produtoId: string, nome: string, codigo: string, peso: number, precoKg: number, valorTotal: number) => void
   removeFromCart: (index: number) => void
   updateCartItem: (index: number, quantidade: number) => void
@@ -122,6 +123,30 @@ export function VendaProvider({ children }: { children: ReactNode }) {
       }]
     })
   }, [getProduto, toast, cart])
+
+  // Adicionar produto com variação (tamanho/cor) ou serial
+  const addToCartComVariacao = useCallback((produtoId: string, extras?: { variacaoId?: string; tamanho?: string; cor?: string; preco?: number; serialNumero?: string; garantiaAte?: string }) => {
+    const produto = getProduto(produtoId)
+    if (!produto) { toast.erro('Produto nao encontrado'); return }
+    const precoFinal = extras?.preco || produto.preco
+    const sufixo = [extras?.tamanho, extras?.cor].filter(Boolean).join(' / ')
+    const nomeFinal = sufixo ? `${produto.nome} (${sufixo})` : produto.nome
+
+    setCart(prev => [...prev, {
+      produtoId,
+      nome: nomeFinal,
+      codigo: produto.codigo,
+      quantidade: 1,
+      precoUnitario: precoFinal,
+      desconto: 0,
+      total: precoFinal,
+      variacaoId: extras?.variacaoId,
+      tamanho: extras?.tamanho,
+      cor: extras?.cor,
+      serialNumero: extras?.serialNumero,
+      garantiaAte: extras?.garantiaAte,
+    }])
+  }, [getProduto, toast])
 
   // Adicionar produto de balanca com peso e valor total da etiqueta
   const addToCartBalanca = useCallback((produtoId: string, nome: string, codigo: string, peso: number, precoKg: number, valorTotal: number) => {
@@ -284,7 +309,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
   return (
     <VendaContext.Provider value={{
       vendas, loading, cart, clienteId, clienteNome, desconto, descontoTipo, observacoes,
-      addToCart, addToCartBalanca, removeFromCart, updateCartItem, clearCart, setClienteVenda,
+      addToCart, addToCartComVariacao, addToCartBalanca, removeFromCart, updateCartItem, clearCart, setClienteVenda,
       setDesconto, setObservacoesVenda,
       subtotal, totalDesconto, totalVenda,
       finalizarVenda, cancelarVenda,

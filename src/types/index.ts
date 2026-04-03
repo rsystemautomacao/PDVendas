@@ -30,6 +30,31 @@ export interface EmpresaInfo {
 }
 
 // ---- Produto ----
+export interface VariacaoProduto {
+  _id?: string
+  tamanho?: string
+  cor?: string
+  sku?: string
+  codigoBarras?: string
+  preco?: number
+  estoque: number
+}
+
+export interface SerialProduto {
+  _id?: string
+  numero: string
+  status: 'disponivel' | 'vendido' | 'garantia' | 'defeito'
+  vendaId?: string
+  dataVenda?: string
+  garantiaAte?: string
+  observacoes?: string
+}
+
+export interface EspecificacaoProduto {
+  chave: string
+  valor: string
+}
+
 export interface Produto {
   _id: string
   nome: string
@@ -47,6 +72,24 @@ export interface Produto {
   fornecedor?: string
   ativo: boolean
   observacoes?: string
+  // Variações (roupas)
+  temVariacoes?: boolean
+  variacoes?: VariacaoProduto[]
+  tamanhosPadrao?: string[]
+  coresPadrao?: string[]
+  // Seriais (informática)
+  temSerial?: boolean
+  seriais?: SerialProduto[]
+  // Garantia
+  garantiaMeses?: number
+  garantiaTipo?: 'fabricante' | 'loja' | 'estendida' | ''
+  // Especificações
+  especificacoes?: EspecificacaoProduto[]
+  // Categoria e roupas
+  categoria?: string
+  genero?: '' | 'masculino' | 'feminino' | 'unissex' | 'infantil'
+  material?: string
+  colecao?: string
   criadoEm: string
   atualizadoEm: string
 }
@@ -114,6 +157,14 @@ export interface ItemVenda {
   precoUnitario: number
   desconto: number
   total: number
+  // Variação
+  variacaoId?: string
+  tamanho?: string
+  cor?: string
+  // Serial
+  serialNumero?: string
+  // Garantia
+  garantiaAte?: string
 }
 
 export interface Pagamento {

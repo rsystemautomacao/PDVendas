@@ -13,14 +13,14 @@ import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency, isCodigoBalanca } from '../../utils/helpers'
 import { imprimirRecibo, deveImprimirAutomatico } from '../../utils/impressao'
-import type { Pagamento, FormaPagamento, Venda } from '../../types'
+import type { Pagamento, FormaPagamento, Venda, Produto } from '../../types'
 
 export function NovoPedidoPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const { user } = useAuth()
   const {
-    cart, addToCart, addToCartBalanca, removeFromCart, updateCartItem, clearCart,
+    cart, addToCart, addToCartComVariacao, addToCartBalanca, removeFromCart, updateCartItem, clearCart,
     subtotal, totalDesconto, totalVenda,
     setClienteVenda, clienteId, clienteNome,
     setDesconto, finalizarVenda, setObservacoesVenda, observacoes,
@@ -90,6 +90,12 @@ export function NovoPedidoPage() {
   const [crediarioClientResults, setCrediarioClientResults] = useState<ReturnType<typeof buscarClientes>>([])
   const [crediarioSelectedIdx, setCrediarioSelectedIdx] = useState(-1)
   const crediarioSearchRef = useRef<HTMLInputElement>(null)
+
+  // Variation/Serial selection modal
+  const [showVariacaoModal, setShowVariacaoModal] = useState(false)
+  const [variacaoProduto, setVariacaoProduto] = useState<Produto | null>(null)
+  const [variacaoSelecionada, setVariacaoSelecionada] = useState<string | null>(null)
+  const [serialSelecionado, setSerialSelecionado] = useState<string | null>(null)
 
   // Caixa warning
   const [showCaixaModal, setShowCaixaModal] = useState(false)
@@ -252,13 +258,33 @@ export function NovoPedidoPage() {
   }, [clientSearch, buscarClientes])
 
   const handleAddProduct = useCallback((produtoId: string) => {
+    const prod = produtos.find(p => p._id === produtoId)
+    // Se tem variações ou serial, abrir modal de seleção
+    if (prod && (prod.temVariacoes && prod.variacoes && prod.variacoes.length > 0)) {
+      setVariacaoProduto(prod)
+      setVariacaoSelecionada(null)
+      setSerialSelecionado(null)
+      setShowVariacaoModal(true)
+      setSearchTerm('')
+      setShowResults(false)
+      return
+    }
+    if (prod && (prod.temSerial && prod.seriais && prod.seriais.some(s => s.status === 'disponivel'))) {
+      setVariacaoProduto(prod)
+      setVariacaoSelecionada(null)
+      setSerialSelecionado(null)
+      setShowVariacaoModal(true)
+      setSearchTerm('')
+      setShowResults(false)
+      return
+    }
     addToCart(produtoId)
     setSearchTerm('')
     setShowResults(false)
     setSelectedProductIdx(-1)
     setSelectedCartIdx(-1)
     searchRef.current?.focus()
-  }, [addToCart])
+  }, [addToCart, produtos])
 
   const handleSelectClient = useCallback((id: string, nome: string) => {
     setClienteVenda(id, nome)
@@ -1627,6 +1653,115 @@ export function NovoPedidoPage() {
               >
                 Remover (Enter)
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== MODAL: Variação / Serial ====== */}
+      {showVariacaoModal && variacaoProduto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-scale-in max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-1">{variacaoProduto.nome}</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                {variacaoProduto.temVariacoes ? 'Selecione tamanho/cor:' : 'Selecione o numero de serie:'}
+              </p>
+
+              {/* Variações (roupas) */}
+              {variacaoProduto.temVariacoes && variacaoProduto.variacoes && (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {variacaoProduto.variacoes.filter(v => v.estoque > 0).map((v, idx) => {
+                    const label = [v.tamanho, v.cor].filter(Boolean).join(' / ')
+                    const precoVar = v.preco || variacaoProduto.preco
+                    return (
+                      <button key={v._id || idx}
+                        onClick={() => setVariacaoSelecionada(v._id || `${idx}`)}
+                        className={`w-full flex items-center justify-between rounded-xl border-2 p-3 transition-all ${
+                          variacaoSelecionada === (v._id || `${idx}`)
+                            ? 'border-primary bg-primary/5'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}>
+                        <div className="text-left">
+                          <span className="font-medium text-gray-800">{label}</span>
+                          <span className="text-xs text-gray-400 ml-2">Estoque: {v.estoque}</span>
+                        </div>
+                        <span className="font-semibold text-gray-700">
+                          {formatCurrency(precoVar)}
+                        </span>
+                      </button>
+                    )
+                  })}
+                  {variacaoProduto.variacoes.filter(v => v.estoque > 0).length === 0 && (
+                    <p className="text-sm text-red-500 text-center py-4">Nenhuma variacao com estoque disponivel.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Seriais (informática) */}
+              {variacaoProduto.temSerial && variacaoProduto.seriais && (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {variacaoProduto.seriais.filter(s => s.status === 'disponivel').map((s, idx) => (
+                    <button key={s._id || idx}
+                      onClick={() => setSerialSelecionado(s.numero)}
+                      className={`w-full flex items-center justify-between rounded-xl border-2 p-3 transition-all ${
+                        serialSelecionado === s.numero
+                          ? 'border-primary bg-primary/5'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}>
+                      <span className="font-mono text-sm text-gray-800">{s.numero}</span>
+                      <span className="text-xs text-green-600 font-medium">Disponivel</span>
+                    </button>
+                  ))}
+                  {variacaoProduto.seriais.filter(s => s.status === 'disponivel').length === 0 && (
+                    <p className="text-sm text-red-500 text-center py-4">Nenhum serial disponivel.</p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-4">
+                <button onClick={() => { setShowVariacaoModal(false); setVariacaoProduto(null); searchRef.current?.focus() }}
+                  className="btn-secondary flex-1">
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    if (variacaoProduto.temVariacoes && variacaoProduto.variacoes) {
+                      const selIdx = variacaoProduto.variacoes.findIndex((v, i) => (v._id || `${i}`) === variacaoSelecionada)
+                      if (selIdx < 0) { return }
+                      const v = variacaoProduto.variacoes[selIdx]
+                      const garantiaAte = variacaoProduto.garantiaMeses
+                        ? new Date(Date.now() + variacaoProduto.garantiaMeses * 30 * 86400000).toISOString()
+                        : undefined
+                      addToCartComVariacao(variacaoProduto._id, {
+                        variacaoId: v._id,
+                        tamanho: v.tamanho,
+                        cor: v.cor,
+                        preco: v.preco || variacaoProduto.preco,
+                        garantiaAte,
+                      })
+                    } else if (variacaoProduto.temSerial && serialSelecionado) {
+                      const garantiaAte = variacaoProduto.garantiaMeses
+                        ? new Date(Date.now() + variacaoProduto.garantiaMeses * 30 * 86400000).toISOString()
+                        : undefined
+                      addToCartComVariacao(variacaoProduto._id, {
+                        serialNumero: serialSelecionado,
+                        garantiaAte,
+                      })
+                    }
+                    setShowVariacaoModal(false)
+                    setVariacaoProduto(null)
+                    searchRef.current?.focus()
+                  }}
+                  disabled={
+                    (variacaoProduto.temVariacoes && !variacaoSelecionada) ||
+                    (variacaoProduto.temSerial && !serialSelecionado)
+                  }
+                  className="btn-primary flex-1"
+                >
+                  Adicionar
+                </button>
+              </div>
             </div>
           </div>
         </div>
