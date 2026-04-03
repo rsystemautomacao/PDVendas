@@ -5,7 +5,6 @@ import { api } from '../services/api'
 
 const TOKEN_KEY = 'meupdv_token'
 const USER_KEY = 'meupdv_current_user'
-const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 interface LoginResult {
   ok: boolean
@@ -116,21 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
-  // Logout automático ao fechar o browser/aba (best-effort via fetch keepalive)
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      const token = localStorage.getItem(TOKEN_KEY)
-      if (token) {
-        fetch(`${API_BASE}/auth/logout`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          keepalive: true,
-        }).catch(() => {})
-      }
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [])
 
   const updateUser = useCallback(async (updates: Record<string, unknown>) => {
     try {
