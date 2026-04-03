@@ -52,16 +52,33 @@ export function useVendas() {
 export function VendaProvider({ children }: { children: ReactNode }) {
   const [vendas, setVendas] = useState<Venda[]>([])
   const [loading, setLoading] = useState(true)
-  const [cart, setCart] = useState<ItemVenda[]>([])
+  // Carregar carrinho salvo do localStorage (recuperação de crash)
+  const [cart, setCart] = useState<ItemVenda[]>(() => {
+    try {
+      const saved = localStorage.getItem('meupdv_draft_cart')
+      if (saved) return JSON.parse(saved)
+    } catch { /* ignore */ }
+    return []
+  })
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [clienteNome, setClienteNome] = useState('')
   const [desconto, setDescontoState] = useState(0)
   const [descontoTipo, setDescontoTipo] = useState<'valor' | 'percentual'>('valor')
   const [observacoes, setObservacoesState] = useState('')
+  const [finalizando, setFinalizando] = useState(false)
 
   const toast = useToast()
   const { getProduto, recarregar: recarregarProdutos } = useProdutos()
   const { caixaAberto, recarregar: recarregarCaixas } = useCaixa()
+
+  // Persistir carrinho no localStorage a cada alteração
+  useEffect(() => {
+    if (cart.length > 0) {
+      localStorage.setItem('meupdv_draft_cart', JSON.stringify(cart))
+    } else {
+      localStorage.removeItem('meupdv_draft_cart')
+    }
+  }, [cart])
 
   const recarregar = useCallback(async () => {
     try {
@@ -220,6 +237,8 @@ export function VendaProvider({ children }: { children: ReactNode }) {
 
   // ---- Finalização ----
   const finalizarVenda = useCallback(async (pagamentos: Pagamento[]) => {
+    // Proteção contra duplo clique
+    if (finalizando) return null
     if (cart.length === 0) {
       toast.erro('Adicione pelo menos um item ao carrinho')
       return null
@@ -228,6 +247,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
       toast.erro('Nao ha caixa aberto. Abra um caixa primeiro.')
       return null
     }
+    setFinalizando(true)
 
     const totalPago = pagamentos.reduce((s, p) => s + p.valor, 0)
     if (totalPago < totalVenda) {
@@ -259,14 +279,17 @@ export function VendaProvider({ children }: { children: ReactNode }) {
         // Recarregar dados que foram alterados pelo backend (estoque, caixa, vendas)
         await Promise.all([recarregar(), recarregarProdutos(), recarregarCaixas()])
         toast.sucesso(`Venda #${venda.numero} finalizada! Total: R$ ${totalVenda.toFixed(2)}${troco > 0 ? ` | Troco: R$ ${troco.toFixed(2)}` : ''}`)
+        setFinalizando(false)
         return venda
       }
+      setFinalizando(false)
       return null
     } catch (err: any) {
+      setFinalizando(false)
       toast.erro(err.message || 'Erro ao finalizar venda')
       return null
     }
-  }, [cart, caixaAberto, totalVenda, clienteId, clienteNome, subtotal, totalDesconto, descontoTipo, observacoes, clearCart, recarregar, recarregarProdutos, recarregarCaixas, toast])
+  }, [cart, caixaAberto, totalVenda, clienteId, clienteNome, subtotal, totalDesconto, descontoTipo, observacoes, finalizando, clearCart, recarregar, recarregarProdutos, recarregarCaixas, toast])
 
   const cancelarVenda = useCallback(async (id: string, motivo: string) => {
     try {

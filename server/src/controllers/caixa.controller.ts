@@ -6,8 +6,8 @@ import { User } from '../models/User';
 export const caixaController = {
   list: asyncHandler(async (req: Request, res: Response) => {
     const empresaId = req.user!.empresaId;
-    const caixas = await caixaService.list(empresaId);
-    res.json({ success: true, data: caixas });
+    const result = await caixaService.list(empresaId, req.query);
+    res.json({ success: true, data: result.data, pagination: result.pagination });
   }),
 
   getById: asyncHandler(async (req: Request, res: Response) => {

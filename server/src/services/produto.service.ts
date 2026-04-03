@@ -59,17 +59,25 @@ export const produtoService = {
   },
 
   async updateStock(id: string, quantidade: number, operacao: string = 'set', empresaId: string) {
-    const produto = await Produto.findOne({ _id: id, empresaId });
-    if (!produto) throw new AppError('Produto não encontrado', 404);
-
+    let update: any;
     if (operacao === 'add') {
-      produto.estoque += quantidade;
+      update = { $inc: { estoque: quantidade } };
     } else if (operacao === 'subtract') {
-      produto.estoque = Math.max(0, produto.estoque - quantidade);
+      update = { $inc: { estoque: -quantidade } };
     } else {
-      produto.estoque = quantidade;
+      update = { $set: { estoque: quantidade } };
     }
-    await produto.save();
+    const produto = await Produto.findOneAndUpdate(
+      { _id: id, empresaId },
+      update,
+      { new: true, runValidators: true }
+    );
+    if (!produto) throw new AppError('Produto não encontrado', 404);
+    // Garantir que estoque não fique negativo
+    if (produto.estoque < 0) {
+      await Produto.findOneAndUpdate({ _id: id, empresaId }, { $set: { estoque: 0 } });
+      produto.estoque = 0;
+    }
     return produto;
   },
 

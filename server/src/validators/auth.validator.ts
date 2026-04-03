@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const registerSchema = z.object({
   nome: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
   email: z.string().email('Email inválido'),
-  senha: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+  senha: z.string().min(8, 'Senha deve ter no minimo 8 caracteres'),
   empresa: z.object({
     nome: z.string().optional(),
     cnpj: z.string().optional(),
@@ -24,7 +24,7 @@ export const updateUserSchema = z.object({
   nome: z.string().min(2).optional(),
   email: z.string().email().optional(),
   senhaAtual: z.string().optional(),
-  novaSenha: z.string().min(6).optional(),
+  novaSenha: z.string().min(8).optional(),
   role: z.enum(['admin', 'caixa', 'gerente']).optional(),
   ativo: z.boolean().optional(),
   empresa: z.object({
@@ -34,7 +34,7 @@ export const updateUserSchema = z.object({
     endereco: z.string().optional(),
     cidade: z.string().optional(),
     estado: z.string().optional(),
-    logoBase64: z.string().optional(),
+    logoBase64: z.string().max(1_500_000, 'Logo deve ter no maximo 1MB').optional(),
   }).optional(),
 }).refine(
   (data) => {
@@ -51,5 +51,5 @@ export const forgotPasswordSchema = z.object({
 export const resetPasswordSchema = z.object({
   email: z.string().email('Email inválido'),
   token: z.string().length(6, 'Código deve ter 6 dígitos'),
-  novaSenha: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+  novaSenha: z.string().min(8, 'Senha deve ter no minimo 8 caracteres'),
 });

@@ -40,8 +40,8 @@ export const compraService = {
 
       // Atualizar estoque de cada item
       for (const item of [...compra.itens]) {
-        await Produto.findByIdAndUpdate(
-          item.produtoId,
+        await Produto.findOneAndUpdate(
+          { _id: item.produtoId, empresaId },
           {
             $inc: { estoque: item.quantidade },
             $set: { precoCusto: item.custoUnitario },
