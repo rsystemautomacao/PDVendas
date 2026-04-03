@@ -193,6 +193,7 @@ export function Sidebar({ onClose }: SidebarProps) {
                     <li><Link to="/app/config/parametros" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/parametros') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Parametros</Link></li>
                     <li><Link to="/app/config/usuarios" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/usuarios') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Usuarios</Link></li>
                     <li><Link to="/app/config/permissoes" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/permissoes') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Permissoes</Link></li>
+                    <li><Link to="/app/config/impressoras" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/impressoras') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Impressoras</Link></li>
                   </ul>
                 )}
               </li>

@@ -12,6 +12,7 @@ import { useCaixa } from '../../contexts/CaixaContext'
 import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency, isCodigoBalanca } from '../../utils/helpers'
+import { imprimirRecibo, deveImprimirAutomatico } from '../../utils/impressao'
 import type { Pagamento, FormaPagamento, Venda } from '../../types'
 
 export function NovoPedidoPage() {
@@ -417,6 +418,60 @@ export function NovoPedidoPage() {
     }
   }
 
+  const gerarReciboHtml = useCallback((venda: Venda) => {
+    const logo = user?.empresa?.logoBase64
+      ? `<div class="centro"><img src="${user.empresa.logoBase64}" alt="Logo" /></div>`
+      : ''
+    const cnpj = user?.empresa?.cnpj ? `<div class="centro" style="font-size:10px">CNPJ: ${user.empresa.cnpj}</div>` : ''
+    const tel = user?.empresa?.telefone ? `<div class="centro" style="font-size:10px">Tel: ${user.empresa.telefone}</div>` : ''
+    const itensHtml = venda.itens.map(item =>
+      `<div>${item.nome}<br/>&nbsp;&nbsp;${item.quantidade}x ${formatCurrency(item.precoUnitario)} = ${formatCurrency(item.total)}</div>`
+    ).join('')
+    const pagHtml = venda.pagamentos.map(p =>
+      `<div style="text-transform:capitalize">${p.forma}: ${formatCurrency(p.valor)}${p.parcelas && p.parcelas > 1 ? ` (${p.parcelas}x)` : ''}</div>`
+    ).join('')
+    return `
+      ${logo}
+      <div class="centro bold">${user?.empresa?.nome || 'COMPROVANTE DE VENDA'}</div>
+      ${cnpj}${tel}
+      <div class="linha"></div>
+      <div>Venda #${venda.numero}</div>
+      <div>Data: ${new Date(venda.criadoEm).toLocaleString('pt-BR')}</div>
+      <div>Cliente: ${venda.clienteNome}</div>
+      <div>Vendedor: ${venda.vendedorNome}</div>
+      <div class="linha"></div>
+      <div class="bold">ITENS:</div>
+      ${itensHtml}
+      <div class="linha"></div>
+      <div>Subtotal: ${formatCurrency(venda.subtotal)}</div>
+      ${venda.desconto > 0 ? `<div>Desconto: -${formatCurrency(venda.desconto)}</div>` : ''}
+      <div class="bold">TOTAL: ${formatCurrency(venda.total)}</div>
+      <div class="linha"></div>
+      <div class="bold">PAGAMENTO:</div>
+      ${pagHtml}
+      ${venda.troco > 0 ? `<div>Troco: ${formatCurrency(venda.troco)}</div>` : ''}
+      <div class="linha"></div>
+      <div class="centro">Obrigado pela preferencia!</div>
+    `
+  }, [user])
+
+  const imprimirReciboVenda = useCallback(() => {
+    if (!vendaFinalizada) return
+    const html = gerarReciboHtml(vendaFinalizada)
+    imprimirRecibo(html)
+  }, [vendaFinalizada, gerarReciboHtml])
+
+  // Auto-print receipt when sale is finalized (if configured)
+  useEffect(() => {
+    if (showRecibo && vendaFinalizada && deveImprimirAutomatico()) {
+      const timer = setTimeout(() => {
+        const html = gerarReciboHtml(vendaFinalizada)
+        imprimirRecibo(html)
+      }, 800)
+      return () => clearTimeout(timer)
+    }
+  }, [showRecibo, vendaFinalizada, gerarReciboHtml])
+
   const handleNovaVenda = () => {
     setVendaFinalizada(null)
     setShowRecibo(false)
@@ -530,7 +585,7 @@ export function NovoPedidoPage() {
       // === Modal Recibo ===
       if (showRecibo) {
         if (e.key === 'Enter' || e.key === 'F2') { e.preventDefault(); handleNovaVenda(); return }
-        if (e.key === 'p' || e.key === 'P') { e.preventDefault(); window.print(); return }
+        if (e.key === 'p' || e.key === 'P') { e.preventDefault(); imprimirReciboVenda(); return }
         if (e.key === 'Escape') { e.preventDefault(); handleNovaVenda(); return }
         return
       }
@@ -1628,7 +1683,7 @@ export function NovoPedidoPage() {
               </div>
 
               <div className="flex gap-3">
-                <button onClick={() => window.print()} className="btn-secondary flex-1">
+                <button onClick={imprimirReciboVenda} className="btn-secondary flex-1">
                   <Printer size={16} /> Imprimir (P)
                 </button>
                 <button onClick={handleNovaVenda} className="btn-primary flex-1" autoFocus>
