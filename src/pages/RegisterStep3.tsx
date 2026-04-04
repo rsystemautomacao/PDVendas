@@ -31,7 +31,7 @@ export function RegisterStep3() {
 
   const validate = () => {
     const next: { password?: string; confirmPassword?: string } = {}
-    if (password.length < 6) next.password = 'A senha deve ter pelo menos 6 caracteres'
+    if (password.length < 8) next.password = 'A senha deve ter pelo menos 8 caracteres'
     if (password !== confirmPassword) next.confirmPassword = 'As senhas não coincidem'
     setErrors(next)
     return Object.keys(next).length === 0
