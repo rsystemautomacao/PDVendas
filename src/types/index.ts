@@ -19,6 +19,12 @@ export interface User {
   permissoes?: Record<string, boolean>
 }
 
+export type SegmentoEmpresa =
+  | '' | 'varejo_geral' | 'roupas_calcados' | 'informatica_eletronicos'
+  | 'alimentos_bebidas' | 'materiais_construcao' | 'pet_shop'
+  | 'papelaria' | 'farmacia' | 'otica' | 'assistencia_tecnica'
+  | 'auto_pecas' | 'oficina_mecanica' | 'outro'
+
 export interface EmpresaInfo {
   nome: string
   cnpj?: string
@@ -27,6 +33,7 @@ export interface EmpresaInfo {
   cidade?: string
   estado?: string
   logoBase64?: string
+  segmento?: SegmentoEmpresa
 }
 
 // ---- Produto ----
@@ -288,7 +295,7 @@ export interface LogAtividade {
 
 // ---- Ordem de Serviço (OS) ----
 export interface Dispositivo {
-  tipo: 'celular' | 'tablet' | 'notebook' | 'outro'
+  tipo: string
   marca: string
   modelo: string
   cor?: string
@@ -297,6 +304,23 @@ export interface Dispositivo {
   senhaDispositivo?: string
   acessorios?: string
   estadoVisual?: string
+  // Veículo (oficina mecânica / auto peças)
+  placa?: string
+  ano?: string
+  km?: string
+  chassi?: string
+  combustivel?: string
+  // Animal (pet shop)
+  nomeAnimal?: string
+  especie?: string
+  raca?: string
+  porte?: string
+  peso?: string
+  // Ótica
+  grauOD?: string
+  grauOE?: string
+  // Genérico
+  descricaoItem?: string
 }
 
 export interface ServicoOS {

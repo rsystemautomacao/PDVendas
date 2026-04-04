@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePermissao } from '../../hooks/usePermissao'
+import { useSegmento } from '../../hooks/useSegmento'
 
 interface SidebarProps { onClose?: () => void }
 
@@ -16,6 +17,7 @@ export function Sidebar({ onClose }: SidebarProps) {
   const location = useLocation()
   const { user, logout } = useAuth()
   const { temPermissao, isAdmin } = usePermissao()
+  const seg = useSegmento()
   const [configOpen, setConfigOpen] = useState(false)
 
   const handleSair = () => {
@@ -127,6 +129,7 @@ export function Sidebar({ onClose }: SidebarProps) {
           </ul>
         </div>
 
+        {seg.mostrarOrdensServico && (
         <div>
           <p className="px-3.5 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-gray-300">Assistencia Tecnica</p>
           <ul className="space-y-0.5">
@@ -134,6 +137,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             <MenuItem to="/app/orcamentos" icon={FileText} label="Orcamentos" />
           </ul>
         </div>
+        )}
 
         {(temPermissao('produtos.visualizar') || temPermissao('clientes.visualizar')) && (
           <div>

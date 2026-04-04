@@ -4,6 +4,7 @@ import { ArrowLeft, Scale, AlertCircle, Plus, Trash2, Cpu, Shirt, Shield, Hash }
 import { useProdutos } from '../../contexts/ProdutoContext'
 import { useToast } from '../../contexts/ToastContext'
 import { sanitize } from '../../utils/helpers'
+import { useSegmento } from '../../hooks/useSegmento'
 import type { VariacaoProduto, SerialProduto, EspecificacaoProduto } from '../../types'
 
 const UNIDADES = ['UN', 'KG', 'L', 'CX', 'M', 'PCT'] as const
@@ -42,6 +43,7 @@ export function ProdutoFormPage() {
   const { getProduto, adicionarProduto, atualizarProduto } = useProdutos()
   const toast = useToast()
 
+  const seg = useSegmento()
   const isEdit = !!id && id !== 'novo'
   const locationState = location.state as { codigoBarras?: string; returnTo?: string } | null
 
@@ -93,8 +95,16 @@ export function ProdutoFormPage() {
   // Aba ativa
   const [abaAtiva, setAbaAtiva] = useState<'basico' | 'variacoes' | 'serial' | 'specs'>('basico')
 
-  const isRoupa = categoria === 'roupas' || categoria === 'calcados' || categoria === 'acessorios'
-  const isInformatica = categoria === 'informatica' || categoria === 'celulares' || categoria === 'eletronicos' || categoria === 'eletrodomesticos'
+  const isRoupa = seg.mostrarVariacoes && (categoria === 'roupas' || categoria === 'calcados' || categoria === 'acessorios')
+  const isInformatica = seg.mostrarSerial && (categoria === 'informatica' || categoria === 'celulares' || categoria === 'eletronicos' || categoria === 'eletrodomesticos')
+
+  // Filtrar categorias e unidades conforme segmento
+  const categoriasFiltradas = seg.categoriasPadrao.length > 0
+    ? CATEGORIAS.filter(c => c.value === '' || c.value === 'outros' || seg.categoriasPadrao.includes(c.value))
+    : CATEGORIAS
+  const unidadesFiltradas = seg.unidadesPadrao.length > 0
+    ? UNIDADES.filter(u => seg.unidadesPadrao.includes(u))
+    : UNIDADES
 
   // Load existing product if editing
   useEffect(() => {
@@ -355,12 +365,12 @@ export function ProdutoFormPage() {
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Categoria</label>
                 <select value={categoria} onChange={e => setCategoria(e.target.value)} className="input-field">
-                  {CATEGORIAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  {categoriasFiltradas.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
 
               {/* Modo Venda (apenas para produto) */}
-              {tipo === 'produto' && !isRoupa && !isInformatica && (
+              {tipo === 'produto' && !isRoupa && !isInformatica && seg.mostrarBalanca && (
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Modo de Venda</label>
                   <div className="flex gap-4 mt-2">
@@ -454,14 +464,19 @@ export function ProdutoFormPage() {
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Unidade</label>
                 <select value={unidade} onChange={e => setUnidade(e.target.value as typeof unidade)} className="input-field">
-                  {UNIDADES.map(u => <option key={u} value={u}>{u}</option>)}
+                  {unidadesFiltradas.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
 
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Grupo</label>
                 <input type="text" value={grupo} onChange={e => setGrupo(e.target.value)}
-                  placeholder="Ex: Bebidas, Camisetas" className="input-field" />
+                  placeholder="Ex: Bebidas, Camisetas" className="input-field" list="grupos-sugeridos" />
+                {seg.gruposSugeridos.length > 0 && (
+                  <datalist id="grupos-sugeridos">
+                    {seg.gruposSugeridos.map(g => <option key={g} value={g} />)}
+                  </datalist>
+                )}
               </div>
 
               <div>
@@ -521,6 +536,7 @@ export function ProdutoFormPage() {
               {temVariacoes && (
                 <div className="space-y-5">
                   {/* Genero */}
+                  {seg.mostrarGenero && (
                   <div>
                     <label className="text-sm font-medium text-gray-700 mb-2 block">Genero</label>
                     <div className="flex flex-wrap gap-2">
@@ -534,6 +550,7 @@ export function ProdutoFormPage() {
                       ))}
                     </div>
                   </div>
+                  )}
 
                   {/* Tamanhos */}
                   <div>

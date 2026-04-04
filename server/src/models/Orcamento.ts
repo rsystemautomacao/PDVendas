@@ -2,19 +2,32 @@ import mongoose, { Schema } from 'mongoose';
 
 const dispositivoSchema = new Schema(
   {
-    tipo: {
-      type: String,
-      enum: ['celular', 'tablet', 'notebook', 'outro'],
-      required: true,
-    },
-    marca: { type: String, required: true },
-    modelo: { type: String, required: true },
+    tipo: { type: String, required: true },
+    marca: String,
+    modelo: String,
     cor: String,
     imei: String,
     serial: String,
     senhaDispositivo: String,
     acessorios: String,
     estadoVisual: String,
+    // Veículo
+    placa: String,
+    ano: String,
+    km: String,
+    chassi: String,
+    combustivel: String,
+    // Animal
+    nomeAnimal: String,
+    especie: String,
+    raca: String,
+    porte: String,
+    peso: String,
+    // Ótica
+    grauOD: String,
+    grauOE: String,
+    // Genérico
+    descricaoItem: String,
   },
   { _id: false }
 );

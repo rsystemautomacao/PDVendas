@@ -10,6 +10,16 @@ const empresaSchema = new Schema(
     cidade: String,
     estado: String,
     logoBase64: String,
+    segmento: {
+      type: String,
+      enum: [
+        '', 'varejo_geral', 'roupas_calcados', 'informatica_eletronicos',
+        'alimentos_bebidas', 'materiais_construcao', 'pet_shop',
+        'papelaria', 'farmacia', 'otica', 'assistencia_tecnica',
+        'auto_pecas', 'oficina_mecanica', 'outro',
+      ],
+      default: '',
+    },
   },
   { _id: false }
 );

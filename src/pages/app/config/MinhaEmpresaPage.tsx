@@ -4,6 +4,23 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../../contexts/ToastContext'
 import { maskCNPJ, maskPhone, maskCEP, isValidCNPJ } from '../../../utils/helpers'
 import { useCepLookup } from '../../../hooks/useCepLookup'
+import type { SegmentoEmpresa } from '../../../types'
+
+const SEGMENTOS: { value: SegmentoEmpresa; label: string }[] = [
+  { value: 'varejo_geral', label: 'Varejo Geral' },
+  { value: 'roupas_calcados', label: 'Roupas e Calcados' },
+  { value: 'informatica_eletronicos', label: 'Informatica e Eletronicos' },
+  { value: 'alimentos_bebidas', label: 'Alimentos e Bebidas' },
+  { value: 'materiais_construcao', label: 'Materiais de Construcao' },
+  { value: 'pet_shop', label: 'Pet Shop' },
+  { value: 'assistencia_tecnica', label: 'Assistencia Tecnica' },
+  { value: 'farmacia', label: 'Farmacia' },
+  { value: 'otica', label: 'Otica' },
+  { value: 'auto_pecas', label: 'Auto Pecas' },
+  { value: 'oficina_mecanica', label: 'Oficina Mecanica' },
+  { value: 'papelaria', label: 'Papelaria' },
+  { value: 'outro', label: 'Outro' },
+]
 
 const ESTADOS = [
   '', 'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
@@ -33,6 +50,7 @@ export function MinhaEmpresaPage() {
   const [cidade, setCidade] = useState('')
   const [estado, setEstado] = useState('')
   const [logoBase64, setLogoBase64] = useState('')
+  const [segmento, setSegmento] = useState<SegmentoEmpresa>('varejo_geral')
 
   // CEP auto-fill
   const { buscarCep, loading: cepLoading } = useCepLookup({
@@ -54,6 +72,7 @@ export function MinhaEmpresaPage() {
       setCidade(e.cidade || '')
       setEstado(e.estado || '')
       setLogoBase64(e.logoBase64 || '')
+      setSegmento(e.segmento || 'varejo_geral')
     }
   }, [user])
 
@@ -108,6 +127,7 @@ export function MinhaEmpresaPage() {
           cidade: cidade,
           estado: estado,
           logoBase64: logoBase64,
+          segmento: segmento,
         },
       })
       if (result.ok) {
@@ -120,7 +140,7 @@ export function MinhaEmpresaPage() {
     } finally {
       setLoading(false)
     }
-  }, [razaoSocial, nomeFantasia, cnpj, telefone, endereco, numero, complemento, cidade, estado, logoBase64, updateUser, sucesso, erro])
+  }, [razaoSocial, nomeFantasia, cnpj, telefone, endereco, numero, complemento, cidade, estado, logoBase64, segmento, updateUser, sucesso, erro])
 
   const handleCancel = useCallback(() => {
     if (user?.empresa) {
@@ -133,6 +153,7 @@ export function MinhaEmpresaPage() {
       setCidade(e.cidade || '')
       setEstado(e.estado || '')
       setLogoBase64(e.logoBase64 || '')
+      setSegmento(e.segmento || 'varejo_geral')
     }
   }, [user])
 
@@ -282,6 +303,19 @@ export function MinhaEmpresaPage() {
                     className="input-field"
                     placeholder="empresa@email.com"
                   />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium text-text-primary">Segmento / Nicho</label>
+                  <select
+                    value={segmento}
+                    onChange={(e) => setSegmento(e.target.value as SegmentoEmpresa)}
+                    className="input-field"
+                  >
+                    {SEGMENTOS.map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">Define quais campos e menus aparecem no sistema.</p>
                 </div>
               </div>
             </div>

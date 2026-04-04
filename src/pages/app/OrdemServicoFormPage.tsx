@@ -8,6 +8,7 @@ import { useOrdensServico } from '../../contexts/OrdemServicoContext'
 import { useClientes } from '../../contexts/ClienteContext'
 import { useProdutos } from '../../contexts/ProdutoContext'
 import { useToast } from '../../contexts/ToastContext'
+import { useSegmento } from '../../hooks/useSegmento'
 import { formatCurrency } from '../../utils/helpers'
 import type { StatusOS, ServicoOS, PecaOS } from '../../types'
 
@@ -29,6 +30,7 @@ export function OrdemServicoFormPage() {
   const { clientes } = useClientes()
   const { produtos } = useProdutos()
   const toast = useToast()
+  const seg = useSegmento()
 
   const isEdit = !!id
   const osExistente = isEdit ? ordensServico.find(os => os._id === id) : null
@@ -37,7 +39,7 @@ export function OrdemServicoFormPage() {
   const [clienteId, setClienteId] = useState('')
   const [clienteNome, setClienteNome] = useState('')
   const [clienteTelefone, setClienteTelefone] = useState('')
-  const [dispositivoTipo, setDispositivoTipo] = useState<'celular' | 'tablet' | 'notebook' | 'outro'>('celular')
+  const [dispositivoTipo, setDispositivoTipo] = useState(seg.tiposObjetoOS[0] || 'outro')
   const [marca, setMarca] = useState('')
   const [modelo, setModelo] = useState('')
   const [cor, setCor] = useState('')
@@ -46,6 +48,23 @@ export function OrdemServicoFormPage() {
   const [senhaDispositivo, setSenhaDispositivo] = useState('')
   const [acessorios, setAcessorios] = useState('')
   const [estadoVisual, setEstadoVisual] = useState('')
+  // Veículo
+  const [placa, setPlaca] = useState('')
+  const [ano, setAno] = useState('')
+  const [km, setKm] = useState('')
+  const [chassi, setChassi] = useState('')
+  const [combustivel, setCombustivel] = useState('')
+  // Animal
+  const [nomeAnimal, setNomeAnimal] = useState('')
+  const [especie, setEspecie] = useState('')
+  const [raca, setRaca] = useState('')
+  const [porte, setPorte] = useState('')
+  const [peso, setPeso] = useState('')
+  // Ótica
+  const [grauOD, setGrauOD] = useState('')
+  const [grauOE, setGrauOE] = useState('')
+  // Genérico
+  const [descricaoItem, setDescricaoItem] = useState('')
   const [defeitoRelatado, setDefeitoRelatado] = useState('')
   const [laudoTecnico, setLaudoTecnico] = useState('')
   const [servicos, setServicos] = useState<ServicoOS[]>([])
@@ -75,6 +94,19 @@ export function OrdemServicoFormPage() {
       setSenhaDispositivo(osExistente.dispositivo.senhaDispositivo || '')
       setAcessorios(osExistente.dispositivo.acessorios || '')
       setEstadoVisual(osExistente.dispositivo.estadoVisual || '')
+      setPlaca(osExistente.dispositivo.placa || '')
+      setAno(osExistente.dispositivo.ano || '')
+      setKm(osExistente.dispositivo.km || '')
+      setChassi(osExistente.dispositivo.chassi || '')
+      setCombustivel(osExistente.dispositivo.combustivel || '')
+      setNomeAnimal(osExistente.dispositivo.nomeAnimal || '')
+      setEspecie(osExistente.dispositivo.especie || '')
+      setRaca(osExistente.dispositivo.raca || '')
+      setPorte(osExistente.dispositivo.porte || '')
+      setPeso(osExistente.dispositivo.peso || '')
+      setGrauOD(osExistente.dispositivo.grauOD || '')
+      setGrauOE(osExistente.dispositivo.grauOE || '')
+      setDescricaoItem(osExistente.dispositivo.descricaoItem || '')
       setDefeitoRelatado(osExistente.defeitoRelatado)
       setLaudoTecnico(osExistente.laudoTecnico || '')
       setServicos(osExistente.servicos || [])
@@ -136,8 +168,11 @@ export function OrdemServicoFormPage() {
 
   const handleSalvar = async () => {
     if (!clienteNome.trim()) { toast.alerta('Informe o nome do cliente'); return }
-    if (!marca.trim() || !modelo.trim()) { toast.alerta('Informe a marca e modelo do aparelho'); return }
-    if (!defeitoRelatado.trim()) { toast.alerta('Descreva o defeito relatado'); return }
+    const tipoOS = seg.tipoObjetoOS
+    if (tipoOS === 'dispositivo' && (!marca.trim() || !modelo.trim())) { toast.alerta('Informe a marca e modelo do aparelho'); return }
+    if (tipoOS === 'veiculo' && (!marca.trim() || !modelo.trim())) { toast.alerta('Informe a marca e modelo do veiculo'); return }
+    if (tipoOS === 'animal' && !nomeAnimal.trim()) { toast.alerta('Informe o nome do animal'); return }
+    if (!defeitoRelatado.trim()) { toast.alerta('Descreva o servico ou problema'); return }
 
     setSalvando(true)
     const data = {
@@ -154,6 +189,19 @@ export function OrdemServicoFormPage() {
         senhaDispositivo: senhaDispositivo || undefined,
         acessorios: acessorios || undefined,
         estadoVisual: estadoVisual || undefined,
+        placa: placa || undefined,
+        ano: ano || undefined,
+        km: km || undefined,
+        chassi: chassi || undefined,
+        combustivel: combustivel || undefined,
+        nomeAnimal: nomeAnimal || undefined,
+        especie: especie || undefined,
+        raca: raca || undefined,
+        porte: porte || undefined,
+        peso: peso || undefined,
+        grauOD: grauOD || undefined,
+        grauOE: grauOE || undefined,
+        descricaoItem: descricaoItem || undefined,
       },
       defeitoRelatado,
       laudoTecnico: laudoTecnico || undefined,
@@ -272,56 +320,227 @@ export function OrdemServicoFormPage() {
             </div>
           </div>
 
-          {/* Dispositivo */}
+          {/* Objeto da OS (dispositivo / veículo / animal / ótico / genérico) */}
           <div className="card p-5">
             <h2 className="flex items-center gap-2 text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">
-              <Smartphone size={16} className="text-primary" /> Dispositivo
+              <Smartphone size={16} className="text-primary" /> {seg.labelObjetoOS}
             </h2>
+
+            {/* Tipo (comum a todos) */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
-                <select value={dispositivoTipo} onChange={e => setDispositivoTipo(e.target.value as any)} disabled={isReadOnly} className="input-field w-full">
-                  <option value="celular">Celular</option>
-                  <option value="tablet">Tablet</option>
-                  <option value="notebook">Notebook</option>
-                  <option value="outro">Outro</option>
+                <select value={dispositivoTipo} onChange={e => setDispositivoTipo(e.target.value)} disabled={isReadOnly} className="input-field w-full">
+                  {seg.tiposObjetoOS.map(t => (
+                    <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1).replace('_', ' ')}</option>
+                  ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Marca *</label>
-                <input type="text" placeholder="Samsung, Apple..." value={marca} onChange={e => setMarca(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Modelo *</label>
-                <input type="text" placeholder="Galaxy S24, iPhone 15..." value={modelo} onChange={e => setModelo(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cor</label>
-                <input type="text" placeholder="Preto, Branco..." value={cor} onChange={e => setCor(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
-              </div>
+
+              {/* === DISPOSITIVO (informática / assist. técnica) === */}
+              {seg.tipoObjetoOS === 'dispositivo' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Marca *</label>
+                    <input type="text" placeholder="Samsung, Apple..." value={marca} onChange={e => setMarca(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Modelo *</label>
+                    <input type="text" placeholder="Galaxy S24, iPhone 15..." value={modelo} onChange={e => setModelo(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Cor</label>
+                    <input type="text" placeholder="Preto, Branco..." value={cor} onChange={e => setCor(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                </>
+              )}
+
+              {/* === VEÍCULO (oficina / auto peças) === */}
+              {seg.tipoObjetoOS === 'veiculo' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Marca *</label>
+                    <input type="text" placeholder="Fiat, VW, Honda..." value={marca} onChange={e => setMarca(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Modelo *</label>
+                    <input type="text" placeholder="Uno, Gol, Civic..." value={modelo} onChange={e => setModelo(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Placa</label>
+                    <input type="text" placeholder="ABC-1234" value={placa} onChange={e => setPlaca(e.target.value.toUpperCase())} disabled={isReadOnly} className="input-field w-full" maxLength={8} />
+                  </div>
+                </>
+              )}
+
+              {/* === ANIMAL (pet shop) === */}
+              {seg.tipoObjetoOS === 'animal' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome do animal *</label>
+                    <input type="text" placeholder="Rex, Luna..." value={nomeAnimal} onChange={e => setNomeAnimal(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Raca</label>
+                    <input type="text" placeholder="Labrador, SRD..." value={raca} onChange={e => setRaca(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Porte</label>
+                    <select value={porte} onChange={e => setPorte(e.target.value)} disabled={isReadOnly} className="input-field w-full">
+                      <option value="">Selecione</option>
+                      <option value="pequeno">Pequeno</option>
+                      <option value="medio">Medio</option>
+                      <option value="grande">Grande</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* === ÓTICA === */}
+              {seg.tipoObjetoOS === 'produto_otico' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
+                    <input type="text" placeholder="Ray-Ban, Oakley..." value={marca} onChange={e => setMarca(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+                    <input type="text" placeholder="Modelo da armacao..." value={modelo} onChange={e => setModelo(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Cor</label>
+                    <input type="text" placeholder="Preto, Tartaruga..." value={cor} onChange={e => setCor(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                </>
+              )}
+
+              {/* === GENÉRICO (mat. construção etc.) === */}
+              {seg.tipoObjetoOS === 'generico' && (
+                <>
+                  <div className="sm:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Descricao</label>
+                    <input type="text" placeholder="Descreva o item ou local do servico..." value={descricaoItem} onChange={e => setDescricaoItem(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                </>
+              )}
             </div>
+
+            {/* Campos extras - segunda linha */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">IMEI</label>
-                <input type="text" placeholder="IMEI do aparelho" value={imei} onChange={e => setImei(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Serial</label>
-                <input type="text" placeholder="Numero de serie" value={serial} onChange={e => setSerial(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Senha do aparelho</label>
-                <input type="text" placeholder="Senha/padrao" value={senhaDispositivo} onChange={e => setSenhaDispositivo(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Acessorios</label>
-                <input type="text" placeholder="Capa, carregador..." value={acessorios} onChange={e => setAcessorios(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
-              </div>
+              {/* Dispositivo: IMEI, Serial, Senha, Acessórios */}
+              {seg.tipoObjetoOS === 'dispositivo' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">IMEI</label>
+                    <input type="text" placeholder="IMEI do aparelho" value={imei} onChange={e => setImei(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Serial</label>
+                    <input type="text" placeholder="Numero de serie" value={serial} onChange={e => setSerial(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Senha do aparelho</label>
+                    <input type="text" placeholder="Senha/padrao" value={senhaDispositivo} onChange={e => setSenhaDispositivo(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Acessorios</label>
+                    <input type="text" placeholder="Capa, carregador..." value={acessorios} onChange={e => setAcessorios(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                </>
+              )}
+
+              {/* Veículo: Ano, KM, Cor, Combustível */}
+              {seg.tipoObjetoOS === 'veiculo' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ano</label>
+                    <input type="text" placeholder="2024" value={ano} onChange={e => setAno(e.target.value)} disabled={isReadOnly} className="input-field w-full" maxLength={9} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">KM atual</label>
+                    <input type="text" placeholder="45.000" value={km} onChange={e => setKm(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Cor</label>
+                    <input type="text" placeholder="Prata, Preto..." value={cor} onChange={e => setCor(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Combustivel</label>
+                    <select value={combustivel} onChange={e => setCombustivel(e.target.value)} disabled={isReadOnly} className="input-field w-full">
+                      <option value="">Selecione</option>
+                      <option value="flex">Flex</option>
+                      <option value="gasolina">Gasolina</option>
+                      <option value="etanol">Etanol</option>
+                      <option value="diesel">Diesel</option>
+                      <option value="eletrico">Eletrico</option>
+                      <option value="gnv">GNV</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Animal: Peso, Espécie */}
+              {seg.tipoObjetoOS === 'animal' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
+                    <input type="text" placeholder="12.5" value={peso} onChange={e => setPeso(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Cor / Pelagem</label>
+                    <input type="text" placeholder="Caramelo, Preto..." value={cor} onChange={e => setCor(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                </>
+              )}
+
+              {/* Ótica: Grau OD, OE */}
+              {seg.tipoObjetoOS === 'produto_otico' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Grau OD (olho direito)</label>
+                    <input type="text" placeholder="-2.50" value={grauOD} onChange={e => setGrauOD(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Grau OE (olho esquerdo)</label>
+                    <input type="text" placeholder="-1.75" value={grauOE} onChange={e => setGrauOE(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Serial</label>
+                    <input type="text" placeholder="Numero de serie" value={serial} onChange={e => setSerial(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                </>
+              )}
             </div>
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estado visual</label>
-              <input type="text" placeholder="Arranhoes, tela trincada..." value={estadoVisual} onChange={e => setEstadoVisual(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
-            </div>
+
+            {/* Veículo: Chassi */}
+            {seg.tipoObjetoOS === 'veiculo' && (
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Chassi</label>
+                  <input type="text" placeholder="Numero do chassi (opcional)" value={chassi} onChange={e => setChassi(e.target.value.toUpperCase())} disabled={isReadOnly} className="input-field w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado visual</label>
+                  <input type="text" placeholder="Arranhoes, amassados..." value={estadoVisual} onChange={e => setEstadoVisual(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                </div>
+              </div>
+            )}
+
+            {/* Dispositivo: Estado visual */}
+            {seg.tipoObjetoOS === 'dispositivo' && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estado visual</label>
+                <input type="text" placeholder="Arranhoes, tela trincada..." value={estadoVisual} onChange={e => setEstadoVisual(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+              </div>
+            )}
+
+            {/* Animal: Observações */}
+            {seg.tipoObjetoOS === 'animal' && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Acessorios / Observacoes</label>
+                <input type="text" placeholder="Coleira, guia, restricoes alimentares..." value={acessorios} onChange={e => setAcessorios(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+              </div>
+            )}
           </div>
 
           {/* Defeito e Laudo */}
@@ -331,10 +550,10 @@ export function OrdemServicoFormPage() {
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Defeito relatado pelo cliente *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{seg.labelDefeitoOS} *</label>
                 <textarea
                   rows={3}
-                  placeholder="Descreva o que o cliente relatou sobre o problema..."
+                  placeholder="Descreva o que o cliente relatou..."
                   value={defeitoRelatado}
                   onChange={e => setDefeitoRelatado(e.target.value)}
                   disabled={isReadOnly}
@@ -367,6 +586,22 @@ export function OrdemServicoFormPage() {
                 </button>
               )}
             </div>
+            {/* Sugestões de serviço */}
+            {!isReadOnly && seg.gruposServicoOS.length > 0 && servicos.length === 0 && (
+              <div className="mb-3">
+                <p className="text-xs text-gray-500 mb-1.5">Sugestoes rapidas:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {seg.gruposServicoOS.map(s => (
+                    <button key={s} type="button"
+                      onClick={() => setServicos([...servicos, { descricao: s, valor: 0 }])}
+                      className="rounded-lg px-2.5 py-1 text-xs font-medium border border-gray-200 text-gray-600 hover:border-primary/30 hover:bg-primary/5 transition-colors">
+                      + {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {servicos.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-4">Nenhum servico adicionado</p>
             ) : (

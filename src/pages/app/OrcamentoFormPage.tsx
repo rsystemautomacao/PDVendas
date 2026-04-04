@@ -8,6 +8,7 @@ import { useOrdensServico } from '../../contexts/OrdemServicoContext'
 import { useClientes } from '../../contexts/ClienteContext'
 import { useProdutos } from '../../contexts/ProdutoContext'
 import { useToast } from '../../contexts/ToastContext'
+import { useSegmento } from '../../hooks/useSegmento'
 import { formatCurrency } from '../../utils/helpers'
 import type { StatusOrcamento, ItemOrcamento } from '../../types'
 
@@ -26,6 +27,7 @@ export function OrcamentoFormPage() {
   const { clientes } = useClientes()
   const { produtos } = useProdutos()
   const toast = useToast()
+  const seg = useSegmento()
 
   const isEdit = !!id
   const orcExistente = isEdit ? orcamentos.find(o => o._id === id) : null
@@ -34,11 +36,26 @@ export function OrcamentoFormPage() {
   const [clienteId, setClienteId] = useState('')
   const [clienteNome, setClienteNome] = useState('')
   const [clienteTelefone, setClienteTelefone] = useState('')
-  const [dispositivoTipo, setDispositivoTipo] = useState<'celular' | 'tablet' | 'notebook' | 'outro'>('celular')
+  const [dispositivoTipo, setDispositivoTipo] = useState(seg.tiposObjetoOS[0] || 'outro')
   const [marca, setMarca] = useState('')
   const [modelo, setModelo] = useState('')
   const [cor, setCor] = useState('')
   const [imei, setImei] = useState('')
+  // Veículo
+  const [placa, setPlaca] = useState('')
+  const [ano, setAno] = useState('')
+  const [km, setKm] = useState('')
+  const [combustivel, setCombustivel] = useState('')
+  // Animal
+  const [nomeAnimal, setNomeAnimal] = useState('')
+  const [raca, setRaca] = useState('')
+  const [porte, setPorte] = useState('')
+  const [peso, setPeso] = useState('')
+  // Ótica
+  const [grauOD, setGrauOD] = useState('')
+  const [grauOE, setGrauOE] = useState('')
+  // Genérico
+  const [descricaoItem, setDescricaoItem] = useState('')
   const [defeitoRelatado, setDefeitoRelatado] = useState('')
   const [itens, setItens] = useState<ItemOrcamento[]>([])
   const [desconto, setDesconto] = useState(0)
@@ -59,6 +76,17 @@ export function OrcamentoFormPage() {
       setModelo(orcExistente.dispositivo.modelo)
       setCor(orcExistente.dispositivo.cor || '')
       setImei(orcExistente.dispositivo.imei || '')
+      setPlaca(orcExistente.dispositivo.placa || '')
+      setAno(orcExistente.dispositivo.ano || '')
+      setKm(orcExistente.dispositivo.km || '')
+      setCombustivel(orcExistente.dispositivo.combustivel || '')
+      setNomeAnimal(orcExistente.dispositivo.nomeAnimal || '')
+      setRaca(orcExistente.dispositivo.raca || '')
+      setPorte(orcExistente.dispositivo.porte || '')
+      setPeso(orcExistente.dispositivo.peso || '')
+      setGrauOD(orcExistente.dispositivo.grauOD || '')
+      setGrauOE(orcExistente.dispositivo.grauOE || '')
+      setDescricaoItem(orcExistente.dispositivo.descricaoItem || '')
       setDefeitoRelatado(orcExistente.defeitoRelatado)
       setItens(orcExistente.itens || [])
       setDesconto(orcExistente.desconto)
@@ -109,8 +137,10 @@ export function OrcamentoFormPage() {
 
   const handleSalvar = async () => {
     if (!clienteNome.trim()) { toast.alerta('Informe o nome do cliente'); return }
-    if (!marca.trim() || !modelo.trim()) { toast.alerta('Informe a marca e modelo do aparelho'); return }
-    if (!defeitoRelatado.trim()) { toast.alerta('Descreva o defeito relatado'); return }
+    const tipoOS = seg.tipoObjetoOS
+    if ((tipoOS === 'dispositivo' || tipoOS === 'veiculo') && (!marca.trim() || !modelo.trim())) { toast.alerta('Informe a marca e modelo'); return }
+    if (tipoOS === 'animal' && !nomeAnimal.trim()) { toast.alerta('Informe o nome do animal'); return }
+    if (!defeitoRelatado.trim()) { toast.alerta('Descreva o servico ou problema'); return }
     if (itens.length === 0) { toast.alerta('Adicione pelo menos um item ao orcamento'); return }
 
     setSalvando(true)
@@ -124,6 +154,17 @@ export function OrcamentoFormPage() {
         modelo,
         cor: cor || undefined,
         imei: imei || undefined,
+        placa: placa || undefined,
+        ano: ano || undefined,
+        km: km || undefined,
+        combustivel: combustivel || undefined,
+        nomeAnimal: nomeAnimal || undefined,
+        raca: raca || undefined,
+        porte: porte || undefined,
+        peso: peso || undefined,
+        grauOD: grauOD || undefined,
+        grauOE: grauOE || undefined,
+        descricaoItem: descricaoItem || undefined,
       },
       defeitoRelatado,
       itens,
@@ -237,48 +278,175 @@ export function OrcamentoFormPage() {
             </div>
           </div>
 
-          {/* Dispositivo */}
+          {/* Objeto do Orçamento */}
           <div className="card p-5">
             <h2 className="flex items-center gap-2 text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">
-              <Smartphone size={16} className="text-primary" /> Dispositivo
+              <Smartphone size={16} className="text-primary" /> {seg.labelObjetoOS}
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
-                <select value={dispositivoTipo} onChange={e => setDispositivoTipo(e.target.value as any)} disabled={isReadOnly} className="input-field w-full">
-                  <option value="celular">Celular</option>
-                  <option value="tablet">Tablet</option>
-                  <option value="notebook">Notebook</option>
-                  <option value="outro">Outro</option>
+                <select value={dispositivoTipo} onChange={e => setDispositivoTipo(e.target.value)} disabled={isReadOnly} className="input-field w-full">
+                  {seg.tiposObjetoOS.map(t => (
+                    <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1).replace('_', ' ')}</option>
+                  ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Marca *</label>
-                <input type="text" placeholder="Samsung, Apple..." value={marca} onChange={e => setMarca(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Modelo *</label>
-                <input type="text" placeholder="Galaxy S24, iPhone 15..." value={modelo} onChange={e => setModelo(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cor</label>
-                <input type="text" placeholder="Preto, Branco..." value={cor} onChange={e => setCor(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
-              </div>
+
+              {/* Dispositivo */}
+              {seg.tipoObjetoOS === 'dispositivo' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Marca *</label>
+                    <input type="text" placeholder="Samsung, Apple..." value={marca} onChange={e => setMarca(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Modelo *</label>
+                    <input type="text" placeholder="Galaxy S24, iPhone 15..." value={modelo} onChange={e => setModelo(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Cor</label>
+                    <input type="text" placeholder="Preto, Branco..." value={cor} onChange={e => setCor(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                </>
+              )}
+
+              {/* Veículo */}
+              {seg.tipoObjetoOS === 'veiculo' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Marca *</label>
+                    <input type="text" placeholder="Fiat, VW, Honda..." value={marca} onChange={e => setMarca(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Modelo *</label>
+                    <input type="text" placeholder="Uno, Gol, Civic..." value={modelo} onChange={e => setModelo(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Placa</label>
+                    <input type="text" placeholder="ABC-1234" value={placa} onChange={e => setPlaca(e.target.value.toUpperCase())} disabled={isReadOnly} className="input-field w-full" maxLength={8} />
+                  </div>
+                </>
+              )}
+
+              {/* Animal */}
+              {seg.tipoObjetoOS === 'animal' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome do animal *</label>
+                    <input type="text" placeholder="Rex, Luna..." value={nomeAnimal} onChange={e => setNomeAnimal(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Raca</label>
+                    <input type="text" placeholder="Labrador, SRD..." value={raca} onChange={e => setRaca(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Porte</label>
+                    <select value={porte} onChange={e => setPorte(e.target.value)} disabled={isReadOnly} className="input-field w-full">
+                      <option value="">Selecione</option>
+                      <option value="pequeno">Pequeno</option>
+                      <option value="medio">Medio</option>
+                      <option value="grande">Grande</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Ótica */}
+              {seg.tipoObjetoOS === 'produto_otico' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
+                    <input type="text" placeholder="Ray-Ban, Oakley..." value={marca} onChange={e => setMarca(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+                    <input type="text" placeholder="Modelo..." value={modelo} onChange={e => setModelo(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Cor</label>
+                    <input type="text" placeholder="Preto, Tartaruga..." value={cor} onChange={e => setCor(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                  </div>
+                </>
+              )}
+
+              {/* Genérico */}
+              {seg.tipoObjetoOS === 'generico' && (
+                <div className="sm:col-span-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Descricao</label>
+                  <input type="text" placeholder="Descreva o item ou local do servico..." value={descricaoItem} onChange={e => setDescricaoItem(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                </div>
+              )}
             </div>
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">IMEI</label>
-              <input type="text" placeholder="IMEI do aparelho" value={imei} onChange={e => setImei(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
-            </div>
+
+            {/* Extras por tipo */}
+            {seg.tipoObjetoOS === 'dispositivo' && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">IMEI</label>
+                <input type="text" placeholder="IMEI do aparelho" value={imei} onChange={e => setImei(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+              </div>
+            )}
+            {seg.tipoObjetoOS === 'veiculo' && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ano</label>
+                  <input type="text" placeholder="2024" value={ano} onChange={e => setAno(e.target.value)} disabled={isReadOnly} className="input-field w-full" maxLength={9} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">KM</label>
+                  <input type="text" placeholder="45.000" value={km} onChange={e => setKm(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cor</label>
+                  <input type="text" placeholder="Prata, Preto..." value={cor} onChange={e => setCor(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Combustivel</label>
+                  <select value={combustivel} onChange={e => setCombustivel(e.target.value)} disabled={isReadOnly} className="input-field w-full">
+                    <option value="">Selecione</option>
+                    <option value="flex">Flex</option>
+                    <option value="gasolina">Gasolina</option>
+                    <option value="etanol">Etanol</option>
+                    <option value="diesel">Diesel</option>
+                    <option value="eletrico">Eletrico</option>
+                  </select>
+                </div>
+              </div>
+            )}
+            {seg.tipoObjetoOS === 'animal' && (
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
+                  <input type="text" placeholder="12.5" value={peso} onChange={e => setPeso(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cor / Pelagem</label>
+                  <input type="text" placeholder="Caramelo, Preto..." value={cor} onChange={e => setCor(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                </div>
+              </div>
+            )}
+            {seg.tipoObjetoOS === 'produto_otico' && (
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Grau OD</label>
+                  <input type="text" placeholder="-2.50" value={grauOD} onChange={e => setGrauOD(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Grau OE</label>
+                  <input type="text" placeholder="-1.75" value={grauOE} onChange={e => setGrauOE(e.target.value)} disabled={isReadOnly} className="input-field w-full" />
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Defeito */}
+          {/* Defeito / Serviço solicitado */}
           <div className="card p-5">
             <h2 className="flex items-center gap-2 text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">
-              <FileText size={16} className="text-primary" /> Defeito
+              <FileText size={16} className="text-primary" /> {seg.labelDefeitoOS}
             </h2>
             <textarea
               rows={3}
-              placeholder="Descreva o defeito relatado pelo cliente..."
+              placeholder="Descreva o que o cliente relatou..."
               value={defeitoRelatado}
               onChange={e => setDefeitoRelatado(e.target.value)}
               disabled={isReadOnly}
