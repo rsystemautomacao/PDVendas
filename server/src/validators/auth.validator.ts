@@ -35,6 +35,7 @@ export const updateUserSchema = z.object({
     cidade: z.string().optional(),
     estado: z.string().optional(),
     logoBase64: z.string().max(1_500_000, 'Logo deve ter no maximo 1MB').optional(),
+    segmento: z.string().optional(),
   }).optional(),
 }).refine(
   (data) => {
