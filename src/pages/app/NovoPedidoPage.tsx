@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Minus, Trash2, User,
   CreditCard, Banknote, Smartphone, FileText, Printer,
-  X, AlertCircle, Receipt, DollarSign, Percent, Package,
+  X, AlertCircle, Receipt, DollarSign, Percent, Package, Camera,
 } from 'lucide-react'
 import { useVendas } from '../../contexts/VendaContext'
 import { useProdutos } from '../../contexts/ProdutoContext'
@@ -14,6 +14,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency, isCodigoBalanca } from '../../utils/helpers'
 import { imprimirRecibo, deveImprimirAutomatico } from '../../utils/impressao'
 import type { Pagamento, FormaPagamento, Venda, Produto } from '../../types'
+import { BarcodeScanner } from '../../components/app/BarcodeScanner'
 
 export function NovoPedidoPage() {
   const navigate = useNavigate()
@@ -77,6 +78,9 @@ export function NovoPedidoPage() {
 
   // Cart management modal
   const [showCartModal, setShowCartModal] = useState(false)
+
+  // Barcode camera scanner
+  const [showScanner, setShowScanner] = useState(false)
 
   // Product catalog modal (F3)
   const [showProductCatalog, setShowProductCatalog] = useState(false)
@@ -256,6 +260,13 @@ export function NovoPedidoPage() {
       setSelectedClientIdx(-1)
     }
   }, [clientSearch, buscarClientes])
+
+  const handleBarcodeScan = useCallback((code: string) => {
+    setShowScanner(false)
+    // Feed the scanned code into the search field - the existing useEffect handles the rest
+    setSearchTerm(code.trim())
+    searchRef.current?.focus()
+  }, [])
 
   const handleAddProduct = useCallback((produtoId: string) => {
     const prod = produtos.find(p => p._id === produtoId)
@@ -983,57 +994,66 @@ export function NovoPedidoPage() {
         </div>
 
         {/* Product search */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            ref={searchRef}
-            type="text"
-            placeholder="Buscar produto por nome, codigo ou codigo de barras... (F2)"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            onKeyDown={handleProductSearchKeyDown}
-            onBlur={() => setTimeout(() => setShowResults(false), 200)}
-            onFocus={() => { if (searchTerm.length >= 2) setShowResults(true) }}
-            className="input-field pl-10"
-            autoFocus
-          />
-          {showResults && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-64 overflow-y-auto animate-scale-in">
-              {searchResults.length === 0 ? (
-                <div className="px-4 py-3">
-                  <p className="text-sm text-gray-500 mb-2">Nenhum produto encontrado</p>
-                  {searchTerm.replace(/\D/g, '').length >= 8 && (
-                    <button
-                      onClick={() => { setNotFoundBarcode(searchTerm.trim()); setShowNotFoundModal(true); setShowResults(false) }}
-                      className="w-full text-left px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors flex items-center gap-2"
-                    >
-                      <Plus size={16} className="text-amber-600" />
+        <div className="relative mb-4 flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              ref={searchRef}
+              type="text"
+              placeholder="Buscar produto por nome, codigo ou codigo de barras... (F2)"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              onKeyDown={handleProductSearchKeyDown}
+              onBlur={() => setTimeout(() => setShowResults(false), 200)}
+              onFocus={() => { if (searchTerm.length >= 2) setShowResults(true) }}
+              className="input-field pl-10"
+              autoFocus
+            />
+            {showResults && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-64 overflow-y-auto animate-scale-in">
+                {searchResults.length === 0 ? (
+                  <div className="px-4 py-3">
+                    <p className="text-sm text-gray-500 mb-2">Nenhum produto encontrado</p>
+                    {searchTerm.replace(/\D/g, '').length >= 8 && (
+                      <button
+                        onClick={() => { setNotFoundBarcode(searchTerm.trim()); setShowNotFoundModal(true); setShowResults(false) }}
+                        className="w-full text-left px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors flex items-center gap-2"
+                      >
+                        <Plus size={16} className="text-amber-600" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-800">Cadastrar novo produto</p>
+                          <p className="text-xs text-amber-600">Codigo: {searchTerm.trim()}</p>
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  searchResults.map((p, idx) => (
+                    <button key={p._id} onClick={() => handleAddProduct(p._id)}
+                      className={`w-full text-left px-4 py-3 border-b last:border-0 flex items-center justify-between transition-colors ${
+                        idx === selectedProductIdx ? 'bg-blue-50 ring-1 ring-inset ring-primary/30' : 'hover:bg-blue-50'
+                      }`}>
                       <div>
-                        <p className="text-sm font-medium text-amber-800">Cadastrar novo produto</p>
-                        <p className="text-xs text-amber-600">Codigo: {searchTerm.trim()}</p>
+                        <p className="font-medium text-sm text-gray-800">{p.nome}</p>
+                        <p className="text-xs text-gray-400">Cod: {p.codigo} | Estoque: {p.estoque} {p.unidade}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-sm text-primary">{formatCurrency(p.preco)}</p>
+                        <Plus size={16} className="text-primary ml-auto" />
                       </div>
                     </button>
-                  )}
-                </div>
-              ) : (
-                searchResults.map((p, idx) => (
-                  <button key={p._id} onClick={() => handleAddProduct(p._id)}
-                    className={`w-full text-left px-4 py-3 border-b last:border-0 flex items-center justify-between transition-colors ${
-                      idx === selectedProductIdx ? 'bg-blue-50 ring-1 ring-inset ring-primary/30' : 'hover:bg-blue-50'
-                    }`}>
-                    <div>
-                      <p className="font-medium text-sm text-gray-800">{p.nome}</p>
-                      <p className="text-xs text-gray-400">Cod: {p.codigo} | Estoque: {p.estoque} {p.unidade}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-sm text-primary">{formatCurrency(p.preco)}</p>
-                      <Plus size={16} className="text-primary ml-auto" />
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => setShowScanner(true)}
+            className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors shrink-0"
+            title="Escanear codigo de barras com camera"
+          >
+            <Camera size={20} />
+          </button>
         </div>
 
         {/* Cart items */}
@@ -1933,6 +1953,13 @@ export function NovoPedidoPage() {
             </div>
           </div>
         </div>
+      )}
+      {/* Barcode Camera Scanner */}
+      {showScanner && (
+        <BarcodeScanner
+          onScan={handleBarcodeScan}
+          onClose={() => setShowScanner(false)}
+        />
       )}
     </div>
   )
