@@ -756,6 +756,16 @@ export function AdminPage() {
                       >
                         <Eye size={17} />
                       </button>
+                      <button
+                        onClick={() => {
+                          setDeleteModal({ id: t._id, nome: t.nome })
+                          setDeleteConfirmText('')
+                        }}
+                        className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        title="Excluir empresa"
+                      >
+                        <Trash2 size={17} />
+                      </button>
                     </div>
                   </div>
                 ))
