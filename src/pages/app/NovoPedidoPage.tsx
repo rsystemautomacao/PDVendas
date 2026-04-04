@@ -498,6 +498,44 @@ export function NovoPedidoPage() {
     imprimirRecibo(html)
   }, [vendaFinalizada, gerarReciboHtml])
 
+  const enviarReciboWhatsApp = useCallback(() => {
+    if (!vendaFinalizada) return
+    const v = vendaFinalizada
+    const empresa = user?.empresa?.nome || 'MeuPDV'
+    const cnpj = user?.empresa?.cnpj ? `CNPJ: ${user.empresa.cnpj}\n` : ''
+    const tel = user?.empresa?.telefone ? `Tel: ${user.empresa.telefone}\n` : ''
+    const itens = v.itens.map(item =>
+      `  ${item.nome}\n    ${item.quantidade}x ${formatCurrency(item.precoUnitario)} = ${formatCurrency(item.total)}`
+    ).join('\n')
+    const pags = v.pagamentos.map(p =>
+      `  ${p.forma.charAt(0).toUpperCase() + p.forma.slice(1)}: ${formatCurrency(p.valor)}${p.parcelas && p.parcelas > 1 ? ` (${p.parcelas}x)` : ''}`
+    ).join('\n')
+    const texto = [
+      `*${empresa}*`,
+      cnpj + tel,
+      `━━━━━━━━━━━━━━━━━━`,
+      `*Venda #${v.numero}*`,
+      `Data: ${new Date(v.criadoEm).toLocaleString('pt-BR')}`,
+      v.clienteNome ? `Cliente: ${v.clienteNome}` : '',
+      `Vendedor: ${v.vendedorNome}`,
+      `━━━━━━━━━━━━━━━━━━`,
+      `*ITENS:*`,
+      itens,
+      `━━━━━━━━━━━━━━━━━━`,
+      `Subtotal: ${formatCurrency(v.subtotal)}`,
+      v.desconto > 0 ? `Desconto: -${formatCurrency(v.desconto)}` : '',
+      `*TOTAL: ${formatCurrency(v.total)}*`,
+      `━━━━━━━━━━━━━━━━━━`,
+      `*PAGAMENTO:*`,
+      pags,
+      v.troco > 0 ? `Troco: ${formatCurrency(v.troco)}` : '',
+      `━━━━━━━━━━━━━━━━━━`,
+      `Obrigado pela preferencia! 🛒`,
+    ].filter(Boolean).join('\n')
+    const url = `https://wa.me/?text=${encodeURIComponent(texto)}`
+    window.open(url, '_blank')
+  }, [vendaFinalizada, user])
+
   // Auto-print receipt when sale is finalized (if configured)
   useEffect(() => {
     if (showRecibo && vendaFinalizada && deveImprimirAutomatico()) {
@@ -1840,6 +1878,9 @@ export function NovoPedidoPage() {
               <div className="flex gap-3">
                 <button onClick={imprimirReciboVenda} className="btn-secondary flex-1">
                   <Printer size={16} /> Imprimir (P)
+                </button>
+                <button onClick={enviarReciboWhatsApp} className="flex-1 px-4 py-3 bg-[#25D366] text-white rounded-xl font-semibold hover:bg-[#1da851] transition-colors flex items-center justify-center gap-2">
+                  <Smartphone size={16} /> WhatsApp
                 </button>
                 <button onClick={handleNovaVenda} className="btn-primary flex-1" autoFocus>
                   Nova Venda (Enter)
