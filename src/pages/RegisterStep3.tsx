@@ -85,7 +85,7 @@ export function RegisterStep3() {
             label="Senha"
             name="password"
             type="password"
-            placeholder="Mínimo 6 caracteres"
+            placeholder="Mínimo 8 caracteres"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             leftIcon={<Lock className="h-5 w-5" />}
