@@ -43,6 +43,7 @@ const userSchema = new Schema(
     empresa: empresaSchema,
     adminId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     permissoes: { type: Schema.Types.Mixed, default: {} },
+    comissao: { type: Number, default: 0, min: 0, max: 100 },
     maxLicencas: { type: Number, default: 1 },
     // Assinatura / Vencimento
     dataVencimento: { type: Date, default: null },

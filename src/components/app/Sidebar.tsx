@@ -168,6 +168,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             <p className="px-3.5 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-gray-300">Relatorios</p>
             <ul className="space-y-0.5">
               <MenuItem to="/app/relatorios-graficos" icon={BarChart3} label="Relatorios" perm="relatorios.visualizar" />
+              <MenuItem to="/app/comissoes" icon={TrendingUp} label="Comissoes" perm="relatorios.visualizar" />
               <MenuItem to="/app/catalogo" icon={Store} label="Catalogo" perm="relatorios.visualizar" />
             </ul>
           </div>

@@ -17,6 +17,7 @@ export interface User {
   empresaSetupComplete?: boolean
   adminId?: string
   permissoes?: Record<string, boolean>
+  comissao?: number
 }
 
 export type SegmentoEmpresa =
