@@ -12,6 +12,7 @@ import osRoutes from './os.routes';
 import orcamentoRoutes from './orcamento.routes';
 import userRoutes from './user.routes';
 import adminRoutes from './admin.routes';
+import trocaRoutes from './troca.routes';
 
 const router = Router();
 
@@ -28,5 +29,6 @@ router.use('/ordens-servico', osRoutes);
 router.use('/orcamentos', orcamentoRoutes);
 router.use('/usuarios', userRoutes);
 router.use('/admin', adminRoutes);
+router.use('/trocas', trocaRoutes);
 
 export default router;

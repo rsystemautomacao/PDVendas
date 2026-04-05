@@ -4,7 +4,7 @@ import {
   Home, HelpCircle, Store, Settings, LayoutDashboard,
   ShoppingCart, Users, Box, DollarSign, BarChart3,
   TrendingUp, LogOut, ChevronRight, Building2,
-  ShieldCheck, Receipt, X, Wrench, FileText, Sparkles,
+  ShieldCheck, Receipt, X, Wrench, FileText, Sparkles, RefreshCw,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePermissao } from '../../hooks/usePermissao'
@@ -126,6 +126,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             <MenuItem to="/app" icon={Home} label="Inicio" />
             <MenuItem to="/app/novo-pedido" icon={ShoppingCart} label="Nova Venda (PDV)" perm="vendas.criar" />
             <MenuItem to="/app/vendas" icon={Receipt} label="Vendas" perm="vendas.visualizar" />
+            <MenuItem to="/app/trocas" icon={RefreshCw} label="Trocas/Devoluções" perm="vendas.visualizar" />
           </ul>
         </div>
 

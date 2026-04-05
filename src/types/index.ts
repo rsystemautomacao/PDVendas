@@ -183,6 +183,37 @@ export interface Pagamento {
 
 export type FormaPagamento = 'dinheiro' | 'credito' | 'debito' | 'pix' | 'boleto' | 'crediario'
 
+// ---- Troca / Devolucao ----
+export interface ItemTroca {
+  produtoId: string
+  nome: string
+  codigo: string
+  quantidade: number
+  precoUnitario: number
+  total: number
+}
+
+export interface Troca {
+  _id: string
+  numero: number
+  vendaId: string
+  vendaNumero: number
+  clienteNome?: string
+  tipo: 'troca' | 'devolucao'
+  itensDevolvidos: ItemTroca[]
+  itensNovos: ItemTroca[]
+  totalDevolvido: number
+  totalNovo: number
+  diferenca: number
+  motivo: string
+  observacoes?: string
+  status: 'pendente' | 'aprovada' | 'recusada'
+  aprovadoPor?: string
+  operadorId: string
+  operadorNome?: string
+  criadoEm: string
+}
+
 // ---- Caixa ----
 export interface Caixa {
   _id: string
