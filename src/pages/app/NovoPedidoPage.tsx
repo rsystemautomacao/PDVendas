@@ -416,7 +416,7 @@ export function NovoPedidoPage() {
     setPagamentos(prev => [...prev, {
       forma: formaPagamento,
       valor,
-      parcelas: formaPagamento === 'credito' ? parcelas : undefined,
+      parcelas: (formaPagamento === 'credito' || formaPagamento === 'crediario') ? parcelas : undefined,
     }])
     setValorPagamento('')
   }
@@ -817,7 +817,7 @@ export function NovoPedidoPage() {
           if (e.key === 'F10') {
             e.preventDefault()
             if (restante > 0) {
-              const newPagamentos = [...pagamentos, { forma: formaPagamento, valor: restante, parcelas: formaPagamento === 'credito' ? parcelas : undefined }]
+              const newPagamentos = [...pagamentos, { forma: formaPagamento, valor: restante, parcelas: (formaPagamento === 'credito' || formaPagamento === 'crediario') ? parcelas : undefined }]
               setPagamentos(newPagamentos)
               setTimeout(async () => {
                 const totalP = newPagamentos.reduce((s, p) => s + p.valor, 0)
@@ -894,7 +894,7 @@ export function NovoPedidoPage() {
         if (e.key === 'F10') {
           e.preventDefault()
           if (restante > 0) {
-            const newPagamentos = [...pagamentos, { forma: formaPagamento, valor: restante, parcelas: formaPagamento === 'credito' ? parcelas : undefined }]
+            const newPagamentos = [...pagamentos, { forma: formaPagamento, valor: restante, parcelas: (formaPagamento === 'credito' || formaPagamento === 'crediario') ? parcelas : undefined }]
             setPagamentos(newPagamentos)
             setTimeout(async () => {
               const totalP = newPagamentos.reduce((s, p) => s + p.valor, 0)
@@ -1549,7 +1549,7 @@ export function NovoPedidoPage() {
                     onKeyDown={e => { if (e.key === 'Enter') handleAddPagamento() }}
                   />
                 </div>
-                {formaPagamento === 'credito' && (
+                {(formaPagamento === 'credito' || formaPagamento === 'crediario') && (
                   <div className="w-28">
                     <label className="text-sm font-medium text-gray-700 mb-1 block">Parcelas</label>
                     <select value={parcelas} onChange={e => setParcelas(Number(e.target.value))} className="input-field">

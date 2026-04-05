@@ -153,6 +153,9 @@ export function ContasAReceberPage() {
                     {c.clienteNome && <span>{c.clienteNome}</span>}
                     <span>Venc: {formatDate(c.vencimento)}</span>
                     {c.recebidoEm && <span>Recebido em: {formatDate(c.recebidoEm)}</span>}
+                    {c.parcela && c.totalParcelas ? <span className="text-primary font-medium">Parcela {c.parcela}/{c.totalParcelas}</span> : null}
+                    {c.vendaNumero ? <span>Venda #{c.vendaNumero}</span> : null}
+                    {c.origem === 'crediario' && <span className="bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-medium">Crediario</span>}
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">

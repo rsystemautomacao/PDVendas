@@ -267,6 +267,10 @@ export interface ContaReceber {
   recebido: boolean
   recebidoEm?: string
   observacoes?: string
+  parcela?: number
+  totalParcelas?: number
+  vendaNumero?: number
+  origem?: 'manual' | 'crediario'
   criadoEm: string
 }
 
