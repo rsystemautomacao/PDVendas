@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import type { Venda, ItemVenda, Pagamento } from '../types'
 import { api } from '../services/api'
 import { useToast } from './ToastContext'
@@ -39,6 +39,7 @@ interface VendaContextType {
   getTotalVendasHoje: () => number
   getTotalVendasMes: () => number
   recarregar: () => Promise<void>
+  carregarSeNecessario: () => Promise<void>
 }
 
 const VendaContext = createContext<VendaContextType | null>(null)
@@ -51,7 +52,8 @@ export function useVendas() {
 
 export function VendaProvider({ children }: { children: ReactNode }) {
   const [vendas, setVendas] = useState<Venda[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const jaCarregou = useRef(false)
   // Carregar carrinho salvo do localStorage (recuperação de crash)
   const [cart, setCart] = useState<ItemVenda[]>(() => {
     try {
@@ -89,10 +91,15 @@ export function VendaProvider({ children }: { children: ReactNode }) {
     } catch {
       // silencioso
     }
+    jaCarregou.current = true
   }, [])
 
-  useEffect(() => {
-    recarregar().finally(() => setLoading(false))
+  const carregarSeNecessario = useCallback(async () => {
+    if (jaCarregou.current) return
+    jaCarregou.current = true
+    setLoading(true)
+    await recarregar()
+    setLoading(false)
   }, [recarregar])
 
   // ---- Cálculos ----
@@ -345,7 +352,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
       subtotal, totalDesconto, totalVenda,
       finalizarVenda, cancelarVenda,
       getVenda, getVendasPorPeriodo, getVendasHoje, getTotalVendasHoje, getTotalVendasMes,
-      recarregar,
+      recarregar, carregarSeNecessario,
     }}>
       {children}
     </VendaContext.Provider>

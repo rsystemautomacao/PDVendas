@@ -12,7 +12,8 @@ import type { Troca, Venda, ItemVenda } from '../../types'
 
 export function TrocasPage() {
   const toast = useToast()
-  const { vendas } = useVendas()
+  const { vendas, carregarSeNecessario: carregarVendas } = useVendas()
+  useEffect(() => { carregarVendas() }, [carregarVendas])
   const { produtos } = useProdutos()
 
   const [trocas, setTrocas] = useState<Troca[]>([])

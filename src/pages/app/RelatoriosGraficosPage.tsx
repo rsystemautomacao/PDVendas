@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   ShoppingCart, DollarSign, Box, TrendingUp, TrendingDown,
@@ -67,7 +67,8 @@ function getDateRange(preset: PeriodoPreset, customDe: string, customAte: string
 export function RelatoriosGraficosPage() {
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
-  const { vendas } = useVendas()
+  const { vendas, carregarSeNecessario: carregarVendas } = useVendas()
+  useEffect(() => { carregarVendas() }, [carregarVendas])
   const { produtos } = useProdutos()
   const { clientes } = useClientes()
   const { contasPagar, contasReceber, despesas } = useFinanceiro()

@@ -21,7 +21,8 @@ import { formatCurrency } from '../../utils/helpers'
 export function DashboardPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { vendas, getTotalVendasHoje, getTotalVendasMes, getVendasHoje } = useVendas()
+  const { vendas, getTotalVendasHoje, getTotalVendasMes, getVendasHoje, carregarSeNecessario: carregarVendas } = useVendas()
+  useEffect(() => { carregarVendas() }, [carregarVendas])
   const { produtos, produtosBaixoEstoque } = useProdutos()
   const { clientes } = useClientes()
   const { caixaAberto } = useCaixa()

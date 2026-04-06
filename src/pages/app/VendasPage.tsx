@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, ShoppingCart, Eye, XCircle, Printer, X } from 'lucide-react'
 import { useVendas } from '../../contexts/VendaContext'
@@ -16,7 +16,8 @@ const formaLabel: Record<string, string> = {
 
 export function VendasPage() {
   const navigate = useNavigate()
-  const { vendas, cancelarVenda } = useVendas()
+  const { vendas, cancelarVenda, carregarSeNecessario: carregarVendas } = useVendas()
+  useEffect(() => { carregarVendas() }, [carregarVendas])
 
   const hoje = new Date().toISOString().substring(0, 10)
   const mesInicio = hoje.substring(0, 7) + '-01'

@@ -1,11 +1,12 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { TrendingUp, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 import { useVendas } from '../../contexts/VendaContext'
 import { useFinanceiro } from '../../contexts/FinanceiroContext'
 import { formatCurrency, formatDate } from '../../utils/helpers'
 
 export function FluxoDeCaixaPage() {
-  const { vendas } = useVendas()
+  const { vendas, carregarSeNecessario: carregarVendas } = useVendas()
+  useEffect(() => { carregarVendas() }, [carregarVendas])
   const { contasPagar, contasReceber, despesas } = useFinanceiro()
 
   const hoje = new Date().toISOString().substring(0, 10)

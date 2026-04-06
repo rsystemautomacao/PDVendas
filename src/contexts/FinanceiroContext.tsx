@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import type { ContaPagar, ContaReceber, Despesa } from '../types'
 import { api } from '../services/api'
 import { useToast } from './ToastContext'
@@ -30,6 +30,7 @@ interface FinanceiroContextType {
   getContasPagarAtrasadas: () => ContaPagar[]
   getContasReceberAtrasadas: () => ContaReceber[]
   recarregar: () => Promise<void>
+  carregarSeNecessario: () => Promise<void>
 }
 
 const FinanceiroContext = createContext<FinanceiroContextType | null>(null)
@@ -37,6 +38,7 @@ const FinanceiroContext = createContext<FinanceiroContextType | null>(null)
 export function useFinanceiro() {
   const ctx = useContext(FinanceiroContext)
   if (!ctx) throw new Error('useFinanceiro deve ser usado dentro de FinanceiroProvider')
+  useEffect(() => { ctx.carregarSeNecessario() }, [ctx.carregarSeNecessario])
   return ctx
 }
 
@@ -45,6 +47,7 @@ export function FinanceiroProvider({ children }: { children: ReactNode }) {
   const [contasReceber, setContasReceber] = useState<ContaReceber[]>([])
   const [despesas, setDespesas] = useState<Despesa[]>([])
   const toast = useToast()
+  const jaCarregou = useRef(false)
 
   const recarregar = useCallback(async () => {
     try {
@@ -59,10 +62,13 @@ export function FinanceiroProvider({ children }: { children: ReactNode }) {
     } catch {
       // silencioso
     }
+    jaCarregou.current = true
   }, [])
 
-  useEffect(() => {
-    recarregar()
+  const carregarSeNecessario = useCallback(async () => {
+    if (jaCarregou.current) return
+    jaCarregou.current = true
+    await recarregar()
   }, [recarregar])
 
   // ---- Contas a Pagar ----
@@ -210,7 +216,7 @@ export function FinanceiroProvider({ children }: { children: ReactNode }) {
       getContasPagarPeriodo, getContasReceberPeriodo, getDespesasPeriodo,
       getTotalContasPagarPendentes, getTotalContasReceberPendentes,
       getContasPagarAtrasadas, getContasReceberAtrasadas,
-      recarregar,
+      recarregar, carregarSeNecessario,
     }}>
       {children}
     </FinanceiroContext.Provider>
