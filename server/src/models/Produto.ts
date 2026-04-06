@@ -85,6 +85,10 @@ const produtoSchema = new Schema(
     material: String,
     colecao: String,
 
+    // Preco atacado
+    precoAtacado: { type: Number, min: 0 },
+    qtdMinimaAtacado: { type: Number, min: 1 },
+
     // Controle de validade
     validade: String,
   },

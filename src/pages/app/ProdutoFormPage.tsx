@@ -64,6 +64,8 @@ export function ProdutoFormPage() {
   const [ativo, setAtivo] = useState(true)
   const [observacoes, setObservacoes] = useState('')
   const [validade, setValidade] = useState('')
+  const [precoAtacado, setPrecoAtacado] = useState('')
+  const [qtdMinimaAtacado, setQtdMinimaAtacado] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
 
@@ -128,6 +130,8 @@ export function ProdutoFormPage() {
         setAtivo(produto.ativo)
         setObservacoes(produto.observacoes || '')
         setValidade(produto.validade || '')
+        setPrecoAtacado(produto.precoAtacado ? String(produto.precoAtacado) : '')
+        setQtdMinimaAtacado(produto.qtdMinimaAtacado ? String(produto.qtdMinimaAtacado) : '')
         setCategoria(produto.categoria || '')
         setGenero(produto.genero || '')
         setMaterial(produto.material || '')
@@ -271,6 +275,8 @@ export function ProdutoFormPage() {
       ativo,
       observacoes: observacoes.trim() || undefined,
       validade: validade || undefined,
+      precoAtacado: precoAtacado ? parseFloat(precoAtacado) : undefined,
+      qtdMinimaAtacado: qtdMinimaAtacado ? parseInt(qtdMinimaAtacado) : undefined,
       // Novos
       categoria: categoria || undefined,
       genero: genero || undefined,
@@ -437,6 +443,19 @@ export function ProdutoFormPage() {
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Preco de Custo</label>
                 <input type="number" step="0.01" value={precoCusto} onChange={e => setPrecoCusto(e.target.value)}
                   placeholder="0.00" className="input-field" />
+              </div>
+
+              {/* Preco Atacado */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Preco Atacado</label>
+                <input type="number" step="0.01" value={precoAtacado} onChange={e => setPrecoAtacado(e.target.value)}
+                  placeholder="0.00" className="input-field" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Qtd Min. Atacado</label>
+                <input type="number" min="1" value={qtdMinimaAtacado} onChange={e => setQtdMinimaAtacado(e.target.value)}
+                  placeholder="Ex: 10" className="input-field" />
+                <p className="text-xs text-gray-400 mt-1">Quantidade minima para preco de atacado</p>
               </div>
 
               {tipo === 'produto' && !temVariacoes && !temSerial && (

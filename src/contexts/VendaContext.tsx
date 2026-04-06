@@ -123,20 +123,25 @@ export function VendaProvider({ children }: { children: ReactNode }) {
     setCart(prev => {
       const existingIdx = prev.findIndex(i => i.produtoId === produtoId)
       if (existingIdx >= 0) {
+        const novaQtd = prev[existingIdx].quantidade + quantidade
+        const precoUnit = (produto.precoAtacado && produto.qtdMinimaAtacado && novaQtd >= produto.qtdMinimaAtacado)
+          ? produto.precoAtacado : produto.preco
         return prev.map((i, idx) =>
           idx === existingIdx
-            ? { ...i, quantidade: i.quantidade + quantidade, total: (i.quantidade + quantidade) * i.precoUnitario - i.desconto }
+            ? { ...i, quantidade: novaQtd, precoUnitario: precoUnit, total: novaQtd * precoUnit - i.desconto }
             : i
         )
       }
+      const precoUnit = (produto.precoAtacado && produto.qtdMinimaAtacado && quantidade >= produto.qtdMinimaAtacado)
+        ? produto.precoAtacado : produto.preco
       return [...prev, {
         produtoId,
         nome: produto.nome,
         codigo: produto.codigo,
         quantidade,
-        precoUnitario: produto.preco,
+        precoUnitario: precoUnit,
         desconto: 0,
-        total: quantidade * produto.preco,
+        total: quantidade * precoUnit,
       }]
     })
   }, [getProduto, toast, cart])
@@ -204,9 +209,12 @@ export function VendaProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // Recalcular preco com atacado se aplicavel
+      const precoUnit = (produto && produto.precoAtacado && produto.qtdMinimaAtacado && quantidade >= produto.qtdMinimaAtacado)
+        ? produto.precoAtacado : (produto?.preco || item.precoUnitario)
       return prev.map((it, i) =>
         i === index
-          ? { ...it, quantidade, total: quantidade * it.precoUnitario - it.desconto }
+          ? { ...it, quantidade, precoUnitario: precoUnit, total: quantidade * precoUnit - it.desconto }
           : it
       )
     })

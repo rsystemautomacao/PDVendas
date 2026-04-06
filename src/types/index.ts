@@ -98,6 +98,8 @@ export interface Produto {
   genero?: '' | 'masculino' | 'feminino' | 'unissex' | 'infantil'
   material?: string
   colecao?: string
+  precoAtacado?: number
+  qtdMinimaAtacado?: number
   validade?: string
   criadoEm: string
   atualizadoEm: string

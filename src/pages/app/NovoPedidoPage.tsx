@@ -1077,6 +1077,9 @@ export function NovoPedidoPage() {
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-sm text-primary">{formatCurrency(p.preco)}</p>
+                        {p.precoAtacado && p.qtdMinimaAtacado && (
+                          <p className="text-[10px] text-green-600">Atacado: {formatCurrency(p.precoAtacado)} ({p.qtdMinimaAtacado}+un)</p>
+                        )}
                         <Plus size={16} className="text-primary ml-auto" />
                       </div>
                     </button>
