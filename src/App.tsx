@@ -40,6 +40,7 @@ import { ImpressorasPage } from './pages/app/config/ImpressorasPage'
 import { OnboardingPage } from './pages/app/OnboardingPage'
 import { TrocasPage } from './pages/app/TrocasPage'
 import { ComissoesPage } from './pages/app/ComissoesPage'
+import { ValidadePage } from './pages/app/ValidadePage'
 import { AdminPage } from './pages/AdminPage'
 
 function App() {
@@ -73,6 +74,7 @@ function App() {
         <Route path="vendas" element={<VendasPage />} />
         <Route path="trocas" element={<TrocasPage />} />
         <Route path="comissoes" element={<ComissoesPage />} />
+        <Route path="validade" element={<ValidadePage />} />
         <Route path="ordens-servico" element={<OrdensServicoPage />} />
         <Route path="ordens-servico/nova" element={<OrdemServicoFormPage />} />
         <Route path="ordens-servico/:id" element={<OrdemServicoFormPage />} />

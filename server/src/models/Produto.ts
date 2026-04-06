@@ -84,6 +84,9 @@ const produtoSchema = new Schema(
     genero: { type: String, enum: ['', 'masculino', 'feminino', 'unissex', 'infantil'], default: '' },
     material: String,
     colecao: String,
+
+    // Controle de validade
+    validade: String,
   },
   {
     timestamps: { createdAt: 'criadoEm', updatedAt: 'atualizadoEm' },

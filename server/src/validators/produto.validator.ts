@@ -55,6 +55,7 @@ export const createProdutoSchema = z.object({
   genero: z.enum(['', 'masculino', 'feminino', 'unissex', 'infantil']).optional(),
   material: z.string().optional(),
   colecao: z.string().optional(),
+  validade: z.string().optional(),
 });
 
 export const updateProdutoSchema = createProdutoSchema.partial();

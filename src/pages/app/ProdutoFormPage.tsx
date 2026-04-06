@@ -63,6 +63,7 @@ export function ProdutoFormPage() {
   const [fornecedor, setFornecedor] = useState('')
   const [ativo, setAtivo] = useState(true)
   const [observacoes, setObservacoes] = useState('')
+  const [validade, setValidade] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
 
@@ -126,6 +127,7 @@ export function ProdutoFormPage() {
         setFornecedor(produto.fornecedor || '')
         setAtivo(produto.ativo)
         setObservacoes(produto.observacoes || '')
+        setValidade(produto.validade || '')
         setCategoria(produto.categoria || '')
         setGenero(produto.genero || '')
         setMaterial(produto.material || '')
@@ -268,6 +270,7 @@ export function ProdutoFormPage() {
       fornecedor: fornecedor.trim() || undefined,
       ativo,
       observacoes: observacoes.trim() || undefined,
+      validade: validade || undefined,
       // Novos
       categoria: categoria || undefined,
       genero: genero || undefined,
@@ -500,6 +503,13 @@ export function ProdutoFormPage() {
                   </div>
                   <span className="text-sm font-medium text-gray-700">{ativo ? 'Ativo' : 'Inativo'}</span>
                 </label>
+              </div>
+
+              {/* Validade */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Validade</label>
+                <input type="date" value={validade} onChange={e => setValidade(e.target.value)}
+                  className="input-field" />
               </div>
 
               {/* Observacoes */}
