@@ -1,10 +1,14 @@
-import { Package, Search, Printer } from 'lucide-react'
+import { Package, Search, Printer, Share2 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { useProdutos } from '../../contexts/ProdutoContext'
+import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../contexts/ToastContext'
 import { formatCurrency } from '../../utils/helpers'
 
 export function CatalogoPage() {
   const { produtos } = useProdutos()
+  const { user } = useAuth()
+  const toast = useToast()
   const [busca, setBusca] = useState('')
   const [grupo, setGrupo] = useState('')
   const [apenasAtivos, setApenasAtivos] = useState(true)
@@ -38,9 +42,23 @@ export function CatalogoPage() {
             <h1 className="text-xl font-bold text-text-primary">Catálogo</h1>
             <p className="mt-1 text-sm text-text-secondary">Visualize seu catálogo de produtos e serviços.</p>
           </div>
-          <button type="button" onClick={() => window.print()} className="btn-secondary print:hidden">
-            <Printer className="h-4 w-4" /> Imprimir
-          </button>
+          <div className="flex gap-2 print:hidden">
+            <button
+              type="button"
+              onClick={() => {
+                const adminId = user?.adminId || user?._id
+                const url = `${window.location.origin}/vitrine/${adminId}`
+                navigator.clipboard.writeText(url)
+                toast.sucesso('Link do catalogo copiado!')
+              }}
+              className="btn-secondary"
+            >
+              <Share2 className="h-4 w-4" /> Compartilhar
+            </button>
+            <button type="button" onClick={() => window.print()} className="btn-secondary">
+              <Printer className="h-4 w-4" /> Imprimir
+            </button>
+          </div>
         </div>
 
         {/* Filtros */}

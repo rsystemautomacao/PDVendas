@@ -41,11 +41,13 @@ import { OnboardingPage } from './pages/app/OnboardingPage'
 import { TrocasPage } from './pages/app/TrocasPage'
 import { ComissoesPage } from './pages/app/ComissoesPage'
 import { ValidadePage } from './pages/app/ValidadePage'
+import { VitrinePublicaPage } from './pages/VitrinePublicaPage'
 import { AdminPage } from './pages/AdminPage'
 
 function App() {
   return (
     <Routes>
+      <Route path="/vitrine/:empresaId" element={<VitrinePublicaPage />} />
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<RegisterStep1 />} />
