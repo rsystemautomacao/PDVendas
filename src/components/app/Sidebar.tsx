@@ -116,6 +116,18 @@ export function Sidebar({ onClose }: SidebarProps) {
             <ChevronRight className="h-3.5 w-3.5 text-gray-300" />
           </Link>
         )}
+        {localStorage.getItem('meupdv_loja_nome') && (
+          <Link
+            to="/app/config/lojas"
+            onClick={onClose}
+            className="mt-1 flex items-center gap-2.5 rounded-xl px-4 py-2 text-xs text-gray-500 hover:bg-gray-50 transition-all duration-200"
+          >
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-50">
+              <Store className="h-3 w-3 text-emerald-500" />
+            </div>
+            <span className="truncate flex-1 font-medium">{localStorage.getItem('meupdv_loja_nome')}</span>
+          </Link>
+        )}
       </div>
 
       {/* Main menu */}
@@ -202,6 +214,7 @@ export function Sidebar({ onClose }: SidebarProps) {
                     <li><Link to="/app/config/usuarios" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/usuarios') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Usuarios</Link></li>
                     <li><Link to="/app/config/permissoes" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/permissoes') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Permissoes</Link></li>
                     <li><Link to="/app/config/impressoras" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/impressoras') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Impressoras</Link></li>
+                    <li><Link to="/app/config/lojas" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/lojas') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Lojas</Link></li>
                   </ul>
                 )}
               </li>

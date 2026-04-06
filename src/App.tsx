@@ -37,6 +37,7 @@ import { PermissoesPage } from './pages/app/config/PermissoesPage'
 import { UsuariosPage } from './pages/app/config/UsuariosPage'
 import { MinhaAssinaturaPage } from './pages/app/config/MinhaAssinaturaPage'
 import { ImpressorasPage } from './pages/app/config/ImpressorasPage'
+import { LojasPage } from './pages/app/config/LojasPage'
 import { OnboardingPage } from './pages/app/OnboardingPage'
 import { TrocasPage } from './pages/app/TrocasPage'
 import { ComissoesPage } from './pages/app/ComissoesPage'
@@ -98,6 +99,7 @@ function App() {
         <Route path="config/usuarios" element={<UsuariosPage />} />
         <Route path="config/assinatura" element={<MinhaAssinaturaPage />} />
         <Route path="config/impressoras" element={<ImpressorasPage />} />
+        <Route path="config/lojas" element={<LojasPage />} />
       </Route>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
