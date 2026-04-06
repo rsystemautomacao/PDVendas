@@ -4,7 +4,7 @@ import {
   Home, HelpCircle, Store, Settings, LayoutDashboard,
   ShoppingCart, Users, Box, DollarSign, BarChart3,
   TrendingUp, LogOut, ChevronRight, Building2,
-  ShieldCheck, Receipt, X, Wrench, FileText, Sparkles, RefreshCw, AlertTriangle,
+  ShieldCheck, Receipt, X, Wrench, FileText, Sparkles, RefreshCw, AlertTriangle, Tag,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePermissao } from '../../hooks/usePermissao'
@@ -147,6 +147,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               <MenuItem to="/app/clientes" icon={Users} label="Clientes" perm="clientes.visualizar" />
               <MenuItem to="/app/produtos" icon={Box} label="Produtos" perm="produtos.visualizar" />
               <MenuItem to="/app/validade" icon={AlertTriangle} label="Validade" perm="produtos.visualizar" />
+              <MenuItem to="/app/etiquetas" icon={Tag} label="Etiquetas" perm="produtos.visualizar" />
             </ul>
           </div>
         )}
