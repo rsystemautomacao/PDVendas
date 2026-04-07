@@ -9,6 +9,8 @@ import { useProdutos } from '../../contexts/ProdutoContext'
 import { useToast } from '../../contexts/ToastContext'
 import { formatCurrency } from '../../utils/helpers'
 import type { Troca, Venda, ItemVenda } from '../../types'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialTrocas } from '../../config/tutorials'
 
 export function TrocasPage() {
   const toast = useToast()
@@ -561,6 +563,7 @@ export function TrocasPage() {
           </div>
         </div>
       )}
+      <TutorialModal id="trocas" titulo="Trocas e Devolucoes" subtitulo="Gerencie trocas e devolucoes de produtos" steps={tutorialTrocas} />
     </div>
   )
 }

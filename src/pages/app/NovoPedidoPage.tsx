@@ -15,6 +15,8 @@ import { formatCurrency, isCodigoBalanca } from '../../utils/helpers'
 import { imprimirRecibo, deveImprimirAutomatico } from '../../utils/impressao'
 import type { Pagamento, FormaPagamento, Venda, Produto } from '../../types'
 import { BarcodeScanner } from '../../components/app/BarcodeScanner'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialNovaVenda } from '../../config/tutorials'
 
 export function NovoPedidoPage() {
   const navigate = useNavigate()
@@ -2005,6 +2007,7 @@ export function NovoPedidoPage() {
           onClose={() => setShowScanner(false)}
         />
       )}
+      <TutorialModal id="nova-venda" titulo="Ponto de Venda (PDV)" subtitulo="Aprenda a registrar vendas" steps={tutorialNovaVenda} />
     </div>
   )
 }

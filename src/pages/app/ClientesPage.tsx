@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Search, Plus, Edit, Trash2, Users, Phone, Mail } from 'lucide-react'
 import { useClientes } from '../../contexts/ClienteContext'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialClientes } from '../../config/tutorials'
 
 export function ClientesPage() {
   const navigate = useNavigate()
@@ -127,6 +129,7 @@ export function ClientesPage() {
           </div>
         </div>
       )}
+      <TutorialModal id="clientes" titulo="Gerenciamento de Clientes" subtitulo="Cadastre e controle seus clientes" steps={tutorialClientes} />
     </div>
   )
 }

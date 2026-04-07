@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Search, Plus, Package, Edit, Trash2, Box, AlertTriangle } from 'lucide-react'
 import { useProdutos } from '../../contexts/ProdutoContext'
 import { formatCurrency } from '../../utils/helpers'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialProdutos } from '../../config/tutorials'
 
 export function ProdutosPage() {
   const navigate = useNavigate()
@@ -145,6 +147,7 @@ export function ProdutosPage() {
           </div>
         </div>
       )}
+      <TutorialModal id="produtos" titulo="Gerenciamento de Produtos" subtitulo="Cadastre e controle seu estoque" steps={tutorialProdutos} />
     </div>
   )
 }

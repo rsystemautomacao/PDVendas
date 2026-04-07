@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, Receipt, Check, Trash2, Edit, AlertTriangle } from 'lucide-react'
 import { useFinanceiro } from '../../contexts/FinanceiroContext'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialDespesas } from '../../config/tutorials'
 import { formatCurrency, formatDate } from '../../utils/helpers'
 
 export function DespesasPage() {
@@ -168,6 +170,7 @@ export function DespesasPage() {
           </div>
         </div>
       )}
+      <TutorialModal id="despesas" titulo="Controle de Despesas" subtitulo="Registre e acompanhe suas despesas" steps={tutorialDespesas} />
     </div>
   )
 }

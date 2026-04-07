@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react'
 import { Search, Plus, DollarSign, Check, Trash2, AlertTriangle } from 'lucide-react'
 import { useFinanceiro } from '../../contexts/FinanceiroContext'
 import { formatCurrency, formatDate } from '../../utils/helpers'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialContasReceber } from '../../config/tutorials'
 
 export function ContasAReceberPage() {
   const { contasReceber, addContaReceber, receberConta, removeContaReceber } = useFinanceiro()
@@ -234,6 +236,7 @@ export function ContasAReceberPage() {
           </div>
         </div>
       )}
+      <TutorialModal id="contas-receber" titulo="Contas a Receber" subtitulo="Acompanhe seus recebimentos" steps={tutorialContasReceber} />
     </div>
   )
 }

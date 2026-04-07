@@ -13,6 +13,8 @@ import { useFinanceiro } from '../../contexts/FinanceiroContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency } from '../../utils/helpers'
 import { exportVendasPdf, exportFinanceiroPdf, exportEstoquePdf } from '../../utils/exportPdf'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialRelatorios } from '../../config/tutorials'
 
 type Aba = 'vendas' | 'financeiro' | 'estoque'
 type PeriodoPreset = 'hoje' | 'semana' | 'mes' | 'trimestre' | 'ano' | 'custom'
@@ -706,6 +708,7 @@ export function RelatoriosGraficosPage() {
           </div>
         )}
       </div>
+      <TutorialModal id="relatorios" titulo="Relatorios e Graficos" subtitulo="Analise o desempenho da sua loja" steps={tutorialRelatorios} />
     </div>
   )
 }

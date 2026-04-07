@@ -4,6 +4,8 @@ import { Search, Plus, ShoppingCart, Eye, XCircle, Printer, X } from 'lucide-rea
 import { useVendas } from '../../contexts/VendaContext'
 import { formatCurrency, formatDateTime } from '../../utils/helpers'
 import type { Venda } from '../../types'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialVendas } from '../../config/tutorials'
 
 const formaLabel: Record<string, string> = {
   dinheiro: 'Dinheiro',
@@ -331,6 +333,7 @@ export function VendasPage() {
           </div>
         </div>
       )}
+      <TutorialModal id="vendas" titulo="Historico de Vendas" subtitulo="Consulte e gerencie suas vendas" steps={tutorialVendas} />
     </div>
   )
 }

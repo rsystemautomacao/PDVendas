@@ -5,6 +5,8 @@ import { useToast } from '../../../contexts/ToastContext'
 import { maskCNPJ, maskPhone, maskCEP, isValidCNPJ } from '../../../utils/helpers'
 import { useCepLookup } from '../../../hooks/useCepLookup'
 import type { SegmentoEmpresa } from '../../../types'
+import { TutorialModal } from '../../../components/app/TutorialModal'
+import { tutorialMinhaEmpresa } from '../../../config/tutorials'
 
 const SEGMENTOS: { value: SegmentoEmpresa; label: string }[] = [
   { value: 'varejo_geral', label: 'Varejo Geral' },
@@ -418,6 +420,7 @@ export function MinhaEmpresaPage() {
           </button>
         </div>
       </div>
+      <TutorialModal id="minha-empresa" titulo="Dados da Empresa" subtitulo="Configure as informacoes do seu negocio" steps={tutorialMinhaEmpresa} />
     </div>
   )
 }

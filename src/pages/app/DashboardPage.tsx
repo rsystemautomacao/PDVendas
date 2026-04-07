@@ -17,6 +17,8 @@ import { useCaixa } from '../../contexts/CaixaContext'
 import { useFinanceiro } from '../../contexts/FinanceiroContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency } from '../../utils/helpers'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialDashboard } from '../../config/tutorials'
 
 export function DashboardPage() {
   const navigate = useNavigate()
@@ -502,6 +504,7 @@ export function DashboardPage() {
           ))}
         </div>
       </div>
+      <TutorialModal id="dashboard" titulo="Bem-vindo ao MeuPDV!" subtitulo="Seu painel de controle completo" steps={tutorialDashboard} />
     </div>
   )
 }
