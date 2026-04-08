@@ -43,12 +43,12 @@ export function TrocasPage() {
     try {
       const res = await api.get('/trocas')
       if (res.success) setTrocas(res.data || [])
-    } catch (err: any) {
-      toast.erro(err.message)
+    } catch {
+      // silencioso no carregamento inicial
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [])
 
   useEffect(() => { fetchTrocas() }, [fetchTrocas])
 

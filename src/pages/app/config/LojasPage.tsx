@@ -35,12 +35,12 @@ export function LojasPage() {
     try {
       const res = await api.get('/lojas')
       if (res.success) setLojas(res.data || [])
-    } catch (err: any) {
-      toast.erro(err.message)
+    } catch {
+      // silencioso no carregamento inicial
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [])
 
   useEffect(() => { fetchLojas() }, [fetchLojas])
 
