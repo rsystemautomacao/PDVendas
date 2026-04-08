@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Save, Smartphone, User, Wrench,
-  Package, Plus, Trash2, AlertTriangle,
+  Package, Plus, Trash2, AlertTriangle, Printer,
 } from 'lucide-react'
 import { useOrdensServico } from '../../contexts/OrdemServicoContext'
 import { useClientes } from '../../contexts/ClienteContext'
@@ -10,6 +10,8 @@ import { useProdutos } from '../../contexts/ProdutoContext'
 import { useToast } from '../../contexts/ToastContext'
 import { useSegmento } from '../../hooks/useSegmento'
 import { formatCurrency } from '../../utils/helpers'
+import { imprimirOS } from '../../utils/impressaoOS'
+import { useAuth } from '../../contexts/AuthContext'
 import type { StatusOS, ServicoOS, PecaOS } from '../../types'
 
 const statusOptions: { value: StatusOS; label: string }[] = [
@@ -31,6 +33,7 @@ export function OrdemServicoFormPage() {
   const { produtos } = useProdutos()
   const toast = useToast()
   const seg = useSegmento()
+  const { user } = useAuth()
 
   const isEdit = !!id
   const osExistente = isEdit ? ordensServico.find(os => os._id === id) : null
@@ -238,6 +241,19 @@ export function OrdemServicoFormPage() {
     }
   }
 
+  const handleImprimir = () => {
+    if (!osExistente) return
+    const emp = user?.empresa
+    imprimirOS(osExistente, {
+      nome: emp?.nome,
+      cnpj: emp?.cnpj,
+      telefone: emp?.telefone,
+      endereco: emp?.endereco,
+      cidade: emp?.cidade,
+      estado: emp?.estado,
+    })
+  }
+
   const isReadOnly = osExistente?.status === 'cancelada' || osExistente?.status === 'entregue'
 
   return (
@@ -258,6 +274,14 @@ export function OrdemServicoFormPage() {
               </p>
             )}
           </div>
+          {isEdit && osExistente && (
+            <button
+              onClick={handleImprimir}
+              className="btn-secondary flex items-center gap-2 text-sm"
+            >
+              <Printer size={16} /> Imprimir
+            </button>
+          )}
           {isEdit && !isReadOnly && (
             <button
               onClick={() => setShowCancelModal(true)}

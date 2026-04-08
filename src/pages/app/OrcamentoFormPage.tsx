@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Save, Smartphone, User, FileText,
-  Plus, Trash2, AlertTriangle,
+  Plus, Trash2, AlertTriangle, Printer,
 } from 'lucide-react'
 import { useOrdensServico } from '../../contexts/OrdemServicoContext'
 import { useClientes } from '../../contexts/ClienteContext'
@@ -10,6 +10,8 @@ import { useProdutos } from '../../contexts/ProdutoContext'
 import { useToast } from '../../contexts/ToastContext'
 import { useSegmento } from '../../hooks/useSegmento'
 import { formatCurrency } from '../../utils/helpers'
+import { imprimirOrcamento } from '../../utils/impressaoOS'
+import { useAuth } from '../../contexts/AuthContext'
 import type { StatusOrcamento, ItemOrcamento } from '../../types'
 
 const statusOptions: { value: StatusOrcamento; label: string }[] = [
@@ -28,6 +30,7 @@ export function OrcamentoFormPage() {
   const { produtos } = useProdutos()
   const toast = useToast()
   const seg = useSegmento()
+  const { user } = useAuth()
 
   const isEdit = !!id
   const orcExistente = isEdit ? orcamentos.find(o => o._id === id) : null
@@ -195,6 +198,19 @@ export function OrcamentoFormPage() {
     if (os) navigate(`/app/ordens-servico/${os._id}`)
   }
 
+  const handleImprimir = () => {
+    if (!orcExistente) return
+    const emp = user?.empresa
+    imprimirOrcamento(orcExistente, {
+      nome: emp?.nome,
+      cnpj: emp?.cnpj,
+      telefone: emp?.telefone,
+      endereco: emp?.endereco,
+      cidade: emp?.cidade,
+      estado: emp?.estado,
+    })
+  }
+
   const isReadOnly = orcExistente?.status === 'convertido'
 
   return (
@@ -215,6 +231,14 @@ export function OrcamentoFormPage() {
               </p>
             )}
           </div>
+          {isEdit && orcExistente && (
+            <button
+              onClick={handleImprimir}
+              className="btn-secondary flex items-center gap-2 text-sm"
+            >
+              <Printer size={16} /> Imprimir
+            </button>
+          )}
           {isEdit && orcExistente?.status === 'aprovado' && (
             <button
               onClick={handleConverterOS}
