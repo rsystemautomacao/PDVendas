@@ -184,6 +184,18 @@ export function OrcamentoFormPage() {
       result = await atualizarOrcamento(id, data)
     } else {
       result = await criarOrcamento(data)
+      // Auto-imprimir ao criar novo orcamento
+      if (result) {
+        const emp = user?.empresa
+        imprimirOrcamento(result, {
+          nome: emp?.nome,
+          cnpj: emp?.cnpj,
+          telefone: emp?.telefone,
+          endereco: emp?.endereco,
+          cidade: emp?.cidade,
+          estado: emp?.estado,
+        })
+      }
     }
 
     setSalvando(false)

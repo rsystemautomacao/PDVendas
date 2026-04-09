@@ -226,6 +226,18 @@ export function OrdemServicoFormPage() {
       result = await atualizarOS(id, data)
     } else {
       result = await criarOS(data)
+      // Auto-imprimir ao criar nova OS
+      if (result) {
+        const emp = user?.empresa
+        imprimirOS(result, {
+          nome: emp?.nome,
+          cnpj: emp?.cnpj,
+          telefone: emp?.telefone,
+          endereco: emp?.endereco,
+          cidade: emp?.cidade,
+          estado: emp?.estado,
+        })
+      }
     }
 
     setSalvando(false)
