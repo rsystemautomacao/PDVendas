@@ -1,22 +1,25 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { ArrowLeft, User, Home, DollarSign, Info } from 'lucide-react'
+import { ArrowLeft, User, Home, DollarSign, Info, ShoppingCart, Eye } from 'lucide-react'
 import { useClientes } from '../../contexts/ClienteContext'
+import { useVendas } from '../../contexts/VendaContext'
 import { useToast } from '../../contexts/ToastContext'
-import { sanitize, maskCPF, maskCNPJ, maskPhone, maskCEP, formatCurrency } from '../../utils/helpers'
+import { sanitize, maskCPF, maskCNPJ, maskPhone, maskCEP, formatCurrency, formatDateTime } from '../../utils/helpers'
 import { useCepLookup } from '../../hooks/useCepLookup'
+import type { Venda } from '../../types'
 
 const ESTADOS = [
   'AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT',
   'PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO',
 ] as const
 
-type TabId = 'dados' | 'enderecos' | 'credito' | 'outras'
+type TabId = 'dados' | 'enderecos' | 'credito' | 'historico' | 'outras'
 
 const TABS: { id: TabId; label: string; icon: typeof User }[] = [
   { id: 'dados', label: 'Dados do Cliente', icon: User },
   { id: 'enderecos', label: 'Endereco', icon: Home },
   { id: 'credito', label: 'Credito', icon: DollarSign },
+  { id: 'historico', label: 'Historico', icon: ShoppingCart },
   { id: 'outras', label: 'Outras Info', icon: Info },
 ]
 
@@ -25,6 +28,7 @@ export function ClientePage() {
   const location = useLocation()
   const { id } = useParams()
   const { getCliente, adicionarCliente, atualizarCliente } = useClientes()
+  const { vendas, carregarSeNecessario: carregarVendas } = useVendas()
   const toast = useToast()
   const locationState = location.state as { returnTo?: string } | null
 
@@ -63,6 +67,9 @@ export function ClientePage() {
   // Outras
   const [observacoes, setObservacoes] = useState('')
 
+  // Historico de compras
+  const [vendaDetalhe, setVendaDetalhe] = useState<Venda | null>(null)
+
   // CEP auto-fill
   const { buscarCep, loading: cepLoading } = useCepLookup({
     onLogradouro: setLogradouro,
@@ -70,6 +77,20 @@ export function ClientePage() {
     onCidade: setCidade,
     onEstado: setEstado,
   })
+
+  // Carregar vendas quando acessar aba historico
+  useEffect(() => {
+    if (activeTab === 'historico' && isEdit) carregarVendas()
+  }, [activeTab, isEdit, carregarVendas])
+
+  const vendasCliente = useMemo(() => {
+    if (!isEdit || !id) return []
+    return vendas
+      .filter(v => v.clienteId === id && v.status === 'finalizada')
+      .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
+  }, [vendas, id, isEdit])
+
+  const totalCompras = useMemo(() => vendasCliente.reduce((s, v) => s + v.total, 0), [vendasCliente])
 
   // Load existing client data when editing
   useEffect(() => {
@@ -401,6 +422,123 @@ export function ClientePage() {
             </div>
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
               O saldo devedor e atualizado automaticamente conforme as vendas a prazo / crediario do cliente.
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Historico de Compras */}
+        {activeTab === 'historico' && (
+          <div className="card p-6">
+            {!isEdit ? (
+              <p className="text-sm text-gray-400 text-center py-8">
+                Salve o cliente primeiro para ver o historico de compras.
+              </p>
+            ) : (
+              <>
+                {/* KPIs */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="bg-primary/5 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-primary">{vendasCliente.length}</p>
+                    <p className="text-xs text-gray-500 mt-1">Compras</p>
+                  </div>
+                  <div className="bg-emerald-50 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalCompras)}</p>
+                    <p className="text-xs text-gray-500 mt-1">Total Gasto</p>
+                  </div>
+                  <div className="bg-amber-50 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-amber-600">
+                      {vendasCliente.length > 0 ? formatCurrency(totalCompras / vendasCliente.length) : 'R$ 0,00'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">Ticket Medio</p>
+                  </div>
+                </div>
+
+                {vendasCliente.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-8">
+                    Nenhuma compra registrada para este cliente.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {vendasCliente.map(v => (
+                      <div key={v._id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-gray-800">Venda #{v.numero}</span>
+                            <span className="text-xs text-gray-400">{formatDateTime(v.criadoEm)}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5 truncate">
+                            {v.itens.length} {v.itens.length === 1 ? 'item' : 'itens'}
+                            {v.pagamentos?.length > 0 && ` | ${v.pagamentos.map(p => p.forma).join(', ')}`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-gray-800">{formatCurrency(v.total)}</span>
+                          <button
+                            onClick={() => setVendaDetalhe(v)}
+                            className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-primary transition-colors"
+                            title="Ver detalhes"
+                          >
+                            <Eye size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Modal detalhe da venda */}
+        {vendaDetalhe && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setVendaDetalhe(null)}>
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-800">Venda #{vendaDetalhe.numero}</h3>
+                <button onClick={() => setVendaDetalhe(null)} className="p-1 rounded hover:bg-gray-100">
+                  <ArrowLeft size={18} />
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">{formatDateTime(vendaDetalhe.criadoEm)}</p>
+
+              <div className="space-y-2 mb-4">
+                {vendaDetalhe.itens.map((item, i) => (
+                  <div key={i} className="flex justify-between text-sm">
+                    <span className="text-gray-600">{item.quantidade}x {item.nome}</span>
+                    <span className="font-medium">{formatCurrency(item.total)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t pt-3 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span>{formatCurrency(vendaDetalhe.subtotal)}</span>
+                </div>
+                {vendaDetalhe.desconto > 0 && (
+                  <div className="flex justify-between text-sm text-red-500">
+                    <span>Desconto</span>
+                    <span>-{formatCurrency(vendaDetalhe.desconto)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-base font-bold pt-1">
+                  <span>Total</span>
+                  <span>{formatCurrency(vendaDetalhe.total)}</span>
+                </div>
+              </div>
+
+              {vendaDetalhe.pagamentos?.length > 0 && (
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Pagamentos</p>
+                  {vendaDetalhe.pagamentos.map((p, i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="text-gray-600 capitalize">{p.forma}</span>
+                      <span>{formatCurrency(p.valor)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

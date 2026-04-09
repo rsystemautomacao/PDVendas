@@ -1,5 +1,8 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+// Guard para evitar múltiplos redirects simultâneos no 401
+let isRedirecting = false;
+
 interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -16,25 +19,32 @@ interface ApiResponse<T = any> {
 async function request<T = any>(path: string, options?: RequestInit): Promise<ApiResponse<T>> {
   const token = localStorage.getItem('meupdv_token');
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options?.headers,
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options?.headers,
+      },
+    });
+  } catch {
+    throw new Error('Sem conexao com o servidor. Verifique sua internet.');
+  }
 
-  // Token expirado ou invalido
+  // Token expirado ou invalido - redirect uma única vez
   if (res.status === 401) {
-    const body = await res.json().catch(() => ({}));
-    localStorage.removeItem('meupdv_token');
-    localStorage.removeItem('meupdv_current_user');
-    // Save disconnect reason for login page to display
-    if (body.code === 'SESSION_INVALIDATED' && body.reason) {
-      sessionStorage.setItem('meupdv_disconnect_reason', body.reason);
+    if (!isRedirecting) {
+      isRedirecting = true;
+      const body = await res.json().catch(() => ({}));
+      localStorage.removeItem('meupdv_token');
+      localStorage.removeItem('meupdv_current_user');
+      if (body.code === 'SESSION_INVALIDATED' && body.reason) {
+        sessionStorage.setItem('meupdv_disconnect_reason', body.reason);
+      }
+      window.location.href = '/login';
     }
-    window.location.href = '/login';
     throw new Error('Sessao expirada');
   }
 
