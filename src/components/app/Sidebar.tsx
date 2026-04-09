@@ -33,7 +33,7 @@ export function Sidebar({ onClose }: SidebarProps) {
     `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all duration-200 ${
       isActive(path)
         ? 'bg-gradient-to-r from-primary/10 to-primary/5 text-primary font-semibold shadow-sm shadow-primary/5'
-        : 'text-gray-500 hover:bg-gray-50/80 hover:text-gray-800'
+        : 'text-gray-500 hover:bg-gray-50/80 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-slate-700/50 dark:hover:text-gray-200'
     }`
 
   const MenuItem = ({ to, icon: Icon, label, perm }: { to: string; icon: typeof Home; label: string; perm?: string }) => {
@@ -42,7 +42,7 @@ export function Sidebar({ onClose }: SidebarProps) {
       <li>
         <Link to={to} className={linkClass(to)} onClick={onClose}>
           <div className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
-            isActive(to) ? 'bg-primary/15 text-primary' : 'bg-gray-100/80 text-gray-400 group-hover:text-gray-600'
+            isActive(to) ? 'bg-primary/15 text-primary' : 'bg-gray-100/80 text-gray-400 group-hover:text-gray-600 dark:bg-slate-700/80 dark:text-gray-500'
           }`}>
             <Icon className="h-[18px] w-[18px]" />
           </div>
@@ -60,7 +60,7 @@ export function Sidebar({ onClose }: SidebarProps) {
   const roleColor = user?.role === 'admin' ? 'from-primary to-violet-600' : user?.role === 'gerente' ? 'from-amber-500 to-orange-500' : 'from-emerald-500 to-teal-500'
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-white">
+    <div className="flex h-full flex-col overflow-y-auto bg-white dark:bg-slate-900">
       {/* Close button */}
       <div className="flex items-center justify-between px-5 py-3">
         <div className="flex items-center gap-2">

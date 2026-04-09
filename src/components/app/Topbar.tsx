@@ -12,8 +12,11 @@ import {
   Building2,
   Settings,
   Sparkles,
+  Moon,
+  Sun,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTheme } from '../../contexts/ThemeContext'
 import { api } from '../../services/api'
 import type { Notificacao } from '../../types'
 
@@ -23,6 +26,7 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick }: TopbarProps) {
   const { user, logout } = useAuth()
+  const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
@@ -81,7 +85,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-40 flex min-h-topbar items-center gap-3 bg-white/80 backdrop-blur-xl border-b border-gray-200/60 px-3 py-2 shadow-sm md:gap-4 md:px-5 print:hidden"
+      className="fixed top-0 left-0 right-0 z-40 flex min-h-topbar items-center gap-3 bg-white/80 backdrop-blur-xl border-b border-gray-200/60 px-3 py-2 shadow-sm md:gap-4 md:px-5 print:hidden dark:bg-slate-900/80 dark:border-slate-700/60"
       role="banner"
     >
       {/* Hamburger + Logo */}
@@ -118,7 +122,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             placeholder="Pesquisar..."
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            className="w-full rounded-xl border border-gray-200/80 bg-gray-50/80 py-2.5 pl-10 pr-20 text-sm text-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-primary/15 focus:border-primary focus:bg-white transition-all"
+            className="w-full rounded-xl border border-gray-200/80 bg-gray-50/80 py-2.5 pl-10 pr-20 text-sm text-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-primary/15 focus:border-primary focus:bg-white transition-all dark:bg-slate-800 dark:border-slate-600 dark:text-gray-200 dark:placeholder:text-gray-500 dark:focus:bg-slate-700"
             aria-label="Pesquisar"
           />
           <span className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1">
@@ -171,6 +175,14 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         >
           <ShoppingCart className="h-[18px] w-[18px]" />
         </Link>
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="relative flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 dark:text-gray-400 dark:hover:bg-slate-700 dark:hover:text-gray-200"
+          aria-label={isDark ? 'Modo claro' : 'Modo escuro'}
+        >
+          {isDark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+        </button>
         <Link
           to="/app/notificacoes"
           className="relative flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -204,7 +216,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           </button>
 
           {profileOpen && (
-            <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-gray-100/80 bg-white shadow-float animate-scale-in z-50 overflow-hidden">
+            <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-gray-100/80 bg-white shadow-float animate-scale-in z-50 overflow-hidden dark:bg-slate-800 dark:border-slate-700">
               {/* Profile header */}
               <div className="bg-gradient-to-br from-primary/5 to-violet-50/50 px-5 py-4">
                 <div className="flex items-center gap-3">

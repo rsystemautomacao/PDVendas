@@ -66,7 +66,7 @@ function AppLayoutInner() {
   }, [drawerOpen, closeDrawer])
 
   return (
-    <div className="min-h-screen bg-surface-50">
+    <div className="min-h-screen bg-surface-50 dark:bg-slate-950 dark:text-gray-200">
       <Topbar onMenuClick={() => setDrawerOpen((o) => !o)} />
       {/* Overlay */}
       {drawerOpen && (
@@ -79,7 +79,7 @@ function AppLayoutInner() {
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 z-40 h-full w-80 transform bg-white shadow-float transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
+          fixed top-0 left-0 z-40 h-full w-80 transform bg-white shadow-float transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] dark:bg-slate-900
           ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
         aria-label="Menu lateral"
