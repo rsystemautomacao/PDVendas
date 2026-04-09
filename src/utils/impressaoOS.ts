@@ -450,7 +450,7 @@ export function imprimirOrcamento(orc: Orcamento, empresa: EmpresaInfo) {
 }
 
 // =============================================
-// HELPER: ABRE JANELA DE IMPRESSÃO
+// HELPER: IMPRIME VIA IFRAME OCULTO
 // =============================================
 function abrirJanelaImpressao(bodyHtml: string, titulo: string) {
   const html = `
@@ -464,11 +464,25 @@ function abrirJanelaImpressao(bodyHtml: string, titulo: string) {
     <body>${bodyHtml}</body>
     </html>
   `
-  const win = window.open('', '_blank', 'width=800,height=600')
-  if (win) {
-    win.document.write(html)
-    win.document.close()
-    win.focus()
-    setTimeout(() => win.print(), 400)
+
+  const FRAME_ID = 'meupdv-print-frame-os'
+  let iframe = document.getElementById(FRAME_ID) as HTMLIFrameElement | null
+  if (!iframe) {
+    iframe = document.createElement('iframe')
+    iframe.id = FRAME_ID
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none;'
+    document.body.appendChild(iframe)
   }
+
+  const doc = iframe.contentDocument || iframe.contentWindow?.document
+  if (!doc) return
+
+  doc.open()
+  doc.write(html)
+  doc.close()
+
+  const win = iframe.contentWindow
+  if (!win) return
+
+  setTimeout(() => win.print(), 300)
 }

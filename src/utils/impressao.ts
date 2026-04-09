@@ -24,11 +24,44 @@ export function getImpressoraPadrao(): Impressora | null {
   }
 }
 
+/**
+ * Imprime usando iframe oculto na mesma pagina.
+ * Vantagem: o navegador lembra a ultima impressora selecionada por origem,
+ * entao o usuario so precisa escolher a impressora na primeira vez.
+ */
+function imprimirViaIframe(html: string, onAfterPrint?: () => void) {
+  const FRAME_ID = 'meupdv-print-frame'
+  let iframe = document.getElementById(FRAME_ID) as HTMLIFrameElement | null
+  if (!iframe) {
+    iframe = document.createElement('iframe')
+    iframe.id = FRAME_ID
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none;'
+    document.body.appendChild(iframe)
+  }
+
+  const doc = iframe.contentDocument || iframe.contentWindow?.document
+  if (!doc) return
+
+  doc.open()
+  doc.write(html)
+  doc.close()
+
+  const win = iframe.contentWindow
+  if (!win) return
+
+  const handleAfterPrint = () => {
+    win.removeEventListener('afterprint', handleAfterPrint)
+    onAfterPrint?.()
+  }
+  win.addEventListener('afterprint', handleAfterPrint)
+
+  setTimeout(() => win.print(), 300)
+}
+
 export function imprimirRecibo(reciboHtml: string) {
   const impressora = getImpressoraPadrao()
 
   if (!impressora) {
-    // Sem impressora configurada, usa window.print() padrão
     window.print()
     return
   }
@@ -66,31 +99,19 @@ export function imprimirRecibo(reciboHtml: string) {
     </html>
   `
 
-  const win = window.open('', '_blank', `width=${Math.max(larguraPx + 40, 320)},height=600`)
-  if (!win) {
-    // Popup bloqueado, fallback para window.print()
-    window.print()
-    return
-  }
-
-  win.document.write(conteudo)
-  win.document.close()
-  win.focus()
-
   const copias = impressora.copias || 1
   let impressas = 0
 
   const printNext = () => {
     impressas++
-    win.print()
     if (impressas < copias) {
-      setTimeout(printNext, 1000)
+      imprimirViaIframe(conteudo, () => setTimeout(printNext, 500))
     } else {
-      setTimeout(() => win.close(), 500)
+      imprimirViaIframe(conteudo)
     }
   }
 
-  setTimeout(printNext, 400)
+  printNext()
 }
 
 export function deveImprimirAutomatico(): boolean {
