@@ -1,0 +1,37 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.meupdv.bridge'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.meupdv.bridge"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.webkit:webkit:1.8.0'
+
+    // Lib Elgin E1 - copie o arquivo .aar para app/libs/
+    // Baixe em: https://github.com/ElginDeveloperCommunity/Impressoras
+    implementation(name: 'e1-lib', ext: 'aar')
+}

@@ -45,6 +45,39 @@ interface ImpressoraConfig {
  * Declara a interface do Android Bridge (WebView).
  * O app Android host pode expor: window.AndroidPrinter.print(base64data)
  */
+/** Comando estruturado para impressora Elgin */
+export interface ComandoImpressao {
+  type: 'text' | 'separator' | 'feed' | 'cut' | 'qrcode' | 'barcode' | 'image' | 'init'
+  data?: string
+  align?: number    // 0=esq, 1=centro, 2=dir
+  style?: number    // bitmask: 0=normal, 8=bold, 2=underline, 10=bold+underline
+  size?: number     // 0=normal, 1=double-h, 16=double-w, 17=double
+  lines?: number
+  char?: string
+  errorLevel?: number
+  height?: number
+  width?: number
+  tipo?: number
+  hri?: number
+  path?: string
+}
+
+// Constantes de estilo Elgin
+export const ELGIN_STYLE = {
+  NORMAL: 0,
+  FONT_B: 1,
+  UNDERLINE: 2,
+  REVERSE: 4,
+  BOLD: 8,
+} as const
+
+export const ELGIN_SIZE = {
+  NORMAL: 0,
+  DOUBLE_H: 1,
+  DOUBLE_W: 16,
+  DOUBLE: 17,
+} as const
+
 declare global {
   interface Window {
     AndroidPrinter?: {
@@ -58,6 +91,8 @@ declare global {
       imprimirTexto: (texto: string) => boolean
       cortarPapel: () => boolean
       getStatus: () => string
+      getVersao: () => string
+      setColunas: (cols: number) => void
     }
   }
 }
@@ -105,23 +140,32 @@ export function getImpressoraEmbarcada(): ImpressoraConfig | null {
 // ======== IMPRESSAO ========
 
 /**
- * Imprime via Android Bridge (WebView JavaScript Interface).
- * Funciona quando o app esta hospedado em um WebView que expoe
- * window.AndroidPrinter ou window.ElginPrinter.
+ * Imprime texto simples via Android Bridge.
  */
-function imprimirViaAndroidBridge(dados: string): boolean {
+function imprimirTextoViaBridge(dados: string): boolean {
   try {
-    // Tenta a interface padrao do Elgin
-    if (window.ElginPrinter) {
-      return window.ElginPrinter.imprimirTexto(dados)
-    }
-    // Tenta a interface generica Android
-    if (window.AndroidPrinter) {
-      return window.AndroidPrinter.printText(dados)
-    }
+    if (window.ElginPrinter) return window.ElginPrinter.imprimirTexto(dados)
+    if (window.AndroidPrinter) return window.AndroidPrinter.printText(dados)
     return false
   } catch (err) {
     console.error('[ElginBridge] Erro no Android Bridge:', err)
+    return false
+  }
+}
+
+/**
+ * Imprime comandos estruturados (JSON) via Android Bridge.
+ * Usa o metodo ElginPrinter.imprimir(json) que chama
+ * Termica.ImpressaoTexto() com formatacao completa.
+ */
+function imprimirComandosViaBridge(comandos: ComandoImpressao[]): boolean {
+  try {
+    if (window.ElginPrinter?.imprimir) {
+      return window.ElginPrinter.imprimir(JSON.stringify(comandos))
+    }
+    return false
+  } catch (err) {
+    console.error('[ElginBridge] Erro ao enviar comandos:', err)
     return false
   }
 }
@@ -159,54 +203,23 @@ async function imprimirViaHttp(dados: string, config: ConfigBridge): Promise<boo
   }
 }
 
-/**
- * Tenta imprimir via servico HTTP local com dados raw/binarios (ESC/POS).
- */
-async function imprimirRawViaHttp(dados: Uint8Array, config: ConfigBridge): Promise<boolean> {
-  const url = `${config.httpUrl}${config.httpEndpoint}`
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT)
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/octet-stream',
-      },
-      body: dados,
-      signal: controller.signal,
-    })
-
-    clearTimeout(timeout)
-    return response.ok
-  } catch (err) {
-    clearTimeout(timeout)
-    console.error('[ElginBridge] Erro HTTP raw:', err)
-    return false
-  }
-}
 
 /**
- * Funcao principal: envia dados ESC/POS para a impressora embarcada.
- * Tenta automaticamente o melhor metodo disponivel.
- *
- * @param escposData - String com comandos ESC/POS
- * @returns true se imprimiu com sucesso, false se falhou
+ * Envia texto simples para a impressora embarcada.
+ * Tenta Android Bridge primeiro, depois HTTP local.
  */
-export async function imprimirEmbarcada(escposData: string): Promise<boolean> {
+export async function imprimirEmbarcada(texto: string): Promise<boolean> {
   const config = getBridgeConfig()
 
   // 1. Tenta Android Bridge (mais rapido, sem rede)
   if (config.modo === 'android-bridge' || hasAndroidBridge()) {
-    const ok = imprimirViaAndroidBridge(escposData)
+    const ok = imprimirTextoViaBridge(texto)
     if (ok) return true
-    // Se falhou, tenta HTTP como fallback
   }
 
   // 2. Tenta HTTP local
   if (config.modo === 'http-local' || config.httpUrl) {
-    const ok = await imprimirViaHttp(escposData, config)
+    const ok = await imprimirViaHttp(texto, config)
     if (ok) return true
   }
 
@@ -214,24 +227,45 @@ export async function imprimirEmbarcada(escposData: string): Promise<boolean> {
 }
 
 /**
- * Envia dados raw (Uint8Array) para a impressora.
+ * Envia comandos estruturados para a impressora embarcada.
+ * Usa a API nativa Elgin (ImpressaoTexto com formatacao).
+ *
+ * Exemplo:
+ * ```ts
+ * imprimirComandos([
+ *   { type: 'text', data: 'TITULO\n', align: 1, style: ELGIN_STYLE.BOLD, size: ELGIN_SIZE.DOUBLE },
+ *   { type: 'separator' },
+ *   { type: 'text', data: 'Item 1     R$ 10,00\n', align: 0 },
+ *   { type: 'cut' },
+ * ])
+ * ```
  */
-export async function imprimirRawEmbarcada(rawData: Uint8Array): Promise<boolean> {
+export async function imprimirComandos(comandos: ComandoImpressao[]): Promise<boolean> {
   const config = getBridgeConfig()
 
+  // 1. Tenta Android Bridge com comandos estruturados
   if (config.modo === 'android-bridge' || hasAndroidBridge()) {
-    // Converte para string para o bridge
-    let str = ''
-    for (let i = 0; i < rawData.length; i++) {
-      str += String.fromCharCode(rawData[i])
-    }
-    const ok = imprimirViaAndroidBridge(str)
+    const ok = imprimirComandosViaBridge(comandos)
     if (ok) return true
   }
 
+  // 2. HTTP local com JSON
   if (config.modo === 'http-local' || config.httpUrl) {
-    const ok = await imprimirRawViaHttp(rawData, config)
-    if (ok) return true
+    const url = `${config.httpUrl}${config.httpEndpoint}`
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), BRIDGE_TIMEOUT)
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commands: comandos }),
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+      if (response.ok) return true
+    } catch {
+      clearTimeout(timeout)
+    }
   }
 
   return false
@@ -294,4 +328,118 @@ export async function testarConexao(): Promise<{ ok: boolean; modo: string; mens
  */
 export function temImpressoraEmbarcada(): boolean {
   return getImpressoraEmbarcada() !== null
+}
+
+// ======== BUILDER DE COMANDOS ========
+
+/**
+ * Builder fluente para montar array de comandos estruturados.
+ * Facilita a criacao de recibos formatados.
+ *
+ * Exemplo:
+ * ```ts
+ * const cmds = new ElginBuilder()
+ *   .centro().bold().duplo().texto('MINHA LOJA\n')
+ *   .normal().separador()
+ *   .esquerda().texto('Item 1\n')
+ *   .esquerdaDireita('  1 x R$ 10,00', 'R$ 10,00')
+ *   .separador('=')
+ *   .bold().duplo_h().esquerdaDireita('TOTAL:', 'R$ 10,00')
+ *   .cortarPapel()
+ *   .build()
+ *
+ * imprimirComandos(cmds)
+ * ```
+ */
+export class ElginBuilder {
+  private cmds: ComandoImpressao[] = []
+  private _align = 0
+  private _style = 0
+  private _size = 0
+  private colunas: number
+
+  constructor(colunas = 48) {
+    this.colunas = colunas
+  }
+
+  // Alinhamento
+  esquerda(): this { this._align = 0; return this }
+  centro(): this { this._align = 1; return this }
+  direita(): this { this._align = 2; return this }
+
+  // Estilos
+  bold(on = true): this {
+    if (on) this._style |= ELGIN_STYLE.BOLD
+    else this._style &= ~ELGIN_STYLE.BOLD
+    return this
+  }
+  sublinhado(on = true): this {
+    if (on) this._style |= ELGIN_STYLE.UNDERLINE
+    else this._style &= ~ELGIN_STYLE.UNDERLINE
+    return this
+  }
+
+  // Tamanhos
+  normal(): this { this._size = ELGIN_SIZE.NORMAL; this._style = 0; return this }
+  duplo(): this { this._size = ELGIN_SIZE.DOUBLE; return this }
+  duplo_h(): this { this._size = ELGIN_SIZE.DOUBLE_H; return this }
+  duplo_w(): this { this._size = ELGIN_SIZE.DOUBLE_W; return this }
+
+  /** Imprime texto com formatacao atual */
+  texto(str: string): this {
+    this.cmds.push({
+      type: 'text',
+      data: str,
+      align: this._align,
+      style: this._style,
+      size: this._size,
+    })
+    return this
+  }
+
+  /** Linha separadora */
+  separador(char = '-'): this {
+    this.cmds.push({ type: 'separator', char })
+    return this
+  }
+
+  /** Texto alinhado a esquerda e a direita na mesma linha */
+  esquerdaDireita(left: string, right: string): this {
+    const spaces = this.colunas - left.length - right.length
+    const line = spaces > 0
+      ? left + ' '.repeat(spaces) + right
+      : left.substring(0, this.colunas - right.length - 1) + ' ' + right
+    this.cmds.push({
+      type: 'text',
+      data: line + '\n',
+      align: 0,
+      style: this._style,
+      size: this._size,
+    })
+    return this
+  }
+
+  /** Avancar papel */
+  alimentar(lines = 3): this {
+    this.cmds.push({ type: 'feed', lines })
+    return this
+  }
+
+  /** Cortar papel */
+  cortarPapel(): this {
+    this.cmds.push({ type: 'feed', lines: 3 })
+    this.cmds.push({ type: 'cut' })
+    return this
+  }
+
+  /** QR Code */
+  qrcode(data: string, size = 4): this {
+    this.cmds.push({ type: 'qrcode', data, size })
+    return this
+  }
+
+  /** Retorna o array de comandos */
+  build(): ComandoImpressao[] {
+    return [...this.cmds]
+  }
 }
