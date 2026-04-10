@@ -31,7 +31,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.webkit:webkit:1.8.0'
 
-    // Lib Elgin E1 - copie o arquivo .aar para app/libs/
-    // Baixe em: https://github.com/ElginDeveloperCommunity/Impressoras
-    implementation(name: 'e1-lib', ext: 'aar')
+    // Libs Elgin - arquivos .aar na pasta app/libs/
+    implementation files('libs/e1-lib.aar')
+    implementation files('libs/minipdvm8-v01.00.00-release.aar')
 }

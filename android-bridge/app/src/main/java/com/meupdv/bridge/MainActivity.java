@@ -25,7 +25,7 @@ public class MainActivity extends AppCompatActivity {
 
     // ======== CONFIGURACAO ========
     // Altere a URL para o endereço do seu MeuPDV
-    private static final String MEUPDV_URL = "https://pdvendas.onrender.com";
+    private static final String MEUPDV_URL = "https://omeupdv.com.br";
 
     private WebView webView;
     private LinearLayout loadingOverlay;

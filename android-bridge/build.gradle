@@ -13,9 +13,5 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // Repositório local para a lib Elgin (E1)
-        flatDir {
-            dirs 'app/libs'
-        }
     }
 }
