@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react'
-import { Printer, Save, X, Plus, Trash2, TestTube, Info, AlertTriangle } from 'lucide-react'
+import { Printer, Save, X, Plus, Trash2, TestTube, Info, AlertTriangle, Wifi, WifiOff, Smartphone } from 'lucide-react'
 import { useToast } from '../../../contexts/ToastContext'
+import { testarConexao, hasAndroidBridge, type ModoConexao, type ConfigBridge } from '../../../utils/elginBridge'
+import { ESCPOSBuilder } from '../../../utils/escpos'
 
 const STORAGE_KEY = 'meupdv_impressoras'
 
-type TipoImpressora = 'cupom' | 'a4' | 'etiqueta'
+type TipoImpressora = 'cupom' | 'a4' | 'etiqueta' | 'embarcada'
 
 interface Impressora {
   id: string
@@ -17,12 +19,14 @@ interface Impressora {
   padrao: boolean
   imprimirAutomatico: boolean
   copias: number
+  bridge?: ConfigBridge
 }
 
 const PRESETS: Record<TipoImpressora, { larguraMm: number; margemMm: number; fonteSizePx: number }> = {
   cupom: { larguraMm: 80, margemMm: 2, fonteSizePx: 11 },
   a4: { larguraMm: 210, margemMm: 10, fonteSizePx: 12 },
   etiqueta: { larguraMm: 60, margemMm: 2, fonteSizePx: 9 },
+  embarcada: { larguraMm: 80, margemMm: 0, fonteSizePx: 11 },
 }
 
 function gerarId() {
@@ -31,7 +35,7 @@ function gerarId() {
 
 function criarImpressora(nome = '', tipo: TipoImpressora = 'cupom'): Impressora {
   const preset = PRESETS[tipo]
-  return {
+  const imp: Impressora = {
     id: gerarId(),
     nome,
     tipo,
@@ -43,6 +47,14 @@ function criarImpressora(nome = '', tipo: TipoImpressora = 'cupom'): Impressora 
     imprimirAutomatico: false,
     copias: 1,
   }
+  if (tipo === 'embarcada') {
+    imp.bridge = {
+      modo: hasAndroidBridge() ? 'android-bridge' : 'http-local',
+      httpUrl: 'http://localhost:9100',
+      httpEndpoint: '/print',
+    }
+  }
+  return imp
 }
 
 function loadImpressoras(): Impressora[] {
@@ -78,6 +90,8 @@ export function ImpressorasPage() {
       // e deixar o usuário escolher. Vamos oferecer nomes comuns como sugestão.
       const sugestoes = [
         'Impressora Padrao do Sistema',
+        'Elgin TPro (Embarcada)',
+        'Elgin M8 (Embarcada)',
         'Epson TM-T20',
         'Epson TM-T88',
         'Bematech MP-4200 TH',
@@ -158,15 +172,69 @@ export function ImpressorasPage() {
     }))
   }, [])
 
-  const handleTesteImpressao = useCallback((impressora: Impressora) => {
+  // Estado do teste de conexao da embarcada
+  const [testeBridge, setTesteBridge] = useState<{ ok: boolean; modo: string; mensagem: string } | null>(null)
+  const [testando, setTestando] = useState(false)
+
+  const handleTestarBridge = useCallback(async () => {
+    setTestando(true)
+    const resultado = await testarConexao()
+    setTesteBridge(resultado)
+    setTestando(false)
+    if (resultado.ok) {
+      sucesso(`Impressora conectada via ${resultado.modo}`)
+    } else {
+      erro(resultado.mensagem)
+    }
+  }, [sucesso, erro])
+
+  const handleTesteImpressao = useCallback(async (impressora: Impressora) => {
+    // Para impressora embarcada, envia ESC/POS direto
+    if (impressora.tipo === 'embarcada') {
+      const { imprimirEmbarcada } = await import('../../../utils/elginBridge')
+      const colunas = impressora.larguraMm >= 72 ? 48 : 32
+      const b = new ESCPOSBuilder(colunas)
+      b.align('center').bold().fontSize('double').text('TESTE DE IMPRESSAO').fontSize('normal').bold(false)
+      b.text('MeuPDV - Sistema de Vendas')
+      b.separator('=')
+      b.align('left')
+      b.text(`Impressora: ${impressora.nome}`)
+      b.text(`Tipo: Embarcada (ESC/POS)`)
+      b.text(`Colunas: ${colunas}`)
+      b.separator('-')
+      b.text('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+      b.text('abcdefghijklmnopqrstuvwxyz')
+      b.text('0123456789')
+      b.separator('-')
+      b.bold()
+      b.textLeftRight('Produto 1', 'R$ 10,00')
+      b.textLeftRight('Produto 2', 'R$ 25,50')
+      b.separator('=')
+      b.fontSize('double-h').textLeftRight('TOTAL:', 'R$ 35,50').fontSize('normal')
+      b.bold(false)
+      b.separator('-')
+      b.align('center').text('Teste realizado com sucesso!')
+      b.text(new Date().toLocaleString('pt-BR'))
+      b.feedAndCut()
+
+      const ok = await imprimirEmbarcada(b.build())
+      if (ok) {
+        sucesso('Teste enviado para a impressora!')
+      } else {
+        erro('Falha ao enviar teste. Verifique a conexao.')
+      }
+      return
+    }
+
+    // Para impressora convencional, usa iframe
     const larguraPx = impressora.tipo === 'cupom'
-      ? Math.round((impressora.larguraMm / 25.4) * 72) // ~226px para 80mm
+      ? Math.round((impressora.larguraMm / 25.4) * 72)
       : undefined
 
     const conteudo = `
       <html>
       <head>
-        <title>Teste de Impressão - ${impressora.nome}</title>
+        <title>Teste de Impressao - ${impressora.nome}</title>
         <style>
           @page {
             size: ${impressora.larguraMm}mm auto;
@@ -188,7 +256,7 @@ export function ImpressorasPage() {
         <div class="centro">MeuPDV - Sistema de Vendas</div>
         <div class="linha"></div>
         <div>Impressora: ${impressora.nome}</div>
-        <div>Tipo: ${impressora.tipo === 'cupom' ? 'Cupom Fiscal' : impressora.tipo === 'a4' ? 'A4 Normal' : 'Etiqueta'}</div>
+        <div>Tipo: ${impressora.tipo === 'cupom' ? 'Cupom Termica' : impressora.tipo === 'a4' ? 'A4 Normal' : 'Etiqueta'}</div>
         <div>Largura: ${impressora.larguraMm}mm</div>
         <div>Margem: ${impressora.margemMm}mm</div>
         <div>Fonte: ${impressora.fonteSizePx}px</div>
@@ -206,23 +274,41 @@ export function ImpressorasPage() {
       </body>
       </html>
     `
-    const win = window.open('', '_blank', `width=400,height=600`)
-    if (win) {
-      win.document.write(conteudo)
-      win.document.close()
-      win.focus()
-      setTimeout(() => {
-        win.print()
-        win.close()
-      }, 500)
+
+    const FRAME_ID = 'meupdv-print-test'
+    let iframe = document.getElementById(FRAME_ID) as HTMLIFrameElement | null
+    if (!iframe) {
+      iframe = document.createElement('iframe')
+      iframe.id = FRAME_ID
+      iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none;'
+      document.body.appendChild(iframe)
     }
-  }, [])
+    const doc = iframe.contentDocument || iframe.contentWindow?.document
+    if (doc) {
+      doc.open()
+      doc.write(conteudo)
+      doc.close()
+      setTimeout(() => iframe!.contentWindow?.print(), 300)
+    }
+  }, [sucesso, erro])
 
-  const tipoLabel = (tipo: TipoImpressora) =>
-    tipo === 'cupom' ? 'Cupom / Térmica' : tipo === 'a4' ? 'A4 / Comum' : 'Etiqueta'
+  const tipoLabel = (tipo: TipoImpressora) => {
+    switch (tipo) {
+      case 'cupom': return 'Cupom / Termica'
+      case 'a4': return 'A4 / Comum'
+      case 'etiqueta': return 'Etiqueta'
+      case 'embarcada': return 'Embarcada (ESC/POS)'
+    }
+  }
 
-  const tipoColor = (tipo: TipoImpressora) =>
-    tipo === 'cupom' ? 'bg-amber-100 text-amber-700' : tipo === 'a4' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+  const tipoColor = (tipo: TipoImpressora) => {
+    switch (tipo) {
+      case 'cupom': return 'bg-amber-100 text-amber-700'
+      case 'a4': return 'bg-blue-100 text-blue-700'
+      case 'etiqueta': return 'bg-green-100 text-green-700'
+      case 'embarcada': return 'bg-violet-100 text-violet-700'
+    }
+  }
 
   return (
     <div className="p-4 md:p-6 pb-24">
@@ -252,10 +338,12 @@ export function ImpressorasPage() {
           <div className="text-sm text-blue-700">
             <p className="font-medium">Como funciona a impressao</p>
             <p className="mt-1 text-blue-600">
-              O sistema usa o dialogo de impressao do navegador. Configure aqui o formato
-              (cupom termica, A4, etiqueta) e ao imprimir, selecione a impressora desejada
-              no dialogo do sistema. Para impressoras termicas, recomendamos usar o navegador
-              Google Chrome para melhor compatibilidade.
+              <b>Impressoras comuns:</b> O sistema usa o dialogo de impressao do navegador.
+              Configure o formato (cupom, A4, etiqueta) e o navegador lembra a ultima impressora selecionada.
+            </p>
+            <p className="mt-1 text-blue-600">
+              <b>Impressoras embarcadas (Elgin TPro, M8, etc):</b> O sistema envia comandos ESC/POS
+              direto para a impressora, sem dialogo do navegador. Escolha o tipo "Embarcada" ao adicionar.
             </p>
           </div>
         </div>
@@ -354,6 +442,7 @@ export function ImpressorasPage() {
                         <option value="cupom">Cupom / Termica</option>
                         <option value="a4">A4 / Comum</option>
                         <option value="etiqueta">Etiqueta</option>
+                        <option value="embarcada">Embarcada (ESC/POS)</option>
                       </select>
                     </div>
                     <div>
@@ -404,6 +493,93 @@ export function ImpressorasPage() {
                       />
                     </div>
                   </div>
+
+                  {/* Configuracao de bridge para embarcada */}
+                  {imp.tipo === 'embarcada' && (
+                    <div className="rounded-lg border border-violet-200 bg-violet-50/50 p-4 space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-violet-700">
+                        <Smartphone className="h-4 w-4" />
+                        Configuracao da Impressora Embarcada
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-text-primary">Modo de conexao</label>
+                          <select
+                            value={imp.bridge?.modo || 'http-local'}
+                            onChange={e => {
+                              const bridge: ConfigBridge = {
+                                ...(imp.bridge || { httpUrl: 'http://localhost:9100', httpEndpoint: '/print' }),
+                                modo: e.target.value as ModoConexao,
+                              }
+                              handleUpdateField(imp.id, 'bridge' as keyof Impressora, bridge as never)
+                            }}
+                            className="input-field text-sm"
+                          >
+                            <option value="android-bridge">Android Bridge (WebView)</option>
+                            <option value="http-local">HTTP Local (servico bridge)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-text-primary">Colunas</label>
+                          <select
+                            value={imp.larguraMm >= 72 ? '80' : '58'}
+                            onChange={e => handleUpdateField(imp.id, 'larguraMm', e.target.value === '80' ? 80 : 58)}
+                            className="input-field text-sm"
+                          >
+                            <option value="80">80mm (48 colunas)</option>
+                            <option value="58">58mm (32 colunas)</option>
+                          </select>
+                        </div>
+                      </div>
+                      {imp.bridge?.modo === 'http-local' && (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-text-primary">URL do servico</label>
+                            <input
+                              type="text"
+                              value={imp.bridge?.httpUrl || 'http://localhost:9100'}
+                              onChange={e => {
+                                const bridge: ConfigBridge = { ...imp.bridge!, httpUrl: e.target.value }
+                                handleUpdateField(imp.id, 'bridge' as keyof Impressora, bridge as never)
+                              }}
+                              className="input-field text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-text-primary">Endpoint</label>
+                            <input
+                              type="text"
+                              value={imp.bridge?.httpEndpoint || '/print'}
+                              onChange={e => {
+                                const bridge: ConfigBridge = { ...imp.bridge!, httpEndpoint: e.target.value }
+                                handleUpdateField(imp.id, 'bridge' as keyof Impressora, bridge as never)
+                              }}
+                              className="input-field text-sm"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        onClick={handleTestarBridge}
+                        disabled={testando}
+                        className="inline-flex items-center gap-2 rounded-lg bg-violet-100 px-3 py-2 text-sm font-medium text-violet-700 hover:bg-violet-200 transition-colors disabled:opacity-50"
+                      >
+                        {testando ? (
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+                        ) : testeBridge?.ok ? (
+                          <Wifi className="h-4 w-4" />
+                        ) : (
+                          <WifiOff className="h-4 w-4" />
+                        )}
+                        Testar Conexao
+                      </button>
+                      {testeBridge && (
+                        <div className={`text-xs rounded-lg p-2 ${testeBridge.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                          <b>{testeBridge.modo}:</b> {testeBridge.mensagem}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex flex-wrap items-center gap-6 pt-2">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -500,11 +676,12 @@ export function ImpressorasPage() {
 
                   <div>
                     <label className="mb-1 block text-sm font-medium text-text-primary">Tipo</label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {([
                         { value: 'cupom' as const, label: 'Cupom / Termica', desc: 'Impressoras termicas 58mm ou 80mm' },
                         { value: 'a4' as const, label: 'A4 / Comum', desc: 'Impressoras jato de tinta ou laser' },
                         { value: 'etiqueta' as const, label: 'Etiqueta', desc: 'Impressoras de etiquetas' },
+                        { value: 'embarcada' as const, label: 'Embarcada', desc: 'Elgin TPro, M8 ou similar (ESC/POS direto)' },
                       ]).map(opt => (
                         <button
                           key={opt.value}
@@ -574,6 +751,86 @@ export function ImpressorasPage() {
                         Para impressoras termicas, configure a largura correta do papel (58mm ou 80mm).
                         No dialogo de impressao do sistema, desmarque cabecalhos/rodapes e ajuste as margens para "minimo".
                       </p>
+                    </div>
+                  )}
+
+                  {novaImpressora.tipo === 'embarcada' && (
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2 rounded-lg bg-violet-50 border border-violet-200 p-3">
+                        <Smartphone className="h-4 w-4 text-violet-500 flex-shrink-0 mt-0.5" />
+                        <div className="text-xs text-violet-700">
+                          <p className="font-medium mb-1">Impressora embarcada (Elgin TPro, M8, etc)</p>
+                          <p>
+                            A impressao sera enviada via comandos ESC/POS direto para a impressora,
+                            sem o dialogo do navegador. O sistema tenta conectar via:
+                          </p>
+                          <ul className="mt-1 ml-3 list-disc space-y-0.5">
+                            <li><b>Android Bridge</b> - Se o app roda em WebView com interface nativa</li>
+                            <li><b>HTTP Local</b> - Se existe um servico bridge rodando no dispositivo</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-text-primary">Modo de conexao</label>
+                        <select
+                          value={novaImpressora.bridge?.modo || 'http-local'}
+                          onChange={e => setNovaImpressora(prev => ({
+                            ...prev,
+                            bridge: { ...prev.bridge!, modo: e.target.value as ModoConexao }
+                          }))}
+                          className="input-field"
+                        >
+                          <option value="android-bridge">Android Bridge (WebView)</option>
+                          <option value="http-local">HTTP Local (servico bridge)</option>
+                        </select>
+                      </div>
+
+                      {(novaImpressora.bridge?.modo === 'http-local') && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="mb-1 block text-sm font-medium text-text-primary">URL do servico</label>
+                            <input
+                              type="text"
+                              value={novaImpressora.bridge?.httpUrl || 'http://localhost:9100'}
+                              onChange={e => setNovaImpressora(prev => ({
+                                ...prev,
+                                bridge: { ...prev.bridge!, httpUrl: e.target.value }
+                              }))}
+                              placeholder="http://localhost:9100"
+                              className="input-field"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-sm font-medium text-text-primary">Endpoint</label>
+                            <input
+                              type="text"
+                              value={novaImpressora.bridge?.httpEndpoint || '/print'}
+                              onChange={e => setNovaImpressora(prev => ({
+                                ...prev,
+                                bridge: { ...prev.bridge!, httpEndpoint: e.target.value }
+                              }))}
+                              placeholder="/print"
+                              className="input-field"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-text-primary">Colunas</label>
+                        <select
+                          value={novaImpressora.larguraMm >= 72 ? '80' : '58'}
+                          onChange={e => setNovaImpressora(prev => ({
+                            ...prev,
+                            larguraMm: e.target.value === '80' ? 80 : 58
+                          }))}
+                          className="input-field"
+                        >
+                          <option value="80">80mm (48 colunas)</option>
+                          <option value="58">58mm (32 colunas)</option>
+                        </select>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -1,9 +1,11 @@
+import { temImpressoraEmbarcada, imprimirEmbarcada } from './elginBridge'
+
 const STORAGE_KEY = 'meupdv_impressoras'
 
 interface Impressora {
   id: string
   nome: string
-  tipo: 'cupom' | 'a4' | 'etiqueta'
+  tipo: 'cupom' | 'a4' | 'etiqueta' | 'embarcada'
   larguraMm: number
   margemMm: number
   fonteSizePx: number
@@ -58,8 +60,40 @@ function imprimirViaIframe(html: string, onAfterPrint?: () => void) {
   setTimeout(() => win.print(), 300)
 }
 
-export function imprimirRecibo(reciboHtml: string) {
+/**
+ * Imprime recibo. Aceita HTML (para navegador) ou ESC/POS (para embarcada).
+ * Se a impressora padrao for embarcada e escposData for fornecido,
+ * envia direto para a impressora sem dialogo do navegador.
+ */
+export function imprimirRecibo(reciboHtml: string, escposData?: string) {
   const impressora = getImpressoraPadrao()
+
+  // Se tem impressora embarcada e dados ESC/POS, envia direto
+  if (impressora?.tipo === 'embarcada' && escposData) {
+    const copias = impressora.copias || 1
+    for (let i = 0; i < copias; i++) {
+      imprimirEmbarcada(escposData).catch(err =>
+        console.error('[Impressao] Erro na impressora embarcada:', err)
+      )
+    }
+    return
+  }
+
+  // Se tem impressora embarcada mas sem dados ESC/POS, tenta mesmo assim
+  if (impressora?.tipo === 'embarcada' && temImpressoraEmbarcada()) {
+    // Sem ESC/POS, tenta enviar o HTML como texto simples
+    const textoSimples = reciboHtml
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+    imprimirEmbarcada(textoSimples).catch(err =>
+      console.error('[Impressao] Erro na impressora embarcada:', err)
+    )
+    return
+  }
 
   if (!impressora) {
     window.print()
