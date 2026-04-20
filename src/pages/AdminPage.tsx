@@ -5,7 +5,7 @@ import {
   Eye, UserCheck, UserX, TrendingUp, Calendar,
   LogOut, AlertCircle, Loader2, Monitor,
   Key, Trash2, X, Wifi, WifiOff,
-  Bell, Clock, UserPlus,
+  Bell, Clock, UserPlus, Unlock,
 } from 'lucide-react'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
@@ -131,6 +131,7 @@ export function AdminPage() {
   const [vencimentoModal, setVencimentoModal] = useState<{ id: string; nome: string; current?: string } | null>(null)
   const [newVencimento, setNewVencimento] = useState('')
   const [vencimentoLoading, setVencimentoLoading] = useState(false)
+  const [desbloqueandoId, setDesbloqueandoId] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
 
   const showToast = (msg: string, type: 'ok' | 'err' = 'ok') => {
@@ -341,6 +342,23 @@ export function AdminPage() {
       showToast(err.message || 'Erro ao atualizar vencimento', 'err')
     } finally {
       setVencimentoLoading(false)
+    }
+  }
+
+  const handleDesbloquear = async (id: string) => {
+    setDesbloqueandoId(id)
+    try {
+      const res = await adminApi(`/admin/tenants/${id}/desbloquear`, { method: 'PATCH' })
+      showToast(res.data?.mensagem || 'Assinatura renovada com sucesso!')
+      await loadData()
+      if (selectedTenant?._id === id) {
+        const detail = await adminApi(`/admin/tenants/${id}`)
+        setSelectedTenant(detail.data)
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Erro ao desbloquear assinatura', 'err')
+    } finally {
+      setDesbloqueandoId(null)
     }
   }
 
@@ -805,6 +823,23 @@ export function AdminPage() {
                   </div>
                   {/* Action buttons */}
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Botão Desbloquear — aparece somente quando assinatura vencida */}
+                    {(() => {
+                      const vs = getVencimentoStatus((selectedTenant as any).dataVencimento)
+                      return vs.urgency === 'expired' ? (
+                        <button
+                          onClick={() => handleDesbloquear(selectedTenant._id)}
+                          disabled={desbloqueandoId === selectedTenant._id}
+                          className="px-3 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all"
+                          title="Renova +30 dias a partir do vencimento original"
+                        >
+                          {desbloqueandoId === selectedTenant._id
+                            ? <Loader2 size={14} className="animate-spin" />
+                            : <Unlock size={14} />}
+                          Desbloquear
+                        </button>
+                      ) : null
+                    })()}
                     <button
                       onClick={() => {
                         setVencimentoModal({ id: selectedTenant._id, nome: selectedTenant.nome, current: (selectedTenant as any).dataVencimento })

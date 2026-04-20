@@ -175,6 +175,34 @@ router.patch('/tenants/:id/vencimento', asyncHandler(async (req, res) => {
   res.json({ success: true, data: { dataVencimento: novaData.toISOString(), statusAssinatura: (user as any).statusAssinatura } });
 }));
 
+// PATCH /admin/tenants/:id/desbloquear
+// Renova a assinatura por 30 dias a partir da data de vencimento original (nao da data atual).
+// Assim o cliente paga pelo mes que ficou devendo, e nao ganha dias gratis.
+router.patch('/tenants/:id/desbloquear', asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ success: false, error: 'Tenant não encontrado' });
+
+  const dataAtual = (user as any).dataVencimento ? new Date((user as any).dataVencimento) : new Date();
+
+  // Nova data = vencimento original + 30 dias
+  const novaData = new Date(dataAtual);
+  novaData.setDate(novaData.getDate() + 30);
+
+  (user as any).dataVencimento = novaData;
+  (user as any).statusAssinatura = 'ativa';
+  (user as any).notificacaoVencimentoEnviada = false;
+  await user.save();
+
+  res.json({
+    success: true,
+    data: {
+      dataVencimento: novaData.toISOString(),
+      statusAssinatura: 'ativa',
+      mensagem: `Assinatura renovada até ${novaData.toLocaleDateString('pt-BR')}`,
+    },
+  });
+}));
+
 // PATCH /admin/tenants/:id/reset-password
 router.patch('/tenants/:id/reset-password', asyncHandler(async (req, res) => {
   const { novaSenha } = req.body;
