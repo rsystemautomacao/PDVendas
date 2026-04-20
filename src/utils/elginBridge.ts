@@ -102,6 +102,11 @@ export function hasAndroidBridge(): boolean {
   return !!(window.AndroidPrinter || window.ElginPrinter)
 }
 
+/** Verifica se estamos em um dispositivo Android (touch) */
+export function isAndroidDevice(): boolean {
+  return hasAndroidBridge() || /Android/i.test(navigator.userAgent)
+}
+
 /** Detecta o modo de conexao mais provavel */
 export function detectarModoConexao(): ModoConexao {
   if (hasAndroidBridge()) return 'android-bridge'
@@ -429,6 +434,12 @@ export class ElginBuilder {
   cortarPapel(): this {
     this.cmds.push({ type: 'feed', lines: 3 })
     this.cmds.push({ type: 'cut' })
+    return this
+  }
+
+  /** Imagem via base64 (logo da empresa) */
+  imagem(base64: string): this {
+    this.cmds.push({ type: 'image', data: base64 })
     return this
   }
 

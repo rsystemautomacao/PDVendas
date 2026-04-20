@@ -18,6 +18,8 @@ export interface User {
   adminId?: string
   permissoes?: Record<string, boolean>
   comissao?: number
+  dataVencimento?: string
+  statusAssinatura?: 'ativa' | 'expirando' | 'vencida' | 'teste'
 }
 
 export type SegmentoEmpresa =

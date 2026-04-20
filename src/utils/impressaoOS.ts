@@ -1,4 +1,6 @@
 import type { OrdemServico, Orcamento } from '../types'
+import { hasAndroidBridge, imprimirComandos, ElginBuilder } from './elginBridge'
+import { getImpressoraPadrao } from './impressao'
 
 interface EmpresaInfo {
   nome?: string
@@ -7,6 +9,7 @@ interface EmpresaInfo {
   endereco?: string
   cidade?: string
   estado?: string
+  logoBase64?: string
 }
 
 const statusLabels: Record<string, string> = {
@@ -111,9 +114,218 @@ function headerHtml(empresa: EmpresaInfo, docTipo: string, numero: number, viaLa
 }
 
 // =============================================
+// IMPRESSÃO TÉRMICA (80mm) - ANDROID / EMBARCADA
+// =============================================
+
+function gerarOSTermica(os: OrdemServico, empresa: EmpresaInfo): ElginBuilder {
+  const b = new ElginBuilder(48) // 48 colunas = 80mm
+
+  // Logo
+  if (empresa.logoBase64) b.imagem(empresa.logoBase64)
+
+  // Cabeçalho
+  b.centro().bold().duplo().texto((empresa.nome || 'MeuPDV') + '\n')
+  b.normal().centro()
+  if (empresa.cnpj) b.texto('CNPJ: ' + empresa.cnpj + '\n')
+  if (empresa.telefone) b.texto('Tel: ' + empresa.telefone + '\n')
+  const endParts = [empresa.endereco, empresa.cidade, empresa.estado].filter(Boolean).join(' - ')
+  if (endParts) b.texto(endParts + '\n')
+
+  b.separador('=')
+  b.centro().bold().duplo_h().texto('ORDEM DE SERVICO #' + os.numero + '\n')
+  b.normal().separador('=')
+
+  // Info
+  b.esquerda()
+  b.esquerdaDireita('Status:', statusLabels[os.status] || os.status)
+  b.esquerdaDireita('Data:', formatDateTime(os.criadoEm))
+  b.esquerdaDireita('Prioridade:', os.prioridade.charAt(0).toUpperCase() + os.prioridade.slice(1))
+  if (os.prazoEstimado) b.esquerdaDireita('Prazo:', formatDate(os.prazoEstimado))
+  b.separador()
+
+  // Cliente
+  b.bold().texto('CLIENTE:\n').normal()
+  b.texto(os.clienteNome + '\n')
+  if (os.clienteTelefone) b.texto('Tel: ' + os.clienteTelefone + '\n')
+  b.separador()
+
+  // Equipamento
+  b.bold().texto('EQUIPAMENTO:\n').normal()
+  const disp = os.dispositivo
+  if (disp.marca || disp.modelo) b.texto((disp.marca || '') + ' ' + (disp.modelo || '') + '\n')
+  if (disp.cor) b.texto('Cor: ' + disp.cor + '\n')
+  if (disp.imei) b.texto('IMEI: ' + disp.imei + '\n')
+  if (disp.serial) b.texto('Serial: ' + disp.serial + '\n')
+  if (disp.placa) b.texto('Placa: ' + disp.placa + '\n')
+  if (disp.ano) b.texto('Ano: ' + disp.ano + '\n')
+  if (disp.km) b.texto('KM: ' + disp.km + '\n')
+  if (disp.nomeAnimal) b.texto('Nome: ' + disp.nomeAnimal + '\n')
+  if (disp.especie) b.texto('Especie: ' + disp.especie + '\n')
+  if (disp.raca) b.texto('Raca: ' + disp.raca + '\n')
+  if (disp.descricaoItem) b.texto('Descricao: ' + disp.descricaoItem + '\n')
+  if (disp.acessorios) b.texto('Acessorios: ' + disp.acessorios + '\n')
+  if (disp.estadoVisual) b.texto('Estado: ' + disp.estadoVisual + '\n')
+  b.separador()
+
+  // Defeito relatado
+  b.bold().texto('DEFEITO RELATADO:\n').normal()
+  b.texto(os.defeitoRelatado + '\n')
+  b.separador()
+
+  // Serviços
+  if (os.servicos.length > 0) {
+    b.bold().texto('SERVICOS:\n').normal()
+    os.servicos.forEach(s => {
+      b.esquerdaDireita(s.descricao, formatCurrency(s.valor))
+    })
+    b.separador()
+  }
+
+  // Peças
+  if (os.pecas.length > 0) {
+    b.bold().texto('PECAS:\n').normal()
+    os.pecas.forEach(p => {
+      b.texto(p.nome + '\n')
+      b.esquerdaDireita('  ' + p.quantidade + 'x ' + formatCurrency(p.valorUnitario), formatCurrency(p.total))
+    })
+    b.separador()
+  }
+
+  // Totais
+  if (os.valorServicos > 0) b.esquerdaDireita('Servicos:', formatCurrency(os.valorServicos))
+  if (os.valorPecas > 0) b.esquerdaDireita('Pecas:', formatCurrency(os.valorPecas))
+  if (os.desconto > 0) b.esquerdaDireita('Desconto:', '-' + formatCurrency(os.desconto))
+  b.separador('=')
+  b.bold().duplo_h().esquerdaDireita('TOTAL:', formatCurrency(os.total))
+  b.normal().separador('=')
+
+  // Observações
+  if (os.observacoes) {
+    b.bold().texto('OBSERVACOES:\n').normal()
+    b.texto(os.observacoes + '\n')
+    b.separador()
+  }
+
+  // Aviso
+  b.texto('\n')
+  b.centro().texto('Guarde este comprovante para\n')
+  b.texto('retirada do equipamento.\n')
+  b.texto('Garantia: 90 dias sobre servico.\n')
+  b.texto('\n')
+
+  // Assinaturas
+  b.texto('\n\n')
+  b.centro().texto('________________________________\n')
+  b.texto('Assinatura do Cliente\n')
+  b.texto('\n\n')
+  b.texto('________________________________\n')
+  b.texto('Assinatura da Loja\n')
+
+  b.alimentar(2)
+  b.texto('\n')
+  b.centro().texto(formatDateTime(new Date().toISOString()) + '\n')
+
+  b.cortarPapel()
+  return b
+}
+
+function gerarOrcamentoTermico(orc: Orcamento, empresa: EmpresaInfo): ElginBuilder {
+  const b = new ElginBuilder(48)
+
+  if (empresa.logoBase64) b.imagem(empresa.logoBase64)
+
+  b.centro().bold().duplo().texto((empresa.nome || 'MeuPDV') + '\n')
+  b.normal().centro()
+  if (empresa.cnpj) b.texto('CNPJ: ' + empresa.cnpj + '\n')
+  if (empresa.telefone) b.texto('Tel: ' + empresa.telefone + '\n')
+
+  b.separador('=')
+  b.centro().bold().duplo_h().texto('ORCAMENTO #' + orc.numero + '\n')
+  b.normal().separador('=')
+
+  const validadeDate = new Date(orc.criadoEm)
+  validadeDate.setDate(validadeDate.getDate() + orc.validade)
+
+  b.esquerda()
+  b.esquerdaDireita('Status:', statusLabels[orc.status] || orc.status)
+  b.esquerdaDireita('Data:', formatDateTime(orc.criadoEm))
+  b.esquerdaDireita('Validade:', orc.validade + ' dias')
+  b.esquerdaDireita('Vence em:', formatDate(validadeDate.toISOString()))
+  b.separador()
+
+  b.bold().texto('CLIENTE:\n').normal()
+  b.texto(orc.clienteNome + '\n')
+  if (orc.clienteTelefone) b.texto('Tel: ' + orc.clienteTelefone + '\n')
+  b.separador()
+
+  // Equipamento
+  const disp = orc.dispositivo
+  b.bold().texto('EQUIPAMENTO:\n').normal()
+  if (disp.marca || disp.modelo) b.texto((disp.marca || '') + ' ' + (disp.modelo || '') + '\n')
+  if (disp.imei) b.texto('IMEI: ' + disp.imei + '\n')
+  if (disp.serial) b.texto('Serial: ' + disp.serial + '\n')
+  if (disp.descricaoItem) b.texto(disp.descricaoItem + '\n')
+  b.separador()
+
+  b.bold().texto('PROBLEMA:\n').normal()
+  b.texto(orc.defeitoRelatado + '\n')
+  b.separador()
+
+  // Itens
+  if (orc.itens.length > 0) {
+    b.bold().texto('ITENS:\n').normal()
+    orc.itens.forEach(item => {
+      const tipo = item.tipo === 'servico' ? '[S]' : '[P]'
+      b.texto(tipo + ' ' + item.descricao + '\n')
+      b.esquerdaDireita('  ' + item.quantidade + 'x ' + formatCurrency(item.valorUnitario), formatCurrency(item.total))
+    })
+    b.separador()
+  }
+
+  b.esquerdaDireita('Subtotal:', formatCurrency(orc.subtotal))
+  if (orc.desconto > 0) b.esquerdaDireita('Desconto:', '-' + formatCurrency(orc.desconto))
+  b.separador('=')
+  b.bold().duplo_h().esquerdaDireita('TOTAL:', formatCurrency(orc.total))
+  b.normal().separador('=')
+
+  if (orc.observacoes) {
+    b.bold().texto('OBSERVACOES:\n').normal()
+    b.texto(orc.observacoes + '\n')
+    b.separador()
+  }
+
+  b.texto('\n')
+  b.centro().texto('Orcamento valido por ' + orc.validade + ' dias.\n')
+  b.texto('Valores sujeitos a alteracao\n')
+  b.texto('apos vencimento.\n')
+
+  b.texto('\n\n')
+  b.centro().texto('________________________________\n')
+  b.texto('Assinatura do Cliente\n')
+  b.texto('\n\n')
+  b.texto('________________________________\n')
+  b.texto('Assinatura da Loja\n')
+
+  b.alimentar(2)
+  b.centro().texto(formatDateTime(new Date().toISOString()) + '\n')
+  b.cortarPapel()
+  return b
+}
+
+// =============================================
 // IMPRESSÃO DE ORDEM DE SERVIÇO
 // =============================================
 export function imprimirOS(os: OrdemServico, empresa: EmpresaInfo) {
+  // Se estiver em Android/embarcada, imprime em formato térmico 80mm
+  const impressora = getImpressoraPadrao()
+  if ((impressora?.tipo === 'embarcada' || hasAndroidBridge()) && hasAndroidBridge()) {
+    const builder = gerarOSTermica(os, empresa)
+    imprimirComandos(builder.build()).catch(err =>
+      console.error('[ImpressaoOS] Erro na impressora embarcada:', err)
+    )
+    return
+  }
+
   const dispHtml = buildDispositivoHtml(os.dispositivo)
 
   // --- VIA DO CLIENTE ---
@@ -297,6 +509,16 @@ export function imprimirOS(os: OrdemServico, empresa: EmpresaInfo) {
 // IMPRESSÃO DE ORÇAMENTO
 // =============================================
 export function imprimirOrcamento(orc: Orcamento, empresa: EmpresaInfo) {
+  // Se estiver em Android/embarcada, imprime em formato térmico 80mm
+  const impressora = getImpressoraPadrao()
+  if ((impressora?.tipo === 'embarcada' || hasAndroidBridge()) && hasAndroidBridge()) {
+    const builder = gerarOrcamentoTermico(orc, empresa)
+    imprimirComandos(builder.build()).catch(err =>
+      console.error('[ImpressaoOS] Erro na impressora embarcada:', err)
+    )
+    return
+  }
+
   const dispHtml = buildDispositivoHtml(orc.dispositivo)
   const validadeDate = new Date(orc.criadoEm)
   validadeDate.setDate(validadeDate.getDate() + orc.validade)

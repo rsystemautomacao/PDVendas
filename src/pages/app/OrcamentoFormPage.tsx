@@ -194,6 +194,7 @@ export function OrcamentoFormPage() {
           endereco: emp?.endereco,
           cidade: emp?.cidade,
           estado: emp?.estado,
+          logoBase64: emp?.logoBase64,
         })
       }
     }
@@ -220,6 +221,7 @@ export function OrcamentoFormPage() {
       endereco: emp?.endereco,
       cidade: emp?.cidade,
       estado: emp?.estado,
+      logoBase64: emp?.logoBase64,
     })
   }
 

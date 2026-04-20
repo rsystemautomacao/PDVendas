@@ -13,6 +13,7 @@ import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency, isCodigoBalanca } from '../../utils/helpers'
 import { imprimirRecibo, deveImprimirAutomatico } from '../../utils/impressao'
+import { isAndroidDevice } from '../../utils/elginBridge'
 import type { Pagamento, FormaPagamento, Venda, Produto } from '../../types'
 import { BarcodeScanner } from '../../components/app/BarcodeScanner'
 import { TutorialModal } from '../../components/app/TutorialModal'
@@ -497,8 +498,8 @@ export function NovoPedidoPage() {
   const imprimirReciboVenda = useCallback(() => {
     if (!vendaFinalizada) return
     const html = gerarReciboHtml(vendaFinalizada)
-    imprimirRecibo(html)
-  }, [vendaFinalizada, gerarReciboHtml])
+    imprimirRecibo(html, undefined, user?.empresa?.logoBase64)
+  }, [vendaFinalizada, gerarReciboHtml, user])
 
   const enviarReciboWhatsApp = useCallback(() => {
     if (!vendaFinalizada) return
@@ -543,7 +544,7 @@ export function NovoPedidoPage() {
     if (showRecibo && vendaFinalizada && deveImprimirAutomatico()) {
       const timer = setTimeout(() => {
         const html = gerarReciboHtml(vendaFinalizada)
-        imprimirRecibo(html)
+        imprimirRecibo(html, undefined, user?.empresa?.logoBase64)
       }, 800)
       return () => clearTimeout(timer)
     }
@@ -1047,7 +1048,7 @@ export function NovoPedidoPage() {
               onBlur={() => setTimeout(() => setShowResults(false), 200)}
               onFocus={() => { if (searchTerm.length >= 2) setShowResults(true) }}
               className="input-field pl-10"
-              autoFocus
+              autoFocus={!isAndroidDevice()}
             />
             {showResults && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-64 overflow-y-auto animate-scale-in">

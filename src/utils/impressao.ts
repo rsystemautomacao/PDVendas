@@ -1,4 +1,4 @@
-import { temImpressoraEmbarcada, imprimirEmbarcada } from './elginBridge'
+import { temImpressoraEmbarcada, imprimirEmbarcada, imprimirComandos, ElginBuilder, hasAndroidBridge } from './elginBridge'
 
 const STORAGE_KEY = 'meupdv_impressoras'
 
@@ -65,33 +65,29 @@ function imprimirViaIframe(html: string, onAfterPrint?: () => void) {
  * Se a impressora padrao for embarcada e escposData for fornecido,
  * envia direto para a impressora sem dialogo do navegador.
  */
-export function imprimirRecibo(reciboHtml: string, escposData?: string) {
+export function imprimirRecibo(reciboHtml: string, escposData?: string, logoBase64?: string) {
   const impressora = getImpressoraPadrao()
 
-  // Se tem impressora embarcada e dados ESC/POS, envia direto
-  if (impressora?.tipo === 'embarcada' && escposData) {
+  // Se tem impressora embarcada, envia via bridge
+  if (impressora?.tipo === 'embarcada' && (temImpressoraEmbarcada() || hasAndroidBridge())) {
     const copias = impressora.copias || 1
-    for (let i = 0; i < copias; i++) {
-      imprimirEmbarcada(escposData).catch(err =>
-        console.error('[Impressao] Erro na impressora embarcada:', err)
-      )
-    }
-    return
-  }
 
-  // Se tem impressora embarcada mas sem dados ESC/POS, tenta mesmo assim
-  if (impressora?.tipo === 'embarcada' && temImpressoraEmbarcada()) {
-    // Sem ESC/POS, tenta enviar o HTML como texto simples
-    const textoSimples = reciboHtml
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-    imprimirEmbarcada(textoSimples).catch(err =>
-      console.error('[Impressao] Erro na impressora embarcada:', err)
-    )
+    if (escposData) {
+      // Dados ESC/POS prontos — envia direto como texto
+      for (let i = 0; i < copias; i++) {
+        imprimirEmbarcada(escposData).catch(err =>
+          console.error('[Impressao] Erro na impressora embarcada:', err)
+        )
+      }
+    } else {
+      // Converte HTML para comandos estruturados (com suporte a logo)
+      const comandos = htmlParaComandosElgin(reciboHtml, logoBase64)
+      for (let i = 0; i < copias; i++) {
+        imprimirComandos(comandos).catch(err =>
+          console.error('[Impressao] Erro na impressora embarcada:', err)
+        )
+      }
+    }
     return
   }
 
@@ -151,4 +147,43 @@ export function imprimirRecibo(reciboHtml: string, escposData?: string) {
 export function deveImprimirAutomatico(): boolean {
   const impressora = getImpressoraPadrao()
   return !!impressora?.imprimirAutomatico
+}
+
+/**
+ * Converte HTML de recibo em comandos estruturados para impressora Elgin.
+ * Extrai texto do HTML e monta comandos com formatação.
+ */
+function htmlParaComandosElgin(html: string, logoBase64?: string) {
+  const builder = new ElginBuilder()
+
+  // Logo da empresa
+  if (logoBase64) {
+    builder.imagem(logoBase64)
+  }
+
+  // Remove tags HTML e converte para texto limpo
+  const linhas = html
+    .replace(/<div class="linha"><\/div>/gi, '{{SEPARADOR}}')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0)
+
+  for (const linha of linhas) {
+    if (linha === '{{SEPARADOR}}') {
+      builder.separador()
+    } else if (linha.startsWith('TOTAL:') || linha.startsWith('TOTAL ')) {
+      builder.bold().duplo_h().texto(linha + '\n').normal()
+    } else {
+      builder.normal().texto(linha + '\n')
+    }
+  }
+
+  builder.cortarPapel()
+  return builder.build()
 }

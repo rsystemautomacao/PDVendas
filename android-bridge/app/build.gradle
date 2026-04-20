@@ -32,6 +32,12 @@ dependencies {
     implementation 'androidx.webkit:webkit:1.8.0'
 
     // Libs Elgin - arquivos .aar na pasta app/libs/
-    implementation files('libs/e1-lib.aar')
-    implementation files('libs/minipdvm8-v01.00.00-release.aar')
+    implementation files('libs/e1-v5.2.0-release.aar')
+    implementation files('libs/minipdvm8.aar')
+
+    // Dependencias obrigatorias da Elgin (conforme documentacao oficial)
+    implementation 'androidx.startup:startup-runtime:1.0.0'
+    implementation 'io.reactivex.rxjava2:rxandroid:2.0.1'
+    implementation 'io.reactivex.rxjava2:rxjava:2.1.8'
+    implementation 'com.google.zxing:core:3.4.0'
 }

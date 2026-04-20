@@ -236,6 +236,7 @@ export function OrdemServicoFormPage() {
           endereco: emp?.endereco,
           cidade: emp?.cidade,
           estado: emp?.estado,
+          logoBase64: emp?.logoBase64,
         })
       }
     }
@@ -263,6 +264,7 @@ export function OrdemServicoFormPage() {
       endereco: emp?.endereco,
       cidade: emp?.cidade,
       estado: emp?.estado,
+      logoBase64: emp?.logoBase64,
     })
   }
 

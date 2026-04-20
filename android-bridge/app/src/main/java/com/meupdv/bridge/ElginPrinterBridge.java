@@ -1,6 +1,9 @@
 package com.meupdv.bridge;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.util.Log;
 
@@ -8,6 +11,7 @@ import com.elgin.e1.Impressora.Termica;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+
 
 /**
  * Bridge JavaScript <-> Impressora Elgin.
@@ -147,8 +151,7 @@ public class ElginPrinterBridge {
                         processBarcode(cmd);
                         break;
                     case "image":
-                        String path = cmd.getString("path");
-                        Termica.ImprimeImagem(path);
+                        processImage(cmd);
                         break;
                     case "init":
                         Termica.InicializaImpressora();
@@ -255,6 +258,45 @@ public class ElginPrinterBridge {
         int size = cmd.optInt("size", 4);           // 1-6
         int errorLevel = cmd.optInt("errorLevel", 2); // 1=L, 2=M, 3=Q, 4=H
         Termica.ImpressaoQRCode(data, size, errorLevel);
+    }
+
+    private void processImage(JSONObject cmd) throws Exception {
+        // Suporta base64 (data:image/png;base64,...) ou path de arquivo
+        String base64 = cmd.optString("data", cmd.optString("base64", ""));
+        String path = cmd.optString("path", "");
+        // Largura maxima: 576px para 80mm, 384px para 58mm
+        int maxWidth = colunas >= 48 ? 576 : 384;
+
+        Bitmap bmp = null;
+
+        if (!base64.isEmpty()) {
+            // Remove prefixo data:image/...;base64, se houver
+            if (base64.contains(",")) {
+                base64 = base64.substring(base64.indexOf(",") + 1);
+            }
+            byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
+            bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+        } else if (!path.isEmpty()) {
+            bmp = BitmapFactory.decodeFile(path);
+        }
+
+        if (bmp != null) {
+            // Redimensiona se a imagem for maior que a largura maxima
+            if (bmp.getWidth() > maxWidth) {
+                float ratio = (float) maxWidth / bmp.getWidth();
+                int newHeight = Math.round(bmp.getHeight() * ratio);
+                Bitmap resized = Bitmap.createScaledBitmap(bmp, maxWidth, newHeight, true);
+                bmp.recycle();
+                bmp = resized;
+            }
+
+            Log.d(TAG, "Imprimindo imagem: " + bmp.getWidth() + "x" + bmp.getHeight());
+            int ret = Termica.ImprimeBitmap(bmp);
+            Log.d(TAG, "ImprimeBitmap retornou: " + ret);
+            bmp.recycle();
+        } else {
+            Log.e(TAG, "Falha ao decodificar imagem");
+        }
     }
 
     private void processBarcode(JSONObject cmd) throws Exception {

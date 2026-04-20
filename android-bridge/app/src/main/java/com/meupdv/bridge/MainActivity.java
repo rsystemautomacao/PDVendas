@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.WindowManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -69,6 +70,19 @@ public class MainActivity extends AppCompatActivity {
                 super.onPageFinished(view, url);
                 // Esconde o loading quando a pagina carrega
                 loadingOverlay.setVisibility(View.GONE);
+
+                // Injeta script para controlar teclado virtual:
+                // - Remove autofocus de todos os inputs ao carregar
+                // - Teclado so aparece quando usuario toca no campo
+                view.evaluateJavascript(
+                    "(function() {" +
+                    "  document.querySelectorAll('input[autofocus]').forEach(function(el) {" +
+                    "    el.removeAttribute('autofocus'); el.blur();" +
+                    "  });" +
+                    "  if (document.activeElement && document.activeElement.tagName === 'INPUT') {" +
+                    "    document.activeElement.blur();" +
+                    "  }" +
+                    "})();", null);
             }
 
             @Override
@@ -80,6 +94,10 @@ public class MainActivity extends AppCompatActivity {
         });
 
         webView.setWebChromeClient(new WebChromeClient());
+
+        // Nao mostra teclado automaticamente ao abrir
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
+                | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
 
         // Carrega o MeuPDV
         webView.loadUrl(MEUPDV_URL);

@@ -48,6 +48,15 @@ async function request<T = any>(path: string, options?: RequestInit): Promise<Ap
     throw new Error('Sessao expirada');
   }
 
+  // Assinatura bloqueada - o frontend já trata via AppLayout, mas propagamos o erro
+  if (res.status === 402) {
+    const body = await res.json().catch(() => ({}));
+    if (body.code === 'SUBSCRIPTION_BLOCKED') {
+      throw new Error('SUBSCRIPTION_BLOCKED');
+    }
+    throw new Error(body.error || 'Pagamento necessário');
+  }
+
   let data: any;
   try {
     data = await res.json();
