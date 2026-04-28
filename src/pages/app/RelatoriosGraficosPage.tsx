@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   ShoppingCart, DollarSign, Box, TrendingUp, TrendingDown,
@@ -13,6 +13,8 @@ import { useFinanceiro } from '../../contexts/FinanceiroContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency } from '../../utils/helpers'
 import { exportVendasPdf, exportFinanceiroPdf, exportEstoquePdf } from '../../utils/exportPdf'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialRelatorios } from '../../config/tutorials'
 
 type Aba = 'vendas' | 'financeiro' | 'estoque'
 type PeriodoPreset = 'hoje' | 'semana' | 'mes' | 'trimestre' | 'ano' | 'custom'
@@ -67,7 +69,8 @@ function getDateRange(preset: PeriodoPreset, customDe: string, customAte: string
 export function RelatoriosGraficosPage() {
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
-  const { vendas } = useVendas()
+  const { vendas, carregarSeNecessario: carregarVendas } = useVendas()
+  useEffect(() => { carregarVendas() }, [carregarVendas])
   const { produtos } = useProdutos()
   const { clientes } = useClientes()
   const { contasPagar, contasReceber, despesas } = useFinanceiro()
@@ -705,6 +708,7 @@ export function RelatoriosGraficosPage() {
           </div>
         )}
       </div>
+      <TutorialModal id="relatorios" titulo="Relatorios e Graficos" subtitulo="Analise o desempenho da sua loja" steps={tutorialRelatorios} />
     </div>
   )
 }

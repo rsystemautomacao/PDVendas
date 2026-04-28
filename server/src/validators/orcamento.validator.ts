@@ -1,15 +1,28 @@
 import { z } from 'zod';
 
 const dispositivoSchema = z.object({
-  tipo: z.enum(['celular', 'tablet', 'notebook', 'outro']),
-  marca: z.string().min(1, 'Marca é obrigatória'),
-  modelo: z.string().min(1, 'Modelo é obrigatório'),
+  tipo: z.string().min(1, 'Tipo é obrigatório'),
+  marca: z.string().optional().default(''),
+  modelo: z.string().optional().default(''),
   cor: z.string().optional(),
   imei: z.string().optional(),
   serial: z.string().optional(),
   senhaDispositivo: z.string().optional(),
   acessorios: z.string().optional(),
   estadoVisual: z.string().optional(),
+  placa: z.string().optional(),
+  ano: z.string().optional(),
+  km: z.string().optional(),
+  chassi: z.string().optional(),
+  combustivel: z.string().optional(),
+  nomeAnimal: z.string().optional(),
+  especie: z.string().optional(),
+  raca: z.string().optional(),
+  porte: z.string().optional(),
+  peso: z.string().optional(),
+  grauOD: z.string().optional(),
+  grauOE: z.string().optional(),
+  descricaoItem: z.string().optional(),
 });
 
 const itemOrcamentoSchema = z.object({

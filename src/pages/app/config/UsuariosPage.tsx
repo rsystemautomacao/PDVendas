@@ -119,6 +119,7 @@ export function UsuariosPage() {
   const [username, setUsername] = useState('')
   const [senha, setSenha] = useState('')
   const [role, setRole] = useState('caixa')
+  const [comissao, setComissao] = useState(0)
   const [perms, setPerms] = useState<Record<string, boolean>>({})
   const [showPerms, setShowPerms] = useState(false)
   const [showSenha, setShowSenha] = useState(false)
@@ -156,6 +157,7 @@ export function UsuariosPage() {
     setUsername('')
     setSenha('')
     setRole('caixa')
+    setComissao(0)
     setPerms(defaultPerms('caixa'))
     setShowPerms(false)
     setShowSenha(false)
@@ -175,6 +177,7 @@ export function UsuariosPage() {
     setUsername(parts[0] || '')
     setSenha('')
     setRole(u.role)
+    setComissao(u.comissao || 0)
     setPerms(u.permissoes || defaultPerms(u.role))
     setShowForm(true)
     setShowPerms(false)
@@ -215,7 +218,7 @@ export function UsuariosPage() {
     setSaving(true)
     try {
       if (editingId) {
-        const payload: Record<string, unknown> = { nome, email, role, permissoes: perms }
+        const payload: Record<string, unknown> = { nome, email, role, permissoes: perms, comissao }
         if (senha) payload.novaSenha = senha
         const res = await api.put(`/usuarios/${editingId}`, payload)
         if (res.success) {
@@ -224,7 +227,7 @@ export function UsuariosPage() {
           fetchUsuarios()
         }
       } else {
-        const res = await api.post('/usuarios', { nome, email, senha, role, permissoes: perms })
+        const res = await api.post('/usuarios', { nome, email, senha, role, permissoes: perms, comissao })
         if (res.success) {
           sucesso('Usuario criado!')
           resetForm()
@@ -236,7 +239,7 @@ export function UsuariosPage() {
     } finally {
       setSaving(false)
     }
-  }, [nome, username, emailCompleto, senha, role, perms, editingId, sucesso, erro, resetForm, fetchUsuarios])
+  }, [nome, username, emailCompleto, senha, role, comissao, perms, editingId, sucesso, erro, resetForm, fetchUsuarios])
 
   const handleToggleAtivo = useCallback(async (u: User) => {
     try {
@@ -406,6 +409,16 @@ export function UsuariosPage() {
                       <option key={p.value} value={p.value}>{p.label}</option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-text-primary">Comissao (%)</label>
+                  <input
+                    type="number" min={0} max={100} step={0.5}
+                    value={comissao} onChange={e => setComissao(Number(e.target.value) || 0)}
+                    placeholder="0" className="input-field"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Percentual sobre vendas realizadas</p>
                 </div>
 
                 {/* Permissions toggle */}

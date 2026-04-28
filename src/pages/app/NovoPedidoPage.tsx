@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Minus, Trash2, User,
   CreditCard, Banknote, Smartphone, FileText, Printer,
-  X, AlertCircle, Receipt, DollarSign, Percent,
+  X, AlertCircle, Receipt, DollarSign, Percent, Package, Camera,
 } from 'lucide-react'
 import { useVendas } from '../../contexts/VendaContext'
 import { useProdutos } from '../../contexts/ProdutoContext'
@@ -12,19 +12,24 @@ import { useCaixa } from '../../contexts/CaixaContext'
 import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency, isCodigoBalanca } from '../../utils/helpers'
-import type { Pagamento, FormaPagamento, Venda } from '../../types'
+import { imprimirRecibo, deveImprimirAutomatico, getImpressoraPadrao } from '../../utils/impressao'
+import { isAndroidDevice } from '../../utils/elginBridge'
+import type { Pagamento, FormaPagamento, Venda, Produto } from '../../types'
+import { BarcodeScanner } from '../../components/app/BarcodeScanner'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialNovaVenda } from '../../config/tutorials'
 
 export function NovoPedidoPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const { user } = useAuth()
   const {
-    cart, addToCart, addToCartBalanca, removeFromCart, updateCartItem, clearCart,
+    cart, addToCart, addToCartComVariacao, addToCartBalanca, removeFromCart, updateCartItem, clearCart,
     subtotal, totalDesconto, totalVenda,
     setClienteVenda, clienteId, clienteNome,
     setDesconto, finalizarVenda, setObservacoesVenda, observacoes,
   } = useVendas()
-  const { buscarProdutos, buscarPorCodigoBalanca } = useProdutos()
+  const { produtos, buscarProdutos, buscarPorCodigoBalanca } = useProdutos()
   const { buscarClientes } = useClientes()
   const { caixaAberto } = useCaixa()
 
@@ -74,8 +79,17 @@ export function NovoPedidoPage() {
   // Payment phase: 'method' = selecting payment method, 'value' = entering value
   const [paymentPhase, setPaymentPhase] = useState<'method' | 'value'>('method')
 
-  // Cart management modal (F3)
+  // Cart management modal
   const [showCartModal, setShowCartModal] = useState(false)
+
+  // Barcode camera scanner
+  const [showScanner, setShowScanner] = useState(false)
+
+  // Product catalog modal (F3)
+  const [showProductCatalog, setShowProductCatalog] = useState(false)
+  const [catalogSelectedIdx, setCatalogSelectedIdx] = useState(0)
+  const [catalogSearch, setCatalogSearch] = useState('')
+  const catalogSearchRef = useRef<HTMLInputElement>(null)
 
   // Crediario client modal
   const [showCrediarioClientModal, setShowCrediarioClientModal] = useState(false)
@@ -83,6 +97,12 @@ export function NovoPedidoPage() {
   const [crediarioClientResults, setCrediarioClientResults] = useState<ReturnType<typeof buscarClientes>>([])
   const [crediarioSelectedIdx, setCrediarioSelectedIdx] = useState(-1)
   const crediarioSearchRef = useRef<HTMLInputElement>(null)
+
+  // Variation/Serial selection modal
+  const [showVariacaoModal, setShowVariacaoModal] = useState(false)
+  const [variacaoProduto, setVariacaoProduto] = useState<Produto | null>(null)
+  const [variacaoSelecionada, setVariacaoSelecionada] = useState<string | null>(null)
+  const [serialSelecionado, setSerialSelecionado] = useState<string | null>(null)
 
   // Caixa warning
   const [showCaixaModal, setShowCaixaModal] = useState(false)
@@ -134,6 +154,46 @@ export function NovoPedidoPage() {
   useEffect(() => {
     if (!caixaAberto) setShowCaixaModal(true)
   }, [caixaAberto])
+
+  // Sorted product catalog for F3 modal
+  const catalogProducts = useMemo(() => {
+    const active = produtos.filter(p => p.ativo)
+    const sorted = active.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+    if (!catalogSearch.trim()) return sorted
+    const term = catalogSearch.toLowerCase()
+    return sorted.filter(p =>
+      p.nome.toLowerCase().includes(term) ||
+      p.codigo.toLowerCase().includes(term)
+    )
+  }, [produtos, catalogSearch])
+
+  // Auto-focus catalog search when modal opens
+  useEffect(() => {
+    if (showProductCatalog) {
+      setCatalogSelectedIdx(0)
+      setCatalogSearch('')
+      setTimeout(() => catalogSearchRef.current?.focus(), 100)
+    }
+  }, [showProductCatalog])
+
+  // Enter fullscreen when page mounts, exit on unmount
+  useEffect(() => {
+    const enterFullscreen = async () => {
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen()
+        }
+      } catch { /* user may deny fullscreen */ }
+    }
+    enterFullscreen()
+    return () => {
+      try {
+        if (document.fullscreenElement) {
+          document.exitFullscreen()
+        }
+      } catch { /* ignore */ }
+    }
+  }, [])
 
   // Keep selectedCartIdx in bounds when cart changes
   useEffect(() => {
@@ -204,14 +264,41 @@ export function NovoPedidoPage() {
     }
   }, [clientSearch, buscarClientes])
 
+  const handleBarcodeScan = useCallback((code: string) => {
+    setShowScanner(false)
+    // Feed the scanned code into the search field - the existing useEffect handles the rest
+    setSearchTerm(code.trim())
+    searchRef.current?.focus()
+  }, [])
+
   const handleAddProduct = useCallback((produtoId: string) => {
+    const prod = produtos.find(p => p._id === produtoId)
+    // Se tem variações ou serial, abrir modal de seleção
+    if (prod && (prod.temVariacoes && prod.variacoes && prod.variacoes.length > 0)) {
+      setVariacaoProduto(prod)
+      setVariacaoSelecionada(null)
+      setSerialSelecionado(null)
+      setShowVariacaoModal(true)
+      setSearchTerm('')
+      setShowResults(false)
+      return
+    }
+    if (prod && (prod.temSerial && prod.seriais && prod.seriais.some(s => s.status === 'disponivel'))) {
+      setVariacaoProduto(prod)
+      setVariacaoSelecionada(null)
+      setSerialSelecionado(null)
+      setShowVariacaoModal(true)
+      setSearchTerm('')
+      setShowResults(false)
+      return
+    }
     addToCart(produtoId)
     setSearchTerm('')
     setShowResults(false)
     setSelectedProductIdx(-1)
     setSelectedCartIdx(-1)
     searchRef.current?.focus()
-  }, [addToCart])
+  }, [addToCart, produtos])
 
   const handleSelectClient = useCallback((id: string, nome: string) => {
     setClienteVenda(id, nome)
@@ -332,7 +419,7 @@ export function NovoPedidoPage() {
     setPagamentos(prev => [...prev, {
       forma: formaPagamento,
       valor,
-      parcelas: formaPagamento === 'credito' ? parcelas : undefined,
+      parcelas: (formaPagamento === 'credito' || formaPagamento === 'crediario') ? parcelas : undefined,
     }])
     setValorPagamento('')
   }
@@ -370,6 +457,109 @@ export function NovoPedidoPage() {
       setPagamentos([])
     }
   }
+
+  const gerarReciboHtml = useCallback((venda: Venda) => {
+    const logo = user?.empresa?.logoBase64
+      ? `<div class="centro"><img src="${user.empresa.logoBase64}" alt="Logo" /></div>`
+      : ''
+    const cnpj = user?.empresa?.cnpj ? `<div class="centro" style="font-size:10px">CNPJ: ${user.empresa.cnpj}</div>` : ''
+    const tel = user?.empresa?.telefone ? `<div class="centro" style="font-size:10px">Tel: ${user.empresa.telefone}</div>` : ''
+    const itensHtml = venda.itens.map(item =>
+      `<div>${item.nome}<br/>&nbsp;&nbsp;${item.quantidade}x ${formatCurrency(item.precoUnitario)} = ${formatCurrency(item.total)}</div>`
+    ).join('')
+    const pagHtml = venda.pagamentos.map(p =>
+      `<div style="text-transform:capitalize">${p.forma}: ${formatCurrency(p.valor)}${p.parcelas && p.parcelas > 1 ? ` (${p.parcelas}x)` : ''}</div>`
+    ).join('')
+    return `
+      ${logo}
+      <div class="centro bold">${user?.empresa?.nome || 'COMPROVANTE DE VENDA'}</div>
+      ${cnpj}${tel}
+      <div class="linha"></div>
+      <div>Venda #${venda.numero}</div>
+      <div>Data: ${new Date(venda.criadoEm).toLocaleString('pt-BR')}</div>
+      <div>Cliente: ${venda.clienteNome}</div>
+      <div>Vendedor: ${venda.vendedorNome}</div>
+      <div class="linha"></div>
+      <div class="bold">ITENS:</div>
+      ${itensHtml}
+      <div class="linha"></div>
+      <div>Subtotal: ${formatCurrency(venda.subtotal)}</div>
+      ${venda.desconto > 0 ? `<div>Desconto: -${formatCurrency(venda.desconto)}</div>` : ''}
+      <div class="bold">TOTAL: ${formatCurrency(venda.total)}</div>
+      <div class="linha"></div>
+      <div class="bold">PAGAMENTO:</div>
+      ${pagHtml}
+      ${venda.troco > 0 ? `<div>Troco: ${formatCurrency(venda.troco)}</div>` : ''}
+      <div class="linha"></div>
+      <div class="centro">Obrigado pela preferencia!</div>
+    `
+  }, [user])
+
+  const avisarImpressoraNaoConfigurada = useCallback(() => {
+    if (getImpressoraPadrao()) return
+    if (sessionStorage.getItem('meupdv_aviso_impressora_dado') === '1') return
+    sessionStorage.setItem('meupdv_aviso_impressora_dado', '1')
+    toast.alerta(
+      'Nenhuma impressora cadastrada — usando padrao cupom 80mm. Configure em Configuracoes > Impressoras para melhor resultado.'
+    )
+  }, [toast])
+
+  const imprimirReciboVenda = useCallback(() => {
+    if (!vendaFinalizada) return
+    const html = gerarReciboHtml(vendaFinalizada)
+    avisarImpressoraNaoConfigurada()
+    imprimirRecibo(html, undefined, user?.empresa?.logoBase64)
+  }, [vendaFinalizada, gerarReciboHtml, user, avisarImpressoraNaoConfigurada])
+
+  const enviarReciboWhatsApp = useCallback(() => {
+    if (!vendaFinalizada) return
+    const v = vendaFinalizada
+    const empresa = user?.empresa?.nome || 'MeuPDV'
+    const cnpj = user?.empresa?.cnpj ? `CNPJ: ${user.empresa.cnpj}\n` : ''
+    const tel = user?.empresa?.telefone ? `Tel: ${user.empresa.telefone}\n` : ''
+    const itens = v.itens.map(item =>
+      `  ${item.nome}\n    ${item.quantidade}x ${formatCurrency(item.precoUnitario)} = ${formatCurrency(item.total)}`
+    ).join('\n')
+    const pags = v.pagamentos.map(p =>
+      `  ${p.forma.charAt(0).toUpperCase() + p.forma.slice(1)}: ${formatCurrency(p.valor)}${p.parcelas && p.parcelas > 1 ? ` (${p.parcelas}x)` : ''}`
+    ).join('\n')
+    const texto = [
+      `*${empresa}*`,
+      cnpj + tel,
+      `━━━━━━━━━━━━━━━━━━`,
+      `*Venda #${v.numero}*`,
+      `Data: ${new Date(v.criadoEm).toLocaleString('pt-BR')}`,
+      v.clienteNome ? `Cliente: ${v.clienteNome}` : '',
+      `Vendedor: ${v.vendedorNome}`,
+      `━━━━━━━━━━━━━━━━━━`,
+      `*ITENS:*`,
+      itens,
+      `━━━━━━━━━━━━━━━━━━`,
+      `Subtotal: ${formatCurrency(v.subtotal)}`,
+      v.desconto > 0 ? `Desconto: -${formatCurrency(v.desconto)}` : '',
+      `*TOTAL: ${formatCurrency(v.total)}*`,
+      `━━━━━━━━━━━━━━━━━━`,
+      `*PAGAMENTO:*`,
+      pags,
+      v.troco > 0 ? `Troco: ${formatCurrency(v.troco)}` : '',
+      `━━━━━━━━━━━━━━━━━━`,
+      `Obrigado pela preferencia! 🛒`,
+    ].filter(Boolean).join('\n')
+    const url = `https://wa.me/?text=${encodeURIComponent(texto)}`
+    window.open(url, '_blank')
+  }, [vendaFinalizada, user])
+
+  // Auto-print receipt when sale is finalized (if configured)
+  useEffect(() => {
+    if (showRecibo && vendaFinalizada && deveImprimirAutomatico()) {
+      const timer = setTimeout(() => {
+        const html = gerarReciboHtml(vendaFinalizada)
+        avisarImpressoraNaoConfigurada()
+        imprimirRecibo(html, undefined, user?.empresa?.logoBase64)
+      }, 800)
+      return () => clearTimeout(timer)
+    }
+  }, [showRecibo, vendaFinalizada, gerarReciboHtml, avisarImpressoraNaoConfigurada])
 
   const handleNovaVenda = () => {
     setVendaFinalizada(null)
@@ -484,7 +674,7 @@ export function NovoPedidoPage() {
       // === Modal Recibo ===
       if (showRecibo) {
         if (e.key === 'Enter' || e.key === 'F2') { e.preventDefault(); handleNovaVenda(); return }
-        if (e.key === 'p' || e.key === 'P') { e.preventDefault(); window.print(); return }
+        if (e.key === 'p' || e.key === 'P') { e.preventDefault(); imprimirReciboVenda(); return }
         if (e.key === 'Escape') { e.preventDefault(); handleNovaVenda(); return }
         return
       }
@@ -511,7 +701,7 @@ export function NovoPedidoPage() {
         return
       }
 
-      // === Modal Carrinho (F3) ===
+      // === Modal Carrinho ===
       if (showCartModal) {
         if (e.key === 'Escape') { e.preventDefault(); setShowCartModal(false); setSelectedCartIdx(-1); searchRef.current?.focus(); return }
         if (e.key === 'ArrowDown') {
@@ -541,6 +731,49 @@ export function NovoPedidoPage() {
           } else {
             updateCartItem(selectedCartIdx, cart[selectedCartIdx].quantidade - 1)
           }
+          return
+        }
+        return
+      }
+
+      // === Modal Catalogo de Produtos (F3) ===
+      if (showProductCatalog) {
+        if (e.key === 'Escape') { e.preventDefault(); setShowProductCatalog(false); searchRef.current?.focus(); return }
+        if (e.key === 'F3') { e.preventDefault(); setShowProductCatalog(false); searchRef.current?.focus(); return }
+        // Allow typing in search
+        if (document.activeElement === catalogSearchRef.current) {
+          if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            setCatalogSelectedIdx(prev => prev < catalogProducts.length - 1 ? prev + 1 : 0)
+            return
+          }
+          if (e.key === 'ArrowUp') {
+            e.preventDefault()
+            setCatalogSelectedIdx(prev => prev > 0 ? prev - 1 : catalogProducts.length - 1)
+            return
+          }
+          if (e.key === 'Enter' && catalogSelectedIdx >= 0 && catalogSelectedIdx < catalogProducts.length) {
+            e.preventDefault()
+            handleAddProduct(catalogProducts[catalogSelectedIdx]._id)
+            setShowProductCatalog(false)
+            return
+          }
+          return
+        }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          setCatalogSelectedIdx(prev => prev < catalogProducts.length - 1 ? prev + 1 : 0)
+          return
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          setCatalogSelectedIdx(prev => prev > 0 ? prev - 1 : catalogProducts.length - 1)
+          return
+        }
+        if (e.key === 'Enter' && catalogSelectedIdx >= 0 && catalogSelectedIdx < catalogProducts.length) {
+          e.preventDefault()
+          handleAddProduct(catalogProducts[catalogSelectedIdx]._id)
+          setShowProductCatalog(false)
           return
         }
         return
@@ -598,7 +831,7 @@ export function NovoPedidoPage() {
           if (e.key === 'F10') {
             e.preventDefault()
             if (restante > 0) {
-              const newPagamentos = [...pagamentos, { forma: formaPagamento, valor: restante, parcelas: formaPagamento === 'credito' ? parcelas : undefined }]
+              const newPagamentos = [...pagamentos, { forma: formaPagamento, valor: restante, parcelas: (formaPagamento === 'credito' || formaPagamento === 'crediario') ? parcelas : undefined }]
               setPagamentos(newPagamentos)
               setTimeout(async () => {
                 const totalP = newPagamentos.reduce((s, p) => s + p.valor, 0)
@@ -675,7 +908,7 @@ export function NovoPedidoPage() {
         if (e.key === 'F10') {
           e.preventDefault()
           if (restante > 0) {
-            const newPagamentos = [...pagamentos, { forma: formaPagamento, valor: restante, parcelas: formaPagamento === 'credito' ? parcelas : undefined }]
+            const newPagamentos = [...pagamentos, { forma: formaPagamento, valor: restante, parcelas: (formaPagamento === 'credito' || formaPagamento === 'crediario') ? parcelas : undefined }]
             setPagamentos(newPagamentos)
             setTimeout(async () => {
               const totalP = newPagamentos.reduce((s, p) => s + p.valor, 0)
@@ -702,7 +935,7 @@ export function NovoPedidoPage() {
 
       // F-keys (funcionam sempre, inclusive quando busca esta focada)
       if (e.key === 'F2') { e.preventDefault(); setSelectedCartIdx(-1); searchRef.current?.focus(); return }
-      if (e.key === 'F3') { e.preventDefault(); if (cart.length > 0) { setShowCartModal(true); setSelectedCartIdx(0) }; return }
+      if (e.key === 'F3') { e.preventDefault(); setShowProductCatalog(true); return }
       if (e.key === 'F4') { e.preventDefault(); clientSearchRef.current?.focus(); return }
       if (e.key === 'F6') { e.preventDefault(); navigate('/app/clientes/novo', { state: { returnTo: '/app/novo-pedido' } }); return }
       if (e.key === 'F9') { e.preventDefault(); if (cart.length > 0 && caixaAberto) setShowPayment(true); return }
@@ -749,7 +982,7 @@ export function NovoPedidoPage() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [cart, caixaAberto, showPayment, showDesconto, showRecibo, showResults, showClientResults, showNotFoundModal, showCartModal, showCrediarioClientModal, showCancelVendaModal, showNavGuardModal, showRefreshGuardModal, pendingNavPath, notFoundBarcode, notFoundModalReady, formaPagamento, formasPagamento, restante, totalPago, totalVenda, pagamentos, parcelas, selectedCartIdx, confirmDeleteIdx, selectedPaymentIdx, paymentPhase, valorPagamento, clienteId, crediarioClientResults, crediarioSelectedIdx, removeFromCart, updateCartItem, clearCart, handleFinalizarVenda, handleNovaVenda, handleSelectFormaPagamento, handleCrediarioClientSelect, finalizarVenda, navigate, toast])
+  }, [cart, caixaAberto, showPayment, showDesconto, showRecibo, showResults, showClientResults, showNotFoundModal, showCartModal, showCrediarioClientModal, showCancelVendaModal, showNavGuardModal, showRefreshGuardModal, showProductCatalog, catalogProducts, catalogSelectedIdx, pendingNavPath, notFoundBarcode, notFoundModalReady, formaPagamento, formasPagamento, restante, totalPago, totalVenda, pagamentos, parcelas, selectedCartIdx, confirmDeleteIdx, selectedPaymentIdx, paymentPhase, valorPagamento, clienteId, crediarioClientResults, crediarioSelectedIdx, removeFromCart, updateCartItem, clearCart, handleFinalizarVenda, handleNovaVenda, handleSelectFormaPagamento, handleCrediarioClientSelect, handleAddProduct, finalizarVenda, navigate, toast])
 
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-56px)]">
@@ -813,57 +1046,69 @@ export function NovoPedidoPage() {
         </div>
 
         {/* Product search */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            ref={searchRef}
-            type="text"
-            placeholder="Buscar produto por nome, codigo ou codigo de barras... (F2)"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            onKeyDown={handleProductSearchKeyDown}
-            onBlur={() => setTimeout(() => setShowResults(false), 200)}
-            onFocus={() => { if (searchTerm.length >= 2) setShowResults(true) }}
-            className="input-field pl-10"
-            autoFocus
-          />
-          {showResults && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-64 overflow-y-auto animate-scale-in">
-              {searchResults.length === 0 ? (
-                <div className="px-4 py-3">
-                  <p className="text-sm text-gray-500 mb-2">Nenhum produto encontrado</p>
-                  {searchTerm.replace(/\D/g, '').length >= 8 && (
-                    <button
-                      onClick={() => { setNotFoundBarcode(searchTerm.trim()); setShowNotFoundModal(true); setShowResults(false) }}
-                      className="w-full text-left px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors flex items-center gap-2"
-                    >
-                      <Plus size={16} className="text-amber-600" />
+        <div className="relative mb-4 flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              ref={searchRef}
+              type="text"
+              placeholder="Buscar produto por nome, codigo ou codigo de barras... (F2)"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              onKeyDown={handleProductSearchKeyDown}
+              onBlur={() => setTimeout(() => setShowResults(false), 200)}
+              onFocus={() => { if (searchTerm.length >= 2) setShowResults(true) }}
+              className="input-field pl-10"
+              autoFocus={!isAndroidDevice()}
+            />
+            {showResults && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-64 overflow-y-auto animate-scale-in">
+                {searchResults.length === 0 ? (
+                  <div className="px-4 py-3">
+                    <p className="text-sm text-gray-500 mb-2">Nenhum produto encontrado</p>
+                    {searchTerm.replace(/\D/g, '').length >= 8 && (
+                      <button
+                        onClick={() => { setNotFoundBarcode(searchTerm.trim()); setShowNotFoundModal(true); setShowResults(false) }}
+                        className="w-full text-left px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors flex items-center gap-2"
+                      >
+                        <Plus size={16} className="text-amber-600" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-800">Cadastrar novo produto</p>
+                          <p className="text-xs text-amber-600">Codigo: {searchTerm.trim()}</p>
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  searchResults.map((p, idx) => (
+                    <button key={p._id} onClick={() => handleAddProduct(p._id)}
+                      className={`w-full text-left px-4 py-3 border-b last:border-0 flex items-center justify-between transition-colors ${
+                        idx === selectedProductIdx ? 'bg-blue-50 ring-1 ring-inset ring-primary/30' : 'hover:bg-blue-50'
+                      }`}>
                       <div>
-                        <p className="text-sm font-medium text-amber-800">Cadastrar novo produto</p>
-                        <p className="text-xs text-amber-600">Codigo: {searchTerm.trim()}</p>
+                        <p className="font-medium text-sm text-gray-800">{p.nome}</p>
+                        <p className="text-xs text-gray-400">Cod: {p.codigo} | Estoque: {p.estoque} {p.unidade}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-sm text-primary">{formatCurrency(p.preco)}</p>
+                        {p.precoAtacado && p.qtdMinimaAtacado && (
+                          <p className="text-[10px] text-green-600">Atacado: {formatCurrency(p.precoAtacado)} ({p.qtdMinimaAtacado}+un)</p>
+                        )}
+                        <Plus size={16} className="text-primary ml-auto" />
                       </div>
                     </button>
-                  )}
-                </div>
-              ) : (
-                searchResults.map((p, idx) => (
-                  <button key={p._id} onClick={() => handleAddProduct(p._id)}
-                    className={`w-full text-left px-4 py-3 border-b last:border-0 flex items-center justify-between transition-colors ${
-                      idx === selectedProductIdx ? 'bg-blue-50 ring-1 ring-inset ring-primary/30' : 'hover:bg-blue-50'
-                    }`}>
-                    <div>
-                      <p className="font-medium text-sm text-gray-800">{p.nome}</p>
-                      <p className="text-xs text-gray-400">Cod: {p.codigo} | Estoque: {p.estoque} {p.unidade}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-sm text-primary">{formatCurrency(p.preco)}</p>
-                      <Plus size={16} className="text-primary ml-auto" />
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => setShowScanner(true)}
+            className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors shrink-0"
+            title="Escanear codigo de barras com camera"
+          >
+            <Camera size={20} />
+          </button>
         </div>
 
         {/* Cart items */}
@@ -879,6 +1124,7 @@ export function NovoPedidoPage() {
               </div>
               <div className="mt-6 flex flex-wrap justify-center gap-3 text-xs text-gray-400">
                 <span className="bg-gray-100 px-3 py-1.5 rounded-lg font-medium">F2 Buscar</span>
+                <span className="bg-gray-100 px-3 py-1.5 rounded-lg font-medium">F3 Produtos</span>
                 <span className="bg-gray-100 px-3 py-1.5 rounded-lg font-medium">F4 Cliente</span>
                 <span className="bg-gray-100 px-3 py-1.5 rounded-lg font-medium">F9 Pagamento</span>
               </div>
@@ -993,7 +1239,7 @@ export function NovoPedidoPage() {
           </button>
           <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-gray-400 justify-center">
             <span>F2: Buscar</span>
-            <span>F3: Carrinho</span>
+            <span>F3: Produtos</span>
             <span>F4: Cliente</span>
             <span>F6: Novo Cliente</span>
             <span>F9: Pagar</span>
@@ -1004,7 +1250,7 @@ export function NovoPedidoPage() {
         </div>
       </div>
 
-      {/* ====== MODAL: Gerenciar Carrinho (F3) ====== */}
+      {/* ====== MODAL: Gerenciar Carrinho ====== */}
       {showCartModal && cart.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-scale-in max-h-[80vh] flex flex-col">
@@ -1048,6 +1294,81 @@ export function NovoPedidoPage() {
                 <span>↑↓: Navegar</span>
                 <span>+/-: Quantidade</span>
                 <span>Delete: Remover</span>
+                <span>Esc: Fechar</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== MODAL: Catalogo de Produtos (F3) ====== */}
+      {showProductCatalog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-scale-in max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b">
+              <div className="flex items-center gap-2">
+                <Package size={20} className="text-primary" />
+                <h3 className="text-lg font-bold text-gray-800">Produtos Cadastrados</h3>
+                <span className="text-xs text-gray-400 ml-1">({catalogProducts.length})</span>
+              </div>
+              <button onClick={() => { setShowProductCatalog(false); searchRef.current?.focus() }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <div className="px-5 pt-3 pb-2">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  ref={catalogSearchRef}
+                  type="text"
+                  placeholder="Filtrar produtos..."
+                  value={catalogSearch}
+                  onChange={e => { setCatalogSearch(e.target.value); setCatalogSelectedIdx(0) }}
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-0.5">
+              {catalogProducts.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  {catalogSearch ? 'Nenhum produto encontrado' : 'Nenhum produto cadastrado'}
+                </div>
+              ) : (
+                catalogProducts.map((prod, idx) => (
+                  <button
+                    key={prod._id}
+                    data-catalog-item
+                    onClick={() => { handleAddProduct(prod._id); setShowProductCatalog(false) }}
+                    className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all ${
+                      catalogSelectedIdx === idx
+                        ? 'bg-primary/10 border-2 border-primary ring-1 ring-primary/20'
+                        : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                    }`}
+                    ref={el => {
+                      if (catalogSelectedIdx === idx && el) {
+                        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+                      }
+                    }}
+                  >
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold flex-shrink-0 ${
+                      catalogSelectedIdx === idx ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm text-gray-800 truncate">{prod.nome}</p>
+                      <p className="text-xs text-gray-400">
+                        Cod: {prod.codigo} | Estoque: {prod.estoque} {prod.unidade}
+                      </p>
+                    </div>
+                    <p className="font-bold text-sm text-primary flex-shrink-0">{formatCurrency(prod.preco)}</p>
+                    <Plus size={14} className="text-gray-300 flex-shrink-0" />
+                  </button>
+                ))
+              )}
+            </div>
+            <div className="p-4 border-t">
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-400 justify-center">
+                <span>↑↓: Navegar</span>
+                <span>Enter: Adicionar ao carrinho</span>
                 <span>Esc: Fechar</span>
               </div>
             </div>
@@ -1245,7 +1566,7 @@ export function NovoPedidoPage() {
                     onKeyDown={e => { if (e.key === 'Enter') handleAddPagamento() }}
                   />
                 </div>
-                {formaPagamento === 'credito' && (
+                {(formaPagamento === 'credito' || formaPagamento === 'crediario') && (
                   <div className="w-28">
                     <label className="text-sm font-medium text-gray-700 mb-1 block">Parcelas</label>
                     <select value={parcelas} onChange={e => setParcelas(Number(e.target.value))} className="input-field">
@@ -1412,6 +1733,115 @@ export function NovoPedidoPage() {
         </div>
       )}
 
+      {/* ====== MODAL: Variação / Serial ====== */}
+      {showVariacaoModal && variacaoProduto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-scale-in max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-1">{variacaoProduto.nome}</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                {variacaoProduto.temVariacoes ? 'Selecione tamanho/cor:' : 'Selecione o numero de serie:'}
+              </p>
+
+              {/* Variações (roupas) */}
+              {variacaoProduto.temVariacoes && variacaoProduto.variacoes && (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {variacaoProduto.variacoes.filter(v => v.estoque > 0).map((v, idx) => {
+                    const label = [v.tamanho, v.cor].filter(Boolean).join(' / ')
+                    const precoVar = v.preco || variacaoProduto.preco
+                    return (
+                      <button key={v._id || idx}
+                        onClick={() => setVariacaoSelecionada(v._id || `${idx}`)}
+                        className={`w-full flex items-center justify-between rounded-xl border-2 p-3 transition-all ${
+                          variacaoSelecionada === (v._id || `${idx}`)
+                            ? 'border-primary bg-primary/5'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}>
+                        <div className="text-left">
+                          <span className="font-medium text-gray-800">{label}</span>
+                          <span className="text-xs text-gray-400 ml-2">Estoque: {v.estoque}</span>
+                        </div>
+                        <span className="font-semibold text-gray-700">
+                          {formatCurrency(precoVar)}
+                        </span>
+                      </button>
+                    )
+                  })}
+                  {variacaoProduto.variacoes.filter(v => v.estoque > 0).length === 0 && (
+                    <p className="text-sm text-red-500 text-center py-4">Nenhuma variacao com estoque disponivel.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Seriais (informática) */}
+              {variacaoProduto.temSerial && variacaoProduto.seriais && (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {variacaoProduto.seriais.filter(s => s.status === 'disponivel').map((s, idx) => (
+                    <button key={s._id || idx}
+                      onClick={() => setSerialSelecionado(s.numero)}
+                      className={`w-full flex items-center justify-between rounded-xl border-2 p-3 transition-all ${
+                        serialSelecionado === s.numero
+                          ? 'border-primary bg-primary/5'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}>
+                      <span className="font-mono text-sm text-gray-800">{s.numero}</span>
+                      <span className="text-xs text-green-600 font-medium">Disponivel</span>
+                    </button>
+                  ))}
+                  {variacaoProduto.seriais.filter(s => s.status === 'disponivel').length === 0 && (
+                    <p className="text-sm text-red-500 text-center py-4">Nenhum serial disponivel.</p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-4">
+                <button onClick={() => { setShowVariacaoModal(false); setVariacaoProduto(null); searchRef.current?.focus() }}
+                  className="btn-secondary flex-1">
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    if (variacaoProduto.temVariacoes && variacaoProduto.variacoes) {
+                      const selIdx = variacaoProduto.variacoes.findIndex((v, i) => (v._id || `${i}`) === variacaoSelecionada)
+                      if (selIdx < 0) { return }
+                      const v = variacaoProduto.variacoes[selIdx]
+                      const garantiaAte = variacaoProduto.garantiaMeses
+                        ? new Date(Date.now() + variacaoProduto.garantiaMeses * 30 * 86400000).toISOString()
+                        : undefined
+                      addToCartComVariacao(variacaoProduto._id, {
+                        variacaoId: v._id,
+                        tamanho: v.tamanho,
+                        cor: v.cor,
+                        preco: v.preco || variacaoProduto.preco,
+                        garantiaAte,
+                      })
+                    } else if (variacaoProduto.temSerial && serialSelecionado) {
+                      const garantiaAte = variacaoProduto.garantiaMeses
+                        ? new Date(Date.now() + variacaoProduto.garantiaMeses * 30 * 86400000).toISOString()
+                        : undefined
+                      addToCartComVariacao(variacaoProduto._id, {
+                        serialNumero: serialSelecionado,
+                        garantiaAte,
+                      })
+                    }
+                    setShowVariacaoModal(false)
+                    setVariacaoProduto(null)
+                    searchRef.current?.focus()
+                  }}
+                  disabled={
+                    (variacaoProduto.temVariacoes && !variacaoSelecionada) ||
+                    (variacaoProduto.temSerial && !serialSelecionado)
+                  }
+                  className="btn-primary flex-1"
+                >
+                  Adicionar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ====== MODAL: Recibo ====== */}
       {showRecibo && vendaFinalizada && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -1463,8 +1893,11 @@ export function NovoPedidoPage() {
               </div>
 
               <div className="flex gap-3">
-                <button onClick={() => window.print()} className="btn-secondary flex-1">
+                <button onClick={imprimirReciboVenda} className="btn-secondary flex-1">
                   <Printer size={16} /> Imprimir (P)
+                </button>
+                <button onClick={enviarReciboWhatsApp} className="flex-1 px-4 py-3 bg-[#25D366] text-white rounded-xl font-semibold hover:bg-[#1da851] transition-colors flex items-center justify-center gap-2">
+                  <Smartphone size={16} /> WhatsApp
                 </button>
                 <button onClick={handleNovaVenda} className="btn-primary flex-1" autoFocus>
                   Nova Venda (Enter)
@@ -1571,14 +2004,4 @@ export function NovoPedidoPage() {
               </button>
               <button
                 onClick={() => { setShowRefreshGuardModal(false); window.location.reload() }}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-700 transition-all shadow-lg"
-              >
-                Recarregar <span className="text-xs text-orange-200 ml-1">(ENTER)</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-semibold hover:from-amber-600 h

@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Search, Plus, Package, Edit, Trash2, Box, AlertTriangle } from 'lucide-react'
 import { useProdutos } from '../../contexts/ProdutoContext'
 import { formatCurrency } from '../../utils/helpers'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialProdutos } from '../../config/tutorials'
 
 export function ProdutosPage() {
   const navigate = useNavigate()
@@ -11,20 +13,28 @@ export function ProdutosPage() {
   const [busca, setBusca] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<'todos' | 'produto' | 'servico'>('todos')
   const [filtroStatus, setFiltroStatus] = useState<'ativos' | 'inativos' | 'todos'>('ativos')
+  const [filtroGrupo, setFiltroGrupo] = useState<string>('todos')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+
+  const grupos = useMemo(() => {
+    const set = new Set<string>()
+    produtos.forEach(p => { if (p.grupo) set.add(p.grupo) })
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  }, [produtos])
 
   const filtered = useMemo(() => {
     return produtos.filter(p => {
       if (filtroTipo !== 'todos' && p.tipo !== filtroTipo) return false
       if (filtroStatus === 'ativos' && !p.ativo) return false
       if (filtroStatus === 'inativos' && p.ativo) return false
+      if (filtroGrupo !== 'todos' && (p.grupo || '') !== filtroGrupo) return false
       if (busca) {
         const t = busca.toLowerCase()
         return p.nome.toLowerCase().includes(t) || p.codigo.includes(t) || (p.codigoBarras || '').includes(t)
       }
       return true
     })
-  }, [produtos, busca, filtroTipo, filtroStatus])
+  }, [produtos, busca, filtroTipo, filtroStatus, filtroGrupo])
 
   const handleDelete = (id: string) => {
     removerProduto(id)
@@ -77,6 +87,15 @@ export function ProdutosPage() {
                 <option value="todos">Todos</option>
               </select>
             </div>
+            {grupos.length > 0 && (
+              <div className="w-40">
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Grupo</label>
+                <select value={filtroGrupo} onChange={e => setFiltroGrupo(e.target.value)} className="input-field">
+                  <option value="todos">Todos os Grupos</option>
+                  {grupos.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -145,6 +164,7 @@ export function ProdutosPage() {
           </div>
         </div>
       )}
+      <TutorialModal id="produtos" titulo="Gerenciamento de Produtos" subtitulo="Cadastre e controle seu estoque" steps={tutorialProdutos} />
     </div>
   )
 }

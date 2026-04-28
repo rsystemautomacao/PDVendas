@@ -17,7 +17,16 @@ export interface User {
   empresaSetupComplete?: boolean
   adminId?: string
   permissoes?: Record<string, boolean>
+  comissao?: number
+  dataVencimento?: string
+  statusAssinatura?: 'ativa' | 'expirando' | 'vencida' | 'teste'
 }
+
+export type SegmentoEmpresa =
+  | '' | 'varejo_geral' | 'roupas_calcados' | 'informatica_eletronicos'
+  | 'alimentos_bebidas' | 'materiais_construcao' | 'pet_shop'
+  | 'papelaria' | 'farmacia' | 'otica' | 'assistencia_tecnica'
+  | 'auto_pecas' | 'oficina_mecanica' | 'outro'
 
 export interface EmpresaInfo {
   nome: string
@@ -27,9 +36,35 @@ export interface EmpresaInfo {
   cidade?: string
   estado?: string
   logoBase64?: string
+  segmento?: SegmentoEmpresa
 }
 
 // ---- Produto ----
+export interface VariacaoProduto {
+  _id?: string
+  tamanho?: string
+  cor?: string
+  sku?: string
+  codigoBarras?: string
+  preco?: number
+  estoque: number
+}
+
+export interface SerialProduto {
+  _id?: string
+  numero: string
+  status: 'disponivel' | 'vendido' | 'garantia' | 'defeito'
+  vendaId?: string
+  dataVenda?: string
+  garantiaAte?: string
+  observacoes?: string
+}
+
+export interface EspecificacaoProduto {
+  chave: string
+  valor: string
+}
+
 export interface Produto {
   _id: string
   nome: string
@@ -47,6 +82,27 @@ export interface Produto {
   fornecedor?: string
   ativo: boolean
   observacoes?: string
+  // Variações (roupas)
+  temVariacoes?: boolean
+  variacoes?: VariacaoProduto[]
+  tamanhosPadrao?: string[]
+  coresPadrao?: string[]
+  // Seriais (informática)
+  temSerial?: boolean
+  seriais?: SerialProduto[]
+  // Garantia
+  garantiaMeses?: number
+  garantiaTipo?: 'fabricante' | 'loja' | 'estendida' | ''
+  // Especificações
+  especificacoes?: EspecificacaoProduto[]
+  // Categoria e roupas
+  categoria?: string
+  genero?: '' | 'masculino' | 'feminino' | 'unissex' | 'infantil'
+  material?: string
+  colecao?: string
+  precoAtacado?: number
+  qtdMinimaAtacado?: number
+  validade?: string
   criadoEm: string
   atualizadoEm: string
 }
@@ -114,6 +170,14 @@ export interface ItemVenda {
   precoUnitario: number
   desconto: number
   total: number
+  // Variação
+  variacaoId?: string
+  tamanho?: string
+  cor?: string
+  // Serial
+  serialNumero?: string
+  // Garantia
+  garantiaAte?: string
 }
 
 export interface Pagamento {
@@ -124,6 +188,37 @@ export interface Pagamento {
 }
 
 export type FormaPagamento = 'dinheiro' | 'credito' | 'debito' | 'pix' | 'boleto' | 'crediario'
+
+// ---- Troca / Devolucao ----
+export interface ItemTroca {
+  produtoId: string
+  nome: string
+  codigo: string
+  quantidade: number
+  precoUnitario: number
+  total: number
+}
+
+export interface Troca {
+  _id: string
+  numero: number
+  vendaId: string
+  vendaNumero: number
+  clienteNome?: string
+  tipo: 'troca' | 'devolucao'
+  itensDevolvidos: ItemTroca[]
+  itensNovos: ItemTroca[]
+  totalDevolvido: number
+  totalNovo: number
+  diferenca: number
+  motivo: string
+  observacoes?: string
+  status: 'pendente' | 'aprovada' | 'recusada'
+  aprovadoPor?: string
+  operadorId: string
+  operadorNome?: string
+  criadoEm: string
+}
 
 // ---- Caixa ----
 export interface Caixa {
@@ -178,6 +273,10 @@ export interface ContaReceber {
   recebido: boolean
   recebidoEm?: string
   observacoes?: string
+  parcela?: number
+  totalParcelas?: number
+  vendaNumero?: number
+  origem?: 'manual' | 'crediario'
   criadoEm: string
 }
 
@@ -237,7 +336,7 @@ export interface LogAtividade {
 
 // ---- Ordem de Serviço (OS) ----
 export interface Dispositivo {
-  tipo: 'celular' | 'tablet' | 'notebook' | 'outro'
+  tipo: string
   marca: string
   modelo: string
   cor?: string
@@ -246,6 +345,23 @@ export interface Dispositivo {
   senhaDispositivo?: string
   acessorios?: string
   estadoVisual?: string
+  // Veículo (oficina mecânica / auto peças)
+  placa?: string
+  ano?: string
+  km?: string
+  chassi?: string
+  combustivel?: string
+  // Animal (pet shop)
+  nomeAnimal?: string
+  especie?: string
+  raca?: string
+  porte?: string
+  peso?: string
+  // Ótica
+  grauOD?: string
+  grauOE?: string
+  // Genérico
+  descricaoItem?: string
 }
 
 export interface ServicoOS {

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { User } from '../models/User';
 import { Session } from '../models/Session';
+import { Notificacao } from '../models/Notificacao';
 import { env } from '../config/env';
 import { AppError } from '../middleware/errorHandler';
 
@@ -73,7 +74,15 @@ export const authService = {
     const existing = await User.findOne({ email: data.email.toLowerCase() });
     if (existing) throw new AppError('Email já cadastrado', 409);
 
-    const user = await User.create(data);
+    // Período de teste: 7 dias a partir do cadastro
+    const dataVencimento = new Date();
+    dataVencimento.setDate(dataVencimento.getDate() + 7);
+
+    const user = await User.create({
+      ...data,
+      dataVencimento,
+      statusAssinatura: 'teste',
+    });
     const { token, jti } = generateToken(user);
 
     // Create session
@@ -84,6 +93,21 @@ export const authService = {
       tokenJti: jti,
       expiresAt: getTokenExpiresAt(),
     });
+
+    // Notificar superadmin sobre novo cadastro
+    if (env.SUPERADMIN_EMAIL) {
+      const superadmin = await User.findOne({ email: env.SUPERADMIN_EMAIL.toLowerCase() });
+      if (superadmin) {
+        const empresaNome = data.empresa?.nome ? ` | Empresa: ${data.empresa.nome}` : '';
+        await Notificacao.create({
+          empresaId: superadmin._id,
+          titulo: '🆕 Novo cliente cadastrado!',
+          mensagem: `${data.nome} (${data.email}) criou uma nova conta.${empresaNome} Vencimento do teste: ${dataVencimento.toLocaleDateString('pt-BR')}.`,
+          tipo: 'info',
+          userId: null,
+        });
+      }
+    }
 
     const json = user.toJSON();
     const empresaSetupComplete = !!(

@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, ShoppingCart, Eye, XCircle, Printer, X } from 'lucide-react'
 import { useVendas } from '../../contexts/VendaContext'
 import { formatCurrency, formatDateTime } from '../../utils/helpers'
 import type { Venda } from '../../types'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialVendas } from '../../config/tutorials'
 
 const formaLabel: Record<string, string> = {
   dinheiro: 'Dinheiro',
@@ -16,7 +18,8 @@ const formaLabel: Record<string, string> = {
 
 export function VendasPage() {
   const navigate = useNavigate()
-  const { vendas, cancelarVenda } = useVendas()
+  const { vendas, cancelarVenda, carregarSeNecessario: carregarVendas } = useVendas()
+  useEffect(() => { carregarVendas() }, [carregarVendas])
 
   const hoje = new Date().toISOString().substring(0, 10)
   const mesInicio = hoje.substring(0, 7) + '-01'
@@ -330,6 +333,7 @@ export function VendasPage() {
           </div>
         </div>
       )}
+      <TutorialModal id="vendas" titulo="Historico de Vendas" subtitulo="Consulte e gerencie suas vendas" steps={tutorialVendas} />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import type { Cliente } from '../types'
 import { api } from '../services/api'
 import { useToast } from './ToastContext'
@@ -13,6 +13,7 @@ interface ClienteContextType {
   removerCliente: (id: string) => Promise<void>
   atualizarSaldoDevedor: (id: string, valor: number) => Promise<void>
   recarregar: () => Promise<void>
+  carregarSeNecessario: () => Promise<void>
 }
 
 const ClienteContext = createContext<ClienteContextType | null>(null)
@@ -20,6 +21,7 @@ const ClienteContext = createContext<ClienteContextType | null>(null)
 export function useClientes() {
   const ctx = useContext(ClienteContext)
   if (!ctx) throw new Error('useClientes deve ser usado dentro de ClienteProvider')
+  useEffect(() => { ctx.carregarSeNecessario() }, [ctx.carregarSeNecessario])
   return ctx
 }
 
@@ -27,6 +29,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const toast = useToast()
+  const jaCarregou = useRef(false)
 
   const recarregar = useCallback(async () => {
     try {
@@ -39,8 +42,12 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  useEffect(() => {
-    recarregar().finally(() => setLoading(false))
+  const carregarSeNecessario = useCallback(async () => {
+    if (jaCarregou.current) return
+    jaCarregou.current = true
+    setLoading(true)
+    await recarregar()
+    setLoading(false)
   }, [recarregar])
 
   const getCliente = useCallback((id: string) => clientes.find(c => c._id === id), [clientes])
@@ -103,7 +110,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
     <ClienteContext.Provider value={{
       clientes, loading, getCliente, buscarClientes,
       adicionarCliente, atualizarCliente, removerCliente, atualizarSaldoDevedor,
-      recarregar,
+      recarregar, carregarSeNecessario,
     }}>
       {children}
     </ClienteContext.Provider>

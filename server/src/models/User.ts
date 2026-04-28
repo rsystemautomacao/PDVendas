@@ -10,6 +10,16 @@ const empresaSchema = new Schema(
     cidade: String,
     estado: String,
     logoBase64: String,
+    segmento: {
+      type: String,
+      enum: [
+        '', 'varejo_geral', 'roupas_calcados', 'informatica_eletronicos',
+        'alimentos_bebidas', 'materiais_construcao', 'pet_shop',
+        'papelaria', 'farmacia', 'otica', 'assistencia_tecnica',
+        'auto_pecas', 'oficina_mecanica', 'outro',
+      ],
+      default: '',
+    },
   },
   { _id: false }
 );
@@ -33,7 +43,12 @@ const userSchema = new Schema(
     empresa: empresaSchema,
     adminId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     permissoes: { type: Schema.Types.Mixed, default: {} },
+    comissao: { type: Number, default: 0, min: 0, max: 100 },
     maxLicencas: { type: Number, default: 1 },
+    // Assinatura / Vencimento
+    dataVencimento: { type: Date, default: null },
+    statusAssinatura: { type: String, enum: ['ativa', 'expirando', 'vencida', 'teste'], default: 'teste' },
+    notificacaoVencimentoEnviada: { type: Boolean, default: false },
   },
   {
     timestamps: { createdAt: 'criadoEm', updatedAt: false },
@@ -59,6 +74,7 @@ userSchema.set('toJSON', {
     if (ret._id) ret._id = ret._id.toString();
     if (ret.criadoEm instanceof Date) ret.criadoEm = ret.criadoEm.toISOString();
     if (ret.ultimoLogin instanceof Date) ret.ultimoLogin = ret.ultimoLogin.toISOString();
+    if (ret.dataVencimento instanceof Date) ret.dataVencimento = ret.dataVencimento.toISOString();
     delete ret.senha;
     delete ret.__v;
     delete ret.id;

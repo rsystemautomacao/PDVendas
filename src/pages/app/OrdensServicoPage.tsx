@@ -8,6 +8,8 @@ import {
 import { useOrdensServico } from '../../contexts/OrdemServicoContext'
 import { formatCurrency } from '../../utils/helpers'
 import type { StatusOS } from '../../types'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialOrdensServico } from '../../config/tutorials'
 
 const statusConfig: Record<StatusOS, { label: string; color: string; icon: typeof Clock }> = {
   aberta: { label: 'Aberta', color: 'bg-blue-100 text-blue-700', icon: Clock },
@@ -197,6 +199,7 @@ export function OrdensServicoPage() {
           </div>
         )}
       </div>
+      <TutorialModal id="ordens-servico" titulo="Ordens de Servico" subtitulo="Gerencie servicos e assistencia tecnica" steps={tutorialOrdensServico} />
     </div>
   )
 }

@@ -3,6 +3,8 @@ import { Package, PackageCheck, Plus, ArrowDownCircle, ArrowUpCircle, X, Eye, La
 import { useCaixa } from '../../contexts/CaixaContext'
 import { formatCurrency, formatDateTime } from '../../utils/helpers'
 import type { Caixa } from '../../types'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialCaixas } from '../../config/tutorials'
 
 export function CaixasPage() {
   const { caixas, caixaAberto, abrirCaixa, fecharCaixa, registrarMovimentacao } = useCaixa()
@@ -344,6 +346,7 @@ export function CaixasPage() {
           </div>
         </div>
       )}
+      <TutorialModal id="caixas" titulo="Controle de Caixa" subtitulo="Abra, gerencie e feche seus caixas" steps={tutorialCaixas} />
     </div>
   )
 }

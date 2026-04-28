@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import type { OrdemServico, Orcamento } from '../types'
 import { api } from '../services/api'
 import { useToast } from './ToastContext'
@@ -24,6 +24,7 @@ interface OrdemServicoContextType {
   getOrcamentosPendentes: () => Orcamento[]
   // Refresh
   recarregar: () => Promise<void>
+  carregarSeNecessario: () => Promise<void>
 }
 
 const OrdemServicoContext = createContext<OrdemServicoContextType | null>(null)
@@ -31,6 +32,7 @@ const OrdemServicoContext = createContext<OrdemServicoContextType | null>(null)
 export function useOrdensServico() {
   const ctx = useContext(OrdemServicoContext)
   if (!ctx) throw new Error('useOrdensServico deve ser usado dentro de OrdemServicoProvider')
+  useEffect(() => { ctx.carregarSeNecessario() }, [ctx.carregarSeNecessario])
   return ctx
 }
 
@@ -39,6 +41,7 @@ export function OrdemServicoProvider({ children }: { children: ReactNode }) {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([])
   const [loading, setLoading] = useState(true)
   const toast = useToast()
+  const jaCarregou = useRef(false)
 
   const recarregar = useCallback(async () => {
     try {
@@ -51,10 +54,15 @@ export function OrdemServicoProvider({ children }: { children: ReactNode }) {
     } catch {
       // silencioso
     }
+    jaCarregou.current = true
   }, [])
 
-  useEffect(() => {
-    recarregar().finally(() => setLoading(false))
+  const carregarSeNecessario = useCallback(async () => {
+    if (jaCarregou.current) return
+    jaCarregou.current = true
+    setLoading(true)
+    await recarregar()
+    setLoading(false)
   }, [recarregar])
 
   // ---- OS CRUD ----
@@ -182,7 +190,7 @@ export function OrdemServicoProvider({ children }: { children: ReactNode }) {
       criarOS, atualizarOS, cancelarOS, getOS,
       criarOrcamento, atualizarOrcamento, converterOrcamentoEmOS, getOrcamento,
       getOSAbertas, getOSEmExecucao, getOSConcluidasHoje, getOrcamentosPendentes,
-      recarregar,
+      recarregar, carregarSeNecessario,
     }}>
       {children}
     </OrdemServicoContext.Provider>

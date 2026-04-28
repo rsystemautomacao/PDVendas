@@ -4,10 +4,11 @@ import {
   Home, HelpCircle, Store, Settings, LayoutDashboard,
   ShoppingCart, Users, Box, DollarSign, BarChart3,
   TrendingUp, LogOut, ChevronRight, Building2,
-  ShieldCheck, Receipt, X, Wrench, FileText, Sparkles,
+  ShieldCheck, Receipt, X, Wrench, FileText, Sparkles, RefreshCw, AlertTriangle, Tag,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePermissao } from '../../hooks/usePermissao'
+import { useSegmento } from '../../hooks/useSegmento'
 
 interface SidebarProps { onClose?: () => void }
 
@@ -16,6 +17,7 @@ export function Sidebar({ onClose }: SidebarProps) {
   const location = useLocation()
   const { user, logout } = useAuth()
   const { temPermissao, isAdmin } = usePermissao()
+  const seg = useSegmento()
   const [configOpen, setConfigOpen] = useState(false)
 
   const handleSair = () => {
@@ -31,7 +33,7 @@ export function Sidebar({ onClose }: SidebarProps) {
     `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all duration-200 ${
       isActive(path)
         ? 'bg-gradient-to-r from-primary/10 to-primary/5 text-primary font-semibold shadow-sm shadow-primary/5'
-        : 'text-gray-500 hover:bg-gray-50/80 hover:text-gray-800'
+        : 'text-gray-500 hover:bg-gray-50/80 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-slate-700/50 dark:hover:text-gray-200'
     }`
 
   const MenuItem = ({ to, icon: Icon, label, perm }: { to: string; icon: typeof Home; label: string; perm?: string }) => {
@@ -40,7 +42,7 @@ export function Sidebar({ onClose }: SidebarProps) {
       <li>
         <Link to={to} className={linkClass(to)} onClick={onClose}>
           <div className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
-            isActive(to) ? 'bg-primary/15 text-primary' : 'bg-gray-100/80 text-gray-400 group-hover:text-gray-600'
+            isActive(to) ? 'bg-primary/15 text-primary' : 'bg-gray-100/80 text-gray-400 group-hover:text-gray-600 dark:bg-slate-700/80 dark:text-gray-500'
           }`}>
             <Icon className="h-[18px] w-[18px]" />
           </div>
@@ -58,7 +60,7 @@ export function Sidebar({ onClose }: SidebarProps) {
   const roleColor = user?.role === 'admin' ? 'from-primary to-violet-600' : user?.role === 'gerente' ? 'from-amber-500 to-orange-500' : 'from-emerald-500 to-teal-500'
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-white">
+    <div className="flex h-full flex-col overflow-y-auto bg-white dark:bg-slate-900">
       {/* Close button */}
       <div className="flex items-center justify-between px-5 py-3">
         <div className="flex items-center gap-2">
@@ -114,6 +116,18 @@ export function Sidebar({ onClose }: SidebarProps) {
             <ChevronRight className="h-3.5 w-3.5 text-gray-300" />
           </Link>
         )}
+        {localStorage.getItem('meupdv_loja_nome') && (
+          <Link
+            to="/app/config/lojas"
+            onClick={onClose}
+            className="mt-1 flex items-center gap-2.5 rounded-xl px-4 py-2 text-xs text-gray-500 hover:bg-gray-50 transition-all duration-200"
+          >
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-50">
+              <Store className="h-3 w-3 text-emerald-500" />
+            </div>
+            <span className="truncate flex-1 font-medium">{localStorage.getItem('meupdv_loja_nome')}</span>
+          </Link>
+        )}
       </div>
 
       {/* Main menu */}
@@ -124,9 +138,11 @@ export function Sidebar({ onClose }: SidebarProps) {
             <MenuItem to="/app" icon={Home} label="Inicio" />
             <MenuItem to="/app/novo-pedido" icon={ShoppingCart} label="Nova Venda (PDV)" perm="vendas.criar" />
             <MenuItem to="/app/vendas" icon={Receipt} label="Vendas" perm="vendas.visualizar" />
+            <MenuItem to="/app/trocas" icon={RefreshCw} label="Trocas/Devoluções" perm="vendas.visualizar" />
           </ul>
         </div>
 
+        {seg.mostrarOrdensServico && (
         <div>
           <p className="px-3.5 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-gray-300">Assistencia Tecnica</p>
           <ul className="space-y-0.5">
@@ -134,6 +150,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             <MenuItem to="/app/orcamentos" icon={FileText} label="Orcamentos" />
           </ul>
         </div>
+        )}
 
         {(temPermissao('produtos.visualizar') || temPermissao('clientes.visualizar')) && (
           <div>
@@ -141,6 +158,8 @@ export function Sidebar({ onClose }: SidebarProps) {
             <ul className="space-y-0.5">
               <MenuItem to="/app/clientes" icon={Users} label="Clientes" perm="clientes.visualizar" />
               <MenuItem to="/app/produtos" icon={Box} label="Produtos" perm="produtos.visualizar" />
+              <MenuItem to="/app/validade" icon={AlertTriangle} label="Validade" perm="produtos.visualizar" />
+              <MenuItem to="/app/etiquetas" icon={Tag} label="Etiquetas" perm="produtos.visualizar" />
             </ul>
           </div>
         )}
@@ -163,6 +182,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             <p className="px-3.5 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-gray-300">Relatorios</p>
             <ul className="space-y-0.5">
               <MenuItem to="/app/relatorios-graficos" icon={BarChart3} label="Relatorios" perm="relatorios.visualizar" />
+              <MenuItem to="/app/comissoes" icon={TrendingUp} label="Comissoes" perm="relatorios.visualizar" />
               <MenuItem to="/app/catalogo" icon={Store} label="Catalogo" perm="relatorios.visualizar" />
             </ul>
           </div>
@@ -193,6 +213,8 @@ export function Sidebar({ onClose }: SidebarProps) {
                     <li><Link to="/app/config/parametros" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/parametros') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Parametros</Link></li>
                     <li><Link to="/app/config/usuarios" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/usuarios') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Usuarios</Link></li>
                     <li><Link to="/app/config/permissoes" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/permissoes') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Permissoes</Link></li>
+                    <li><Link to="/app/config/impressoras" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/impressoras') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Impressoras</Link></li>
+                    <li><Link to="/app/config/lojas" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/lojas') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Lojas</Link></li>
                   </ul>
                 )}
               </li>

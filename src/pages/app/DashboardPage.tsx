@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   ShoppingCart, Users, Box, TrendingUp,
@@ -6,6 +6,10 @@ import {
   Package, LayoutDashboard, Plus, BarChart3,
   Sparkles, Zap,
 } from 'lucide-react'
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
+} from 'recharts'
 import { useVendas } from '../../contexts/VendaContext'
 import { useProdutos } from '../../contexts/ProdutoContext'
 import { useClientes } from '../../contexts/ClienteContext'
@@ -13,11 +17,14 @@ import { useCaixa } from '../../contexts/CaixaContext'
 import { useFinanceiro } from '../../contexts/FinanceiroContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency } from '../../utils/helpers'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialDashboard } from '../../config/tutorials'
 
 export function DashboardPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { vendas, getTotalVendasHoje, getTotalVendasMes, getVendasHoje } = useVendas()
+  const { vendas, getTotalVendasHoje, getTotalVendasMes, getVendasHoje, carregarSeNecessario: carregarVendas } = useVendas()
+  useEffect(() => { carregarVendas() }, [carregarVendas])
   const { produtos, produtosBaixoEstoque } = useProdutos()
   const { clientes } = useClientes()
   const { caixaAberto } = useCaixa()
@@ -30,6 +37,74 @@ export function DashboardPage() {
   const contasPagarPendentes = getTotalContasPagarPendentes()
   const contasReceberPendentes = getTotalContasReceberPendentes()
   const contasAtrasadas = getContasPagarAtrasadas()
+
+  // Dados para gráfico: vendas dos últimos 7 dias
+  const vendasUltimos7Dias = useMemo(() => {
+    const dias: { dia: string; total: number; qtd: number }[] = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const dStr = d.toISOString().split('T')[0]
+      const label = d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' })
+      const vendasDia = vendas.filter(v => v.status === 'finalizada' && v.criadoEm.startsWith(dStr))
+      dias.push({
+        dia: label.charAt(0).toUpperCase() + label.slice(1),
+        total: vendasDia.reduce((s, v) => s + v.total, 0),
+        qtd: vendasDia.length,
+      })
+    }
+    return dias
+  }, [vendas])
+
+  // Dados para gráfico de pizza: formas de pagamento (mês atual)
+  const formasPagamento = useMemo(() => {
+    const mesAtual = new Date().toISOString().slice(0, 7)
+    const vendaMes = vendas.filter(v => v.status === 'finalizada' && v.criadoEm.startsWith(mesAtual))
+    const map: Record<string, number> = {}
+    vendaMes.forEach(v => {
+      v.pagamentos?.forEach(p => {
+        const label = p.forma === 'dinheiro' ? 'Dinheiro' : p.forma === 'credito' ? 'Credito' :
+          p.forma === 'debito' ? 'Debito' : p.forma === 'pix' ? 'PIX' :
+          p.forma === 'boleto' ? 'Boleto' : 'Crediario'
+        map[label] = (map[label] || 0) + p.valor
+      })
+    })
+    return Object.entries(map).map(([name, value]) => ({ name, value }))
+  }, [vendas])
+
+  // Produtos mais vendidos (mês atual)
+  const topProdutos = useMemo(() => {
+    const mesAtual = new Date().toISOString().slice(0, 7)
+    const vendaMes = vendas.filter(v => v.status === 'finalizada' && v.criadoEm.startsWith(mesAtual))
+    const map: Record<string, { nome: string; qtd: number; total: number }> = {}
+    vendaMes.forEach(v => {
+      v.itens?.forEach(item => {
+        if (!map[item.produtoId]) map[item.produtoId] = { nome: item.nome, qtd: 0, total: 0 }
+        map[item.produtoId].qtd += item.quantidade
+        map[item.produtoId].total += item.total
+      })
+    })
+    return Object.values(map).sort((a, b) => b.total - a.total).slice(0, 5)
+  }, [vendas])
+
+  // Ticket médio
+  const ticketMedio = useMemo(() => {
+    const finalizadas = vendas.filter(v => v.status === 'finalizada')
+    if (finalizadas.length === 0) return 0
+    return finalizadas.reduce((s, v) => s + v.total, 0) / finalizadas.length
+  }, [vendas])
+
+  // Horários de pico (vendas por hora hoje)
+  const vendasPorHora = useMemo(() => {
+    const horas: { hora: string; qtd: number }[] = []
+    for (let h = 7; h <= 22; h++) {
+      const qtd = vendasHoje.filter(v => new Date(v.criadoEm).getHours() === h).length
+      horas.push({ hora: `${h}h`, qtd })
+    }
+    return horas
+  }, [vendasHoje])
+
+  const PIE_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#06b6d4', '#ef4444', '#8b5cf6']
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -183,6 +258,155 @@ export function DashboardPage() {
           </Link>
         </div>
 
+        {/* Ticket Médio card */}
+        <div className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-2xl border border-gray-100/80 bg-white p-5 shadow-card">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Ticket Medio</p>
+            <p className="text-2xl font-bold text-gray-800">{formatCurrency(ticketMedio)}</p>
+            <p className="text-xs text-gray-400 mt-1">media por venda</p>
+          </div>
+          <div className="rounded-2xl border border-gray-100/80 bg-white p-5 shadow-card">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Produtos Vendidos Hoje</p>
+            <p className="text-2xl font-bold text-gray-800">{vendasHoje.reduce((s, v) => s + (v.itens?.reduce((si, it) => si + it.quantidade, 0) || 0), 0)}</p>
+            <p className="text-xs text-gray-400 mt-1">unidades</p>
+          </div>
+          <div className="rounded-2xl border border-gray-100/80 bg-white p-5 shadow-card">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Clientes Atendidos Hoje</p>
+            <p className="text-2xl font-bold text-gray-800">{new Set(vendasHoje.filter(v => v.clienteId).map(v => v.clienteId)).size || vendasHoje.length}</p>
+            <p className="text-xs text-gray-400 mt-1">clientes</p>
+          </div>
+        </div>
+
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 mb-8">
+          {/* Vendas últimos 7 dias */}
+          <div className="lg:col-span-2 rounded-2xl border border-gray-100/80 bg-white shadow-card overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-50">
+              <h2 className="text-sm font-bold text-gray-700">Vendas - Ultimos 7 Dias</h2>
+            </div>
+            <div className="p-4" style={{ height: 260 }}>
+              {vendasUltimos7Dias.some(d => d.total > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={vendasUltimos7Dias}>
+                    <XAxis dataKey="dia" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => `R$${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 12 }}
+                      formatter={(value: any) => [formatCurrency(Number(value)), 'Total']}
+                      labelStyle={{ fontWeight: 600, color: '#374151' }}
+                    />
+                    <Bar dataKey="total" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-300">
+                  <p className="text-sm">Sem vendas nos ultimos 7 dias</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Formas de pagamento */}
+          <div className="rounded-2xl border border-gray-100/80 bg-white shadow-card overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-50">
+              <h2 className="text-sm font-bold text-gray-700">Formas de Pagamento</h2>
+              <p className="text-[11px] text-gray-400">Este mes</p>
+            </div>
+            <div className="p-4" style={{ height: 260 }}>
+              {formasPagamento.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={formasPagamento}
+                      cx="50%"
+                      cy="45%"
+                      outerRadius={70}
+                      innerRadius={40}
+                      dataKey="value"
+                      paddingAngle={3}
+                      stroke="none"
+                    >
+                      {formasPagamento.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Legend
+                      wrapperStyle={{ fontSize: 11 }}
+                      formatter={(value: string) => <span className="text-gray-600">{value}</span>}
+                    />
+                    <Tooltip
+                      contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 12 }}
+                      formatter={(value: any) => [formatCurrency(Number(value)), '']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-300">
+                  <p className="text-sm">Sem dados</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Produtos mais vendidos + Horário de pico */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 mb-8">
+          {/* Top Produtos */}
+          <div className="rounded-2xl border border-gray-100/80 bg-white shadow-card overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-50">
+              <h2 className="text-sm font-bold text-gray-700">Produtos Mais Vendidos</h2>
+              <p className="text-[11px] text-gray-400">Este mes</p>
+            </div>
+            <div className="p-5">
+              {topProdutos.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-8">Sem vendas no mes</p>
+              ) : (
+                <div className="space-y-3">
+                  {topProdutos.map((p, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold text-white ${
+                        i === 0 ? 'bg-amber-500' : i === 1 ? 'bg-gray-400' : i === 2 ? 'bg-orange-700' : 'bg-gray-300'
+                      }`}>{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-700 truncate">{p.nome}</p>
+                        <p className="text-[11px] text-gray-400">{p.qtd} un. vendidas</p>
+                      </div>
+                      <p className="text-sm font-bold text-gray-800">{formatCurrency(p.total)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Horário de pico */}
+          <div className="rounded-2xl border border-gray-100/80 bg-white shadow-card overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-50">
+              <h2 className="text-sm font-bold text-gray-700">Horario de Pico</h2>
+              <p className="text-[11px] text-gray-400">Vendas por hora (hoje)</p>
+            </div>
+            <div className="p-4" style={{ height: 220 }}>
+              {vendasHoje.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={vendasPorHora}>
+                    <XAxis dataKey="hora" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 12 }}
+                      formatter={(value: any) => [`${value} venda(s)`, '']}
+                    />
+                    <Bar dataKey="qtd" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-300">
+                  <p className="text-sm">Sem vendas hoje</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Bottom row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
           {/* Low stock alerts */}
@@ -280,6 +504,7 @@ export function DashboardPage() {
           ))}
         </div>
       </div>
+      <TutorialModal id="dashboard" titulo="Bem-vindo ao MeuPDV!" subtitulo="Seu painel de controle completo" steps={tutorialDashboard} />
     </div>
   )
 }

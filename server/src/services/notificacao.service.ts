@@ -2,8 +2,16 @@ import { Notificacao } from '../models/Notificacao';
 import { AppError } from '../middleware/errorHandler';
 
 export const notificacaoService = {
-  async list(userId: string, empresaId: string) {
-    return Notificacao.find({ empresaId, $or: [{ userId }, { userId: null }] }).sort({ criadoEm: -1 });
+  async list(userId: string, empresaId: string, query?: any) {
+    const { page = 1, limit = 50 } = query || {};
+    const lim = Math.min(Number(limit), 200);
+    const skip = (Number(page) - 1) * lim;
+    const filter = { empresaId, $or: [{ userId }, { userId: null }] };
+    const [data, total] = await Promise.all([
+      Notificacao.find(filter).sort({ criadoEm: -1 }).skip(skip).limit(lim),
+      Notificacao.countDocuments(filter),
+    ]);
+    return { data, pagination: { total, page: Number(page), limit: lim, pages: Math.ceil(total / lim) } };
   },
 
   async markRead(id: string, empresaId: string) {

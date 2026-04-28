@@ -13,6 +13,11 @@ const contaReceberSchema = new Schema(
     recebido: { type: Boolean, default: false },
     recebidoEm: String,
     observacoes: String,
+    // Campos de parcela (crediario)
+    parcela: { type: Number, default: 0 },
+    totalParcelas: { type: Number, default: 0 },
+    vendaNumero: Number,
+    origem: { type: String, enum: ['manual', 'crediario'], default: 'manual' },
   },
   {
     timestamps: { createdAt: 'criadoEm', updatedAt: false },

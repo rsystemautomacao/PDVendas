@@ -33,16 +33,26 @@ router.get('/stats', asyncHandler(async (_req, res) => {
     { $sort: { _id: 1 } },
   ]);
 
+  // Contagem de vencimentos
+  const now = new Date();
+  const in7days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const vencidos = await User.countDocuments({ role: 'admin', ativo: true, dataVencimento: { $ne: null, $lte: now } });
+  const vencendoEm7dias = await User.countDocuments({ role: 'admin', ativo: true, dataVencimento: { $gt: now, $lte: in7days } });
+
+  // Novos cadastros recentes (ultimas 48h)
+  const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+  const novosCadastros = await User.countDocuments({ role: 'admin', criadoEm: { $gte: twoDaysAgo } });
+
   res.json({
     success: true,
-    data: { totalAdmins, totalUsers, activeUsers, inactiveUsers, totalActiveSessions, monthlyRegistrations },
+    data: { totalAdmins, totalUsers, activeUsers, inactiveUsers, totalActiveSessions, monthlyRegistrations, vencidos, vencendoEm7dias, novosCadastros },
   });
 }));
 
 // GET /admin/tenants
 router.get('/tenants', asyncHandler(async (_req, res) => {
   const admins = await User.find({ role: 'admin' })
-    .select('nome email empresa ativo criadoEm ultimoLogin maxLicencas')
+    .select('nome email empresa ativo criadoEm ultimoLogin maxLicencas dataVencimento statusAssinatura')
     .sort({ criadoEm: -1 })
     .lean();
 
@@ -66,7 +76,7 @@ router.get('/tenants', asyncHandler(async (_req, res) => {
 // GET /admin/tenants/:id
 router.get('/tenants/:id', asyncHandler(async (req, res) => {
   const admin = await User.findById(req.params.id)
-    .select('nome email empresa ativo criadoEm ultimoLogin permissoes maxLicencas')
+    .select('nome email empresa ativo criadoEm ultimoLogin permissoes maxLicencas dataVencimento statusAssinatura')
     .lean();
 
   if (!admin) return res.status(404).json({ success: false, error: 'Tenant não encontrado' });
@@ -142,6 +152,55 @@ router.patch('/tenants/:id/licenses', asyncHandler(async (req, res) => {
   await user.save();
 
   res.json({ success: true, data: { maxLicencas } });
+}));
+
+// PATCH /admin/tenants/:id/vencimento
+router.patch('/tenants/:id/vencimento', asyncHandler(async (req, res) => {
+  const { dataVencimento } = req.body;
+  if (!dataVencimento) {
+    return res.status(400).json({ success: false, error: 'dataVencimento é obrigatório' });
+  }
+
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ success: false, error: 'Tenant não encontrado' });
+
+  const novaData = new Date(dataVencimento);
+  const now = new Date();
+
+  (user as any).dataVencimento = novaData;
+  (user as any).statusAssinatura = novaData > now ? 'ativa' : 'vencida';
+  (user as any).notificacaoVencimentoEnviada = false;
+  await user.save();
+
+  res.json({ success: true, data: { dataVencimento: novaData.toISOString(), statusAssinatura: (user as any).statusAssinatura } });
+}));
+
+// PATCH /admin/tenants/:id/desbloquear
+// Renova a assinatura por 30 dias a partir da data de vencimento original (nao da data atual).
+// Assim o cliente paga pelo mes que ficou devendo, e nao ganha dias gratis.
+router.patch('/tenants/:id/desbloquear', asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ success: false, error: 'Tenant não encontrado' });
+
+  const dataAtual = (user as any).dataVencimento ? new Date((user as any).dataVencimento) : new Date();
+
+  // Nova data = vencimento original + 30 dias
+  const novaData = new Date(dataAtual);
+  novaData.setDate(novaData.getDate() + 30);
+
+  (user as any).dataVencimento = novaData;
+  (user as any).statusAssinatura = 'ativa';
+  (user as any).notificacaoVencimentoEnviada = false;
+  await user.save();
+
+  res.json({
+    success: true,
+    data: {
+      dataVencimento: novaData.toISOString(),
+      statusAssinatura: 'ativa',
+      mensagem: `Assinatura renovada até ${novaData.toLocaleDateString('pt-BR')}`,
+    },
+  });
 }));
 
 // PATCH /admin/tenants/:id/reset-password

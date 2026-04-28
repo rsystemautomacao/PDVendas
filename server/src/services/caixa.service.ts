@@ -3,8 +3,16 @@ import { AppError } from '../middleware/errorHandler';
 import { getNextSequence } from './counter.service';
 
 export const caixaService = {
-  async list(empresaId: string) {
-    return Caixa.find({ empresaId }).sort({ abertoEm: -1 });
+  async list(empresaId: string, query?: any) {
+    const { page = 1, limit = 50 } = query || {};
+    const lim = Math.min(Number(limit), 200);
+    const skip = (Number(page) - 1) * lim;
+    const filter = { empresaId };
+    const [data, total] = await Promise.all([
+      Caixa.find(filter).sort({ abertoEm: -1 }).skip(skip).limit(lim),
+      Caixa.countDocuments(filter),
+    ]);
+    return { data, pagination: { total, page: Number(page), limit: lim, pages: Math.ceil(total / lim) } };
   },
 
   async getById(id: string, empresaId: string) {

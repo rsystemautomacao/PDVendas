@@ -6,6 +6,7 @@ import { connectDB } from './config/db';
 import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
 import routes from './routes';
+import { checkSubscriptions } from './jobs/subscriptionCheck';
 
 const app = express();
 
@@ -35,6 +36,14 @@ app.use(errorHandler);
 connectDB().then(() => {
   app.listen(env.PORT, () => {
     console.log(`MeuPDV Server rodando na porta ${env.PORT} [${env.NODE_ENV}]`);
+
+    // Verificar assinaturas ao iniciar
+    checkSubscriptions().catch(err => console.error('[SubscriptionCheck] Erro:', err.message));
+
+    // Verificar assinaturas a cada 6 horas
+    setInterval(() => {
+      checkSubscriptions().catch(err => console.error('[SubscriptionCheck] Erro:', err.message));
+    }, 6 * 60 * 60 * 1000);
   });
 });
 

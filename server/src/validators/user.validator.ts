@@ -6,6 +6,7 @@ export const createUserSchema = z.object({
   senha: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
   role: z.enum(['caixa', 'gerente']),
   permissoes: z.record(z.boolean()).optional(),
+  comissao: z.number().min(0).max(100).optional().default(0),
 });
 
 export const updateUserManagedSchema = z.object({
@@ -15,4 +16,5 @@ export const updateUserManagedSchema = z.object({
   ativo: z.boolean().optional(),
   permissoes: z.record(z.boolean()).optional(),
   novaSenha: z.string().min(6).optional(),
+  comissao: z.number().min(0).max(100).optional(),
 });

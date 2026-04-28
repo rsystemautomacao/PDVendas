@@ -5,8 +5,8 @@ import { notificacaoService } from '../services/notificacao.service';
 export const notificacaoController = {
   list: asyncHandler(async (req: Request, res: Response) => {
     const empresaId = req.user!.empresaId;
-    const notificacoes = await notificacaoService.list(req.user!._id, empresaId);
-    res.json({ success: true, data: notificacoes });
+    const result = await notificacaoService.list(req.user!._id, empresaId, req.query);
+    res.json({ success: true, data: result.data, pagination: result.pagination });
   }),
 
   markRead: asyncHandler(async (req: Request, res: Response) => {

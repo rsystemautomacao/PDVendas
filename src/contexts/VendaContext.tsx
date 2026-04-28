@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import type { Venda, ItemVenda, Pagamento } from '../types'
 import { api } from '../services/api'
 import { useToast } from './ToastContext'
@@ -17,6 +17,7 @@ interface VendaContextType {
   observacoes: string
   // Cart actions
   addToCart: (produtoId: string, quantidade?: number) => void
+  addToCartComVariacao: (produtoId: string, extras?: { variacaoId?: string; tamanho?: string; cor?: string; preco?: number; serialNumero?: string; garantiaAte?: string }) => void
   addToCartBalanca: (produtoId: string, nome: string, codigo: string, peso: number, precoKg: number, valorTotal: number) => void
   removeFromCart: (index: number) => void
   updateCartItem: (index: number, quantidade: number) => void
@@ -38,6 +39,7 @@ interface VendaContextType {
   getTotalVendasHoje: () => number
   getTotalVendasMes: () => number
   recarregar: () => Promise<void>
+  carregarSeNecessario: () => Promise<void>
 }
 
 const VendaContext = createContext<VendaContextType | null>(null)
@@ -50,17 +52,35 @@ export function useVendas() {
 
 export function VendaProvider({ children }: { children: ReactNode }) {
   const [vendas, setVendas] = useState<Venda[]>([])
-  const [loading, setLoading] = useState(true)
-  const [cart, setCart] = useState<ItemVenda[]>([])
+  const [loading, setLoading] = useState(false)
+  const jaCarregou = useRef(false)
+  // Carregar carrinho salvo do localStorage (recuperação de crash)
+  const [cart, setCart] = useState<ItemVenda[]>(() => {
+    try {
+      const saved = localStorage.getItem('meupdv_draft_cart')
+      if (saved) return JSON.parse(saved)
+    } catch { /* ignore */ }
+    return []
+  })
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [clienteNome, setClienteNome] = useState('')
   const [desconto, setDescontoState] = useState(0)
   const [descontoTipo, setDescontoTipo] = useState<'valor' | 'percentual'>('valor')
   const [observacoes, setObservacoesState] = useState('')
+  const [finalizando, setFinalizando] = useState(false)
 
   const toast = useToast()
   const { getProduto, recarregar: recarregarProdutos } = useProdutos()
   const { caixaAberto, recarregar: recarregarCaixas } = useCaixa()
+
+  // Persistir carrinho no localStorage a cada alteração
+  useEffect(() => {
+    if (cart.length > 0) {
+      localStorage.setItem('meupdv_draft_cart', JSON.stringify(cart))
+    } else {
+      localStorage.removeItem('meupdv_draft_cart')
+    }
+  }, [cart])
 
   const recarregar = useCallback(async () => {
     try {
@@ -71,10 +91,15 @@ export function VendaProvider({ children }: { children: ReactNode }) {
     } catch {
       // silencioso
     }
+    jaCarregou.current = true
   }, [])
 
-  useEffect(() => {
-    recarregar().finally(() => setLoading(false))
+  const carregarSeNecessario = useCallback(async () => {
+    if (jaCarregou.current) return
+    jaCarregou.current = true
+    setLoading(true)
+    await recarregar()
+    setLoading(false)
   }, [recarregar])
 
   // ---- Cálculos ----
@@ -105,23 +130,52 @@ export function VendaProvider({ children }: { children: ReactNode }) {
     setCart(prev => {
       const existingIdx = prev.findIndex(i => i.produtoId === produtoId)
       if (existingIdx >= 0) {
+        const novaQtd = prev[existingIdx].quantidade + quantidade
+        const precoUnit = (produto.precoAtacado && produto.qtdMinimaAtacado && novaQtd >= produto.qtdMinimaAtacado)
+          ? produto.precoAtacado : produto.preco
         return prev.map((i, idx) =>
           idx === existingIdx
-            ? { ...i, quantidade: i.quantidade + quantidade, total: (i.quantidade + quantidade) * i.precoUnitario - i.desconto }
+            ? { ...i, quantidade: novaQtd, precoUnitario: precoUnit, total: novaQtd * precoUnit - i.desconto }
             : i
         )
       }
+      const precoUnit = (produto.precoAtacado && produto.qtdMinimaAtacado && quantidade >= produto.qtdMinimaAtacado)
+        ? produto.precoAtacado : produto.preco
       return [...prev, {
         produtoId,
         nome: produto.nome,
         codigo: produto.codigo,
         quantidade,
-        precoUnitario: produto.preco,
+        precoUnitario: precoUnit,
         desconto: 0,
-        total: quantidade * produto.preco,
+        total: quantidade * precoUnit,
       }]
     })
   }, [getProduto, toast, cart])
+
+  // Adicionar produto com variação (tamanho/cor) ou serial
+  const addToCartComVariacao = useCallback((produtoId: string, extras?: { variacaoId?: string; tamanho?: string; cor?: string; preco?: number; serialNumero?: string; garantiaAte?: string }) => {
+    const produto = getProduto(produtoId)
+    if (!produto) { toast.erro('Produto nao encontrado'); return }
+    const precoFinal = extras?.preco || produto.preco
+    const sufixo = [extras?.tamanho, extras?.cor].filter(Boolean).join(' / ')
+    const nomeFinal = sufixo ? `${produto.nome} (${sufixo})` : produto.nome
+
+    setCart(prev => [...prev, {
+      produtoId,
+      nome: nomeFinal,
+      codigo: produto.codigo,
+      quantidade: 1,
+      precoUnitario: precoFinal,
+      desconto: 0,
+      total: precoFinal,
+      variacaoId: extras?.variacaoId,
+      tamanho: extras?.tamanho,
+      cor: extras?.cor,
+      serialNumero: extras?.serialNumero,
+      garantiaAte: extras?.garantiaAte,
+    }])
+  }, [getProduto, toast])
 
   // Adicionar produto de balanca com peso e valor total da etiqueta
   const addToCartBalanca = useCallback((produtoId: string, nome: string, codigo: string, peso: number, precoKg: number, valorTotal: number) => {
@@ -162,9 +216,12 @@ export function VendaProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // Recalcular preco com atacado se aplicavel
+      const precoUnit = (produto && produto.precoAtacado && produto.qtdMinimaAtacado && quantidade >= produto.qtdMinimaAtacado)
+        ? produto.precoAtacado : (produto?.preco || item.precoUnitario)
       return prev.map((it, i) =>
         i === index
-          ? { ...it, quantidade, total: quantidade * it.precoUnitario - it.desconto }
+          ? { ...it, quantidade, precoUnitario: precoUnit, total: quantidade * precoUnit - it.desconto }
           : it
       )
     })
@@ -195,6 +252,8 @@ export function VendaProvider({ children }: { children: ReactNode }) {
 
   // ---- Finalização ----
   const finalizarVenda = useCallback(async (pagamentos: Pagamento[]) => {
+    // Proteção contra duplo clique
+    if (finalizando) return null
     if (cart.length === 0) {
       toast.erro('Adicione pelo menos um item ao carrinho')
       return null
@@ -203,6 +262,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
       toast.erro('Nao ha caixa aberto. Abra um caixa primeiro.')
       return null
     }
+    setFinalizando(true)
 
     const totalPago = pagamentos.reduce((s, p) => s + p.valor, 0)
     if (totalPago < totalVenda) {
@@ -234,14 +294,17 @@ export function VendaProvider({ children }: { children: ReactNode }) {
         // Recarregar dados que foram alterados pelo backend (estoque, caixa, vendas)
         await Promise.all([recarregar(), recarregarProdutos(), recarregarCaixas()])
         toast.sucesso(`Venda #${venda.numero} finalizada! Total: R$ ${totalVenda.toFixed(2)}${troco > 0 ? ` | Troco: R$ ${troco.toFixed(2)}` : ''}`)
+        setFinalizando(false)
         return venda
       }
+      setFinalizando(false)
       return null
     } catch (err: any) {
+      setFinalizando(false)
       toast.erro(err.message || 'Erro ao finalizar venda')
       return null
     }
-  }, [cart, caixaAberto, totalVenda, clienteId, clienteNome, subtotal, totalDesconto, descontoTipo, observacoes, clearCart, recarregar, recarregarProdutos, recarregarCaixas, toast])
+  }, [cart, caixaAberto, totalVenda, clienteId, clienteNome, subtotal, totalDesconto, descontoTipo, observacoes, finalizando, clearCart, recarregar, recarregarProdutos, recarregarCaixas, toast])
 
   const cancelarVenda = useCallback(async (id: string, motivo: string) => {
     try {
@@ -284,12 +347,12 @@ export function VendaProvider({ children }: { children: ReactNode }) {
   return (
     <VendaContext.Provider value={{
       vendas, loading, cart, clienteId, clienteNome, desconto, descontoTipo, observacoes,
-      addToCart, addToCartBalanca, removeFromCart, updateCartItem, clearCart, setClienteVenda,
+      addToCart, addToCartComVariacao, addToCartBalanca, removeFromCart, updateCartItem, clearCart, setClienteVenda,
       setDesconto, setObservacoesVenda,
       subtotal, totalDesconto, totalVenda,
       finalizarVenda, cancelarVenda,
       getVenda, getVendasPorPeriodo, getVendasHoje, getTotalVendasHoje, getTotalVendasMes,
-      recarregar,
+      recarregar, carregarSeNecessario,
     }}>
       {children}
     </VendaContext.Provider>

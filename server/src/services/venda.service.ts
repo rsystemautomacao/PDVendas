@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Venda } from '../models/Venda';
 import { Produto } from '../models/Produto';
 import { Caixa } from '../models/Caixa';
+import { ContaReceber } from '../models/ContaReceber';
 import { AppError } from '../middleware/errorHandler';
 import { getNextSequence } from './counter.service';
 
@@ -89,6 +90,33 @@ export const vendaService = {
         } as any);
         caixa.totalVendas += data.total;
         await caixa.save({ session });
+
+        // Gerar parcelas de contas a receber para pagamentos em crediario
+        const crediarioPagamentos = data.pagamentos?.filter((p: any) => p.forma === 'crediario') || [];
+        for (const pag of crediarioPagamentos) {
+          const numParcelas = pag.parcelas || 1;
+          const valorParcela = Math.round((pag.valor / numParcelas) * 100) / 100;
+          for (let i = 1; i <= numParcelas; i++) {
+            const venc = new Date();
+            venc.setMonth(venc.getMonth() + i);
+            const vencStr = venc.toISOString().substring(0, 10);
+            await ContaReceber.create([{
+              empresaId,
+              descricao: `Crediario Venda #${numero} - Parcela ${i}/${numParcelas}`,
+              clienteId: data.clienteId || undefined,
+              clienteNome: data.clienteNome || 'Consumidor',
+              vendaId: venda._id,
+              vendaNumero: numero,
+              valor: i === numParcelas ? Math.round((pag.valor - valorParcela * (numParcelas - 1)) * 100) / 100 : valorParcela,
+              valorRecebido: 0,
+              vencimento: vencStr,
+              recebido: false,
+              parcela: i,
+              totalParcelas: numParcelas,
+              origem: 'crediario',
+            }], { session });
+          }
+        }
       }
 
       await session.commitTransaction();

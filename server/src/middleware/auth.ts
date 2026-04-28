@@ -73,6 +73,52 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       }
     }
 
+    // Verificar assinatura bloqueada (somente para role=admin, pois sub-users herdam do admin)
+    // Rotas isentas: /auth/* (login, logout, /me para buscar status) e /admin/*
+    const isExemptRoute = req.path.startsWith('/auth') || req.path.startsWith('/admin');
+    if (!isExemptRoute && req.user.role === 'admin') {
+      const GRACE_DAYS = 3; // dias de carência após vencimento
+      const tenant = await User.findById(req.user._id).select('dataVencimento role').lean();
+      if (tenant && (tenant as any).dataVencimento) {
+        const vencimento = new Date((tenant as any).dataVencimento);
+        const now = new Date();
+        if (vencimento < now) {
+          const diasVencidos = Math.floor((now.getTime() - vencimento.getTime()) / (24 * 60 * 60 * 1000));
+          if (diasVencidos > GRACE_DAYS) {
+            return res.status(402).json({
+              success: false,
+              error: 'Assinatura bloqueada',
+              code: 'SUBSCRIPTION_BLOCKED',
+              diasVencidos,
+              dataVencimento: vencimento.toISOString(),
+            });
+          }
+        }
+      }
+    }
+
+    // Para sub-users (caixa/gerente), verifica o admin da empresa
+    if (!isExemptRoute && req.user.role !== 'admin' && req.user.empresaId) {
+      const GRACE_DAYS = 3;
+      const adminTenant = await User.findById(req.user.empresaId).select('dataVencimento').lean();
+      if (adminTenant && (adminTenant as any).dataVencimento) {
+        const vencimento = new Date((adminTenant as any).dataVencimento);
+        const now = new Date();
+        if (vencimento < now) {
+          const diasVencidos = Math.floor((now.getTime() - vencimento.getTime()) / (24 * 60 * 60 * 1000));
+          if (diasVencidos > GRACE_DAYS) {
+            return res.status(402).json({
+              success: false,
+              error: 'Assinatura bloqueada',
+              code: 'SUBSCRIPTION_BLOCKED',
+              diasVencidos,
+              dataVencimento: vencimento.toISOString(),
+            });
+          }
+        }
+      }
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({

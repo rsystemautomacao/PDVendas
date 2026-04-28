@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { Search, Plus, DollarSign, Check, Trash2, AlertTriangle } from 'lucide-react'
 import { useFinanceiro } from '../../contexts/FinanceiroContext'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialContasPagar } from '../../config/tutorials'
 import { formatCurrency, formatDate } from '../../utils/helpers'
 
 export function ContasAPagarPage() {
@@ -239,6 +241,7 @@ export function ContasAPagarPage() {
           </div>
         </div>
       )}
+      <TutorialModal id="contas-pagar" titulo="Contas a Pagar" subtitulo="Controle suas despesas e pagamentos" steps={tutorialContasPagar} />
     </div>
   )
 }

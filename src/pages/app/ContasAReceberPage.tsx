@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react'
 import { Search, Plus, DollarSign, Check, Trash2, AlertTriangle } from 'lucide-react'
 import { useFinanceiro } from '../../contexts/FinanceiroContext'
 import { formatCurrency, formatDate } from '../../utils/helpers'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialContasReceber } from '../../config/tutorials'
 
 export function ContasAReceberPage() {
   const { contasReceber, addContaReceber, receberConta, removeContaReceber } = useFinanceiro()
@@ -153,6 +155,9 @@ export function ContasAReceberPage() {
                     {c.clienteNome && <span>{c.clienteNome}</span>}
                     <span>Venc: {formatDate(c.vencimento)}</span>
                     {c.recebidoEm && <span>Recebido em: {formatDate(c.recebidoEm)}</span>}
+                    {c.parcela && c.totalParcelas ? <span className="text-primary font-medium">Parcela {c.parcela}/{c.totalParcelas}</span> : null}
+                    {c.vendaNumero ? <span>Venda #{c.vendaNumero}</span> : null}
+                    {c.origem === 'crediario' && <span className="bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-medium">Crediario</span>}
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -231,6 +236,7 @@ export function ContasAReceberPage() {
           </div>
         </div>
       )}
+      <TutorialModal id="contas-receber" titulo="Contas a Receber" subtitulo="Acompanhe seus recebimentos" steps={tutorialContasReceber} />
     </div>
   )
 }

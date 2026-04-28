@@ -1,11 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { TrendingUp, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 import { useVendas } from '../../contexts/VendaContext'
 import { useFinanceiro } from '../../contexts/FinanceiroContext'
 import { formatCurrency, formatDate } from '../../utils/helpers'
+import { TutorialModal } from '../../components/app/TutorialModal'
+import { tutorialFluxoCaixa } from '../../config/tutorials'
 
 export function FluxoDeCaixaPage() {
-  const { vendas } = useVendas()
+  const { vendas, carregarSeNecessario: carregarVendas } = useVendas()
+  useEffect(() => { carregarVendas() }, [carregarVendas])
   const { contasPagar, contasReceber, despesas } = useFinanceiro()
 
   const hoje = new Date().toISOString().substring(0, 10)
@@ -184,6 +187,7 @@ export function FluxoDeCaixaPage() {
           )}
         </div>
       </div>
+      <TutorialModal id="fluxo-caixa" titulo="Fluxo de Caixa" subtitulo="Panorama de entradas e saidas" steps={tutorialFluxoCaixa} />
     </div>
   )
 }
