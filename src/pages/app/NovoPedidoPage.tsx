@@ -12,7 +12,7 @@ import { useCaixa } from '../../contexts/CaixaContext'
 import { useToast } from '../../contexts/ToastContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency, isCodigoBalanca } from '../../utils/helpers'
-import { imprimirRecibo, deveImprimirAutomatico } from '../../utils/impressao'
+import { imprimirRecibo, deveImprimirAutomatico, getImpressoraPadrao } from '../../utils/impressao'
 import { isAndroidDevice } from '../../utils/elginBridge'
 import type { Pagamento, FormaPagamento, Venda, Produto } from '../../types'
 import { BarcodeScanner } from '../../components/app/BarcodeScanner'
@@ -495,11 +495,21 @@ export function NovoPedidoPage() {
     `
   }, [user])
 
+  const avisarImpressoraNaoConfigurada = useCallback(() => {
+    if (getImpressoraPadrao()) return
+    if (sessionStorage.getItem('meupdv_aviso_impressora_dado') === '1') return
+    sessionStorage.setItem('meupdv_aviso_impressora_dado', '1')
+    toast.alerta(
+      'Nenhuma impressora cadastrada — usando padrao cupom 80mm. Configure em Configuracoes > Impressoras para melhor resultado.'
+    )
+  }, [toast])
+
   const imprimirReciboVenda = useCallback(() => {
     if (!vendaFinalizada) return
     const html = gerarReciboHtml(vendaFinalizada)
+    avisarImpressoraNaoConfigurada()
     imprimirRecibo(html, undefined, user?.empresa?.logoBase64)
-  }, [vendaFinalizada, gerarReciboHtml, user])
+  }, [vendaFinalizada, gerarReciboHtml, user, avisarImpressoraNaoConfigurada])
 
   const enviarReciboWhatsApp = useCallback(() => {
     if (!vendaFinalizada) return
@@ -544,11 +554,12 @@ export function NovoPedidoPage() {
     if (showRecibo && vendaFinalizada && deveImprimirAutomatico()) {
       const timer = setTimeout(() => {
         const html = gerarReciboHtml(vendaFinalizada)
+        avisarImpressoraNaoConfigurada()
         imprimirRecibo(html, undefined, user?.empresa?.logoBase64)
       }, 800)
       return () => clearTimeout(timer)
     }
-  }, [showRecibo, vendaFinalizada, gerarReciboHtml])
+  }, [showRecibo, vendaFinalizada, gerarReciboHtml, avisarImpressoraNaoConfigurada])
 
   const handleNovaVenda = () => {
     setVendaFinalizada(null)

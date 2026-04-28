@@ -91,13 +91,14 @@ export function imprimirRecibo(reciboHtml: string, escposData?: string, logoBase
     return
   }
 
-  if (!impressora) {
-    window.print()
-    return
-  }
+  // Defaults para cupom 80mm caso nao haja impressora configurada
+  const larguraMm = impressora?.larguraMm ?? 80
+  const margemMm = impressora?.margemMm ?? 4
+  const fonteSizePx = impressora?.fonteSizePx ?? 12
+  const isCupom = impressora ? impressora.tipo === 'cupom' : true
+  const copias = impressora?.copias ?? 1
 
-  const larguraPx = Math.round((impressora.larguraMm / 25.4) * 72)
-  const isCupom = impressora.tipo === 'cupom'
+  const larguraPx = Math.round((larguraMm / 25.4) * 72)
 
   const conteudo = `
     <html>
@@ -105,13 +106,13 @@ export function imprimirRecibo(reciboHtml: string, escposData?: string, logoBase
       <title>Recibo - MeuPDV</title>
       <style>
         @page {
-          size: ${impressora.larguraMm}mm auto;
-          margin: ${impressora.margemMm}mm;
+          size: ${larguraMm}mm auto;
+          margin: ${margemMm}mm;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
           font-family: 'Courier New', monospace;
-          font-size: ${impressora.fonteSizePx}px;
+          font-size: ${fonteSizePx}px;
           ${isCupom ? `width: ${larguraPx}px;` : ''}
           margin: 0 auto;
           color: #000;
@@ -129,7 +130,6 @@ export function imprimirRecibo(reciboHtml: string, escposData?: string, logoBase
     </html>
   `
 
-  const copias = impressora.copias || 1
   let impressas = 0
 
   const printNext = () => {
