@@ -2004,4 +2004,22 @@ export function NovoPedidoPage() {
               </button>
               <button
                 onClick={() => { setShowRefreshGuardModal(false); window.location.reload() }}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-semibold hover:from-amber-600 h
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-700 transition-all shadow-lg"
+              >
+                Recarregar <span className="text-xs text-orange-200 ml-1">(ENTER)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Barcode Camera Scanner */}
+      {showScanner && (
+        <BarcodeScanner
+          onScan={handleBarcodeScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
+      <TutorialModal id="nova-venda" titulo="Ponto de Venda (PDV)" subtitulo="Aprenda a registrar vendas" steps={tutorialNovaVenda} />
+    </div>
+  )
+}
