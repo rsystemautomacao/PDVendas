@@ -1,13 +1,51 @@
 import { useState, useMemo } from 'react'
-import { Package, PackageCheck, Plus, ArrowDownCircle, ArrowUpCircle, X, Eye, LayoutDashboard } from 'lucide-react'
+import { Package, PackageCheck, Plus, ArrowDownCircle, ArrowUpCircle, X, Eye, LayoutDashboard, Banknote, CreditCard, Smartphone, FileText, Receipt } from 'lucide-react'
 import { useCaixa } from '../../contexts/CaixaContext'
+import { useVendas } from '../../contexts/VendaContext'
 import { formatCurrency, formatDateTime } from '../../utils/helpers'
-import type { Caixa } from '../../types'
+import type { Caixa, FormaPagamento } from '../../types'
 import { TutorialModal } from '../../components/app/TutorialModal'
 import { tutorialCaixas } from '../../config/tutorials'
 
+// Ordem e label das formas de pagamento exibidas na quebra do caixa
+const FORMAS_PAGAMENTO: { key: FormaPagamento; label: string; icon: typeof Banknote; cor: string }[] = [
+  { key: 'dinheiro',  label: 'Dinheiro',      icon: Banknote,   cor: 'text-emerald-600' },
+  { key: 'credito',   label: 'Cartao Credito', icon: CreditCard, cor: 'text-blue-600' },
+  { key: 'debito',    label: 'Cartao Debito',  icon: CreditCard, cor: 'text-indigo-600' },
+  { key: 'pix',       label: 'PIX',            icon: Smartphone, cor: 'text-teal-600' },
+  { key: 'crediario', label: 'Crediario',      icon: FileText,   cor: 'text-amber-600' },
+  { key: 'boleto',    label: 'Boleto',         icon: Receipt,    cor: 'text-purple-600' },
+]
+
+function totalDoBreakdown(b: Record<FormaPagamento, number>) {
+  return (Object.values(b) as number[]).reduce((s, v) => s + v, 0)
+}
+
 export function CaixasPage() {
   const { caixas, caixaAberto, abrirCaixa, fecharCaixa, registrarMovimentacao } = useCaixa()
+  const { vendas } = useVendas()
+
+  // Agrega vendas finalizadas de um caixa por forma de pagamento.
+  // Cada Venda tem `pagamentos: Pagamento[]` (uma venda pode ter mais de uma forma).
+  const breakdownPorCaixa = useMemo(() => {
+    const mapa = new Map<string, Record<FormaPagamento, number>>()
+    for (const v of vendas) {
+      if (v.status !== 'finalizada' || !v.caixaId) continue
+      const atual = mapa.get(v.caixaId) || {
+        dinheiro: 0, credito: 0, debito: 0, pix: 0, boleto: 0, crediario: 0,
+      }
+      for (const p of v.pagamentos || []) {
+        atual[p.forma] = (atual[p.forma] || 0) + p.valor
+      }
+      mapa.set(v.caixaId, atual)
+    }
+    return mapa
+  }, [vendas])
+
+  const getBreakdown = (caixaId: string): Record<FormaPagamento, number> =>
+    breakdownPorCaixa.get(caixaId) || {
+      dinheiro: 0, credito: 0, debito: 0, pix: 0, boleto: 0, crediario: 0,
+    }
 
   const [aba, setAba] = useState<'abertos' | 'fechados'>('abertos')
   const [showAbrirModal, setShowAbrirModal] = useState(false)
@@ -124,6 +162,41 @@ export function CaixasPage() {
                   <p className={`text-2xl font-bold ${saldoAtual >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                     {formatCurrency(saldoAtual)}
                   </p>
+                </div>
+
+                {/* Vendas por forma de pagamento */}
+                <div className="card">
+                  <div className="px-4 py-3 border-b">
+                    <p className="text-sm font-semibold text-gray-700">Vendas por forma de pagamento</p>
+                    <p className="text-xs text-gray-400">Util na hora de conferir o caixa</p>
+                  </div>
+                  {(() => {
+                    const b = getBreakdown(caixaAberto._id)
+                    const total = totalDoBreakdown(b)
+                    if (total === 0) {
+                      return <p className="p-4 text-sm text-gray-400 text-center">Nenhuma venda registrada ainda</p>
+                    }
+                    return (
+                      <div className="divide-y divide-gray-100">
+                        {FORMAS_PAGAMENTO.map(f => {
+                          const valor = b[f.key] || 0
+                          if (valor === 0) return null
+                          const Icon = f.icon
+                          return (
+                            <div key={f.key} className="flex items-center gap-3 px-4 py-2.5">
+                              <Icon size={16} className={f.cor} />
+                              <span className="text-sm text-gray-700 flex-1">{f.label}</span>
+                              <span className="text-sm font-semibold text-gray-800">{formatCurrency(valor)}</span>
+                            </div>
+                          )
+                        })}
+                        <div className="flex items-center px-4 py-2.5 bg-gray-50">
+                          <span className="text-sm font-semibold text-gray-700 flex-1">Total de vendas</span>
+                          <span className="text-sm font-bold text-gray-800">{formatCurrency(total)}</span>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {/* Actions */}
@@ -249,13 +322,48 @@ export function CaixasPage() {
       {/* Modal: Fechar Caixa */}
       {showFecharModal && caixaAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-scale-in">
-            <h3 className="text-lg font-bold text-gray-800 mb-2">Fechar Caixa #{caixaAberto.numero}</h3>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto animate-scale-in">
+            <h3 className="text-lg font-bold text-gray-800 mb-3">Fechar Caixa #{caixaAberto.numero}</h3>
+
+            {/* Quebra por forma de pagamento */}
+            {(() => {
+              const b = getBreakdown(caixaAberto._id)
+              const totalVendasCalc = totalDoBreakdown(b)
+              if (totalVendasCalc === 0) return null
+              return (
+                <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Vendas por forma</p>
+                  <div className="space-y-1">
+                    {FORMAS_PAGAMENTO.map(f => {
+                      const valor = b[f.key] || 0
+                      if (valor === 0) return null
+                      const Icon = f.icon
+                      return (
+                        <div key={f.key} className="flex items-center gap-2 text-sm">
+                          <Icon size={14} className={f.cor} />
+                          <span className="text-gray-600 flex-1">{f.label}</span>
+                          <span className="font-medium text-gray-800">{formatCurrency(valor)}</span>
+                        </div>
+                      )
+                    })}
+                    <div className="flex justify-between text-sm font-semibold border-t pt-1 mt-1">
+                      <span className="text-gray-700">Subtotal vendas</span>
+                      <span className="text-gray-800">{formatCurrency(totalVendasCalc)}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Resumo geral */}
             <div className="bg-gray-50 rounded-lg p-3 mb-4 space-y-1 text-sm">
-              <div className="flex justify-between"><span className="text-gray-500">Entradas</span><span className="text-green-600 font-medium">{formatCurrency(caixaAberto.totalEntradas)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Saidas</span><span className="text-red-500 font-medium">{formatCurrency(caixaAberto.totalSaidas)}</span></div>
-              <div className="flex justify-between font-bold border-t pt-1"><span>Saldo Final</span><span>{formatCurrency(saldoAtual)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Abertura</span><span className="text-gray-800 font-medium">{formatCurrency(caixaAberto.valorAbertura)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Vendas</span><span className="text-green-600 font-medium">+{formatCurrency(caixaAberto.totalVendas)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Reforcos (entradas)</span><span className="text-blue-600 font-medium">+{formatCurrency(caixaAberto.totalEntradas)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Sangrias (saidas)</span><span className="text-red-500 font-medium">-{formatCurrency(caixaAberto.totalSaidas)}</span></div>
+              <div className="flex justify-between font-bold border-t pt-1"><span>Saldo final esperado</span><span>{formatCurrency(caixaAberto.valorAbertura + caixaAberto.totalVendas + caixaAberto.totalEntradas - caixaAberto.totalSaidas)}</span></div>
             </div>
+
             <div className="mb-4">
               <label className="text-sm font-medium text-gray-700 mb-1 block">Observacoes (opcional)</label>
               <textarea value={obsFechar} onChange={e => setObsFechar(e.target.value)}
@@ -323,6 +431,36 @@ export function CaixasPage() {
                 <div className="flex justify-between"><span className="text-gray-500">Saidas</span><span className="text-red-500 font-medium">{formatCurrency(showDetalhe.totalSaidas)}</span></div>
                 <div className="flex justify-between font-bold border-t pt-1"><span>Saldo Final</span><span>{formatCurrency(showDetalhe.valorFechamento || 0)}</span></div>
               </div>
+
+              {/* Vendas por forma de pagamento */}
+              {(() => {
+                const b = getBreakdown(showDetalhe._id)
+                const total = totalDoBreakdown(b)
+                if (total === 0) return null
+                return (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 mb-2">Vendas por forma de pagamento</p>
+                    <div className="bg-gray-50 rounded-lg divide-y divide-gray-200">
+                      {FORMAS_PAGAMENTO.map(f => {
+                        const valor = b[f.key] || 0
+                        if (valor === 0) return null
+                        const Icon = f.icon
+                        return (
+                          <div key={f.key} className="flex items-center gap-3 px-3 py-2 text-sm">
+                            <Icon size={14} className={f.cor} />
+                            <span className="text-gray-700 flex-1">{f.label}</span>
+                            <span className="font-medium text-gray-800">{formatCurrency(valor)}</span>
+                          </div>
+                        )
+                      })}
+                      <div className="flex items-center px-3 py-2 text-sm bg-gray-100">
+                        <span className="font-semibold text-gray-700 flex-1">Total</span>
+                        <span className="font-bold text-gray-800">{formatCurrency(total)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
               <div>
                 <p className="text-sm font-semibold text-gray-700 mb-2">Movimentacoes ({showDetalhe.movimentacoes.length})</p>
                 <div className="bg-gray-50 rounded-lg divide-y divide-gray-200 max-h-[300px] overflow-y-auto">
