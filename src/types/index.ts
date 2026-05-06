@@ -76,6 +76,7 @@ export interface Produto {
   precoCusto?: number
   estoque: number
   estoqueMinimo: number
+  estoqueIdeal?: number
   unidade: 'UN' | 'KG' | 'L' | 'CX' | 'M' | 'PCT'
   grupo?: string
   marca?: string

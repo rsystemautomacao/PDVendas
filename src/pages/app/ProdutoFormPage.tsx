@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Scale, AlertCircle, Plus, Trash2, Cpu, Shirt, Shield, Hash } from 'lucide-react'
 import { useProdutos } from '../../contexts/ProdutoContext'
@@ -40,7 +40,7 @@ export function ProdutoFormPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { id } = useParams()
-  const { getProduto, adicionarProduto, atualizarProduto } = useProdutos()
+  const { produtos, getProduto, adicionarProduto, atualizarProduto } = useProdutos()
   const toast = useToast()
 
   const seg = useSegmento()
@@ -57,6 +57,7 @@ export function ProdutoFormPage() {
   const [precoCusto, setPrecoCusto] = useState('')
   const [estoque, setEstoque] = useState('')
   const [estoqueMinimo, setEstoqueMinimo] = useState('0')
+  const [estoqueIdeal, setEstoqueIdeal] = useState('')
   const [unidade, setUnidade] = useState<typeof UNIDADES[number]>('UN')
   const [grupo, setGrupo] = useState('')
   const [marca, setMarca] = useState('')
@@ -109,6 +110,26 @@ export function ProdutoFormPage() {
     ? UNIDADES.filter(u => seg.unidadesPadrao.includes(u))
     : UNIDADES
 
+  // Lista mesclada de grupos: produtos cadastrados (preserva o nome usado pelo usuario)
+  // + sugestoes do segmento. Deduplica case-insensitive para evitar repetir.
+  const gruposDisponiveis = useMemo(() => {
+    const visto = new Set<string>()
+    const lista: string[] = []
+    const add = (g: string | undefined) => {
+      const v = (g || '').trim()
+      if (!v) return
+      const key = v.toLowerCase()
+      if (visto.has(key)) return
+      visto.add(key)
+      lista.push(v)
+    }
+    // Prioriza grupos ja cadastrados pelo usuario
+    produtos.forEach(p => add(p.grupo))
+    // Acrescenta sugestoes do segmento
+    seg.gruposSugeridos.forEach(add)
+    return lista.sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  }, [produtos, seg.gruposSugeridos])
+
   // Load existing product if editing
   useEffect(() => {
     if (isEdit && id) {
@@ -123,6 +144,7 @@ export function ProdutoFormPage() {
         setPrecoCusto(String(produto.precoCusto || ''))
         setEstoque(String(produto.estoque))
         setEstoqueMinimo(String(produto.estoqueMinimo))
+        setEstoqueIdeal(produto.estoqueIdeal != null ? String(produto.estoqueIdeal) : '')
         setUnidade(produto.unidade)
         setGrupo(produto.grupo || '')
         setMarca(produto.marca || '')
@@ -268,6 +290,7 @@ export function ProdutoFormPage() {
       precoCusto: precoCusto ? parseFloat(precoCusto) : undefined,
       estoque: estoqueCalc,
       estoqueMinimo: parseInt(estoqueMinimo) || 0,
+      estoqueIdeal: estoqueIdeal !== '' ? (parseInt(estoqueIdeal) || 0) : undefined,
       unidade,
       grupo: grupo.trim() || undefined,
       marca: marca.trim() || undefined,
@@ -301,7 +324,7 @@ export function ProdutoFormPage() {
 
     setLoading(false)
     navigate(locationState?.returnTo || '/app/produtos')
-  }, [nome, codigo, codigoBarras, tipo, modoVenda, preco, precoCusto, estoque, estoqueMinimo, unidade, grupo, marca, fornecedor, ativo, observacoes, categoria, genero, material, colecao, temVariacoes, variacoes, tamanhosSelecionados, coresSelecionadas, temSerial, seriais, garantiaMeses, garantiaTipo, especificacoes, isEdit, id, validate, adicionarProduto, atualizarProduto, navigate])
+  }, [nome, codigo, codigoBarras, tipo, modoVenda, preco, precoCusto, estoque, estoqueMinimo, estoqueIdeal, unidade, grupo, marca, fornecedor, ativo, observacoes, categoria, genero, material, colecao, temVariacoes, variacoes, tamanhosSelecionados, coresSelecionadas, temSerial, seriais, garantiaMeses, garantiaTipo, especificacoes, isEdit, id, validate, adicionarProduto, atualizarProduto, navigate])
 
   const tamanhos = categoria === 'calcados' ? TAMANHOS_CALCADO : TAMANHOS_ROUPA
 
@@ -464,11 +487,32 @@ export function ProdutoFormPage() {
                     <label className="text-sm font-medium text-gray-700 mb-1 block">Estoque Atual</label>
                     <input type="number" value={estoque} onChange={e => setEstoque(e.target.value)}
                       placeholder="0" className="input-field" />
+                    {(() => {
+                      const atual = parseInt(estoque) || 0
+                      const min = parseInt(estoqueMinimo) || 0
+                      const ideal = estoqueIdeal !== '' ? (parseInt(estoqueIdeal) || 0) : null
+                      if (atual <= min) {
+                        return <p className="text-xs text-red-600 mt-1">Abaixo do minimo</p>
+                      }
+                      if (ideal != null && atual < ideal) {
+                        return <p className="text-xs text-amber-600 mt-1">Abaixo do ideal (faltam {ideal - atual})</p>
+                      }
+                      if (ideal != null && atual >= ideal) {
+                        return <p className="text-xs text-green-600 mt-1">No nivel ideal</p>
+                      }
+                      return null
+                    })()}
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-700 mb-1 block">Estoque Minimo</label>
                     <input type="number" value={estoqueMinimo} onChange={e => setEstoqueMinimo(e.target.value)}
                       placeholder="0" className="input-field" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Estoque Ideal</label>
+                    <input type="number" value={estoqueIdeal} onChange={e => setEstoqueIdeal(e.target.value)}
+                      placeholder="Ex: 50" className="input-field" />
+                    <p className="text-xs text-gray-400 mt-1">Quantidade ideal a manter em estoque (opcional)</p>
                   </div>
                 </>
               )}
@@ -493,12 +537,24 @@ export function ProdutoFormPage() {
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Grupo</label>
                 <input type="text" value={grupo} onChange={e => setGrupo(e.target.value)}
-                  placeholder="Ex: Bebidas, Camisetas" className="input-field" list="grupos-sugeridos" />
-                {seg.gruposSugeridos.length > 0 && (
+                  placeholder="Ex: Bebidas, Camisetas" className="input-field" list="grupos-sugeridos"
+                  onBlur={() => {
+                    // Ao sair do campo, normaliza pra um grupo ja existente se bater case-insensitive.
+                    // Evita duplicar "CAPA" e "capa" como grupos diferentes.
+                    const v = grupo.trim()
+                    if (!v) return
+                    const match = gruposDisponiveis.find(g => g.toLowerCase() === v.toLowerCase())
+                    if (match && match !== v) setGrupo(match)
+                  }}
+                />
+                {gruposDisponiveis.length > 0 && (
                   <datalist id="grupos-sugeridos">
-                    {seg.gruposSugeridos.map(g => <option key={g} value={g} />)}
+                    {gruposDisponiveis.map(g => <option key={g} value={g} />)}
                   </datalist>
                 )}
+                <p className="text-xs text-gray-400 mt-1">
+                  Comece a digitar para ver grupos ja cadastrados e evitar duplicar.
+                </p>
               </div>
 
               <div>

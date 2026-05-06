@@ -47,6 +47,7 @@ const produtoSchema = new Schema(
     precoCusto: { type: Number, min: 0 },
     estoque: { type: Number, default: 0, min: 0 },
     estoqueMinimo: { type: Number, default: 5, min: 0 },
+    estoqueIdeal: { type: Number, min: 0 },
     unidade: { type: String, enum: ['UN', 'KG', 'L', 'CX', 'M', 'PCT'], default: 'UN' },
     grupo: String,
     marca: String,

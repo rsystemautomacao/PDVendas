@@ -35,6 +35,7 @@ export const createProdutoSchema = z.object({
   precoCusto: z.number().min(0).optional(),
   estoque: z.number().min(0).default(0),
   estoqueMinimo: z.number().min(0).default(5),
+  estoqueIdeal: z.number().min(0).optional(),
   unidade: z.enum(['UN', 'KG', 'L', 'CX', 'M', 'PCT']).default('UN'),
   grupo: z.string().optional(),
   marca: z.string().optional(),
