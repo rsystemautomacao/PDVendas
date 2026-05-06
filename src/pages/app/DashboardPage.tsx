@@ -207,7 +207,7 @@ export function DashboardPage() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Link to="/app/relatorios?aba=vendas" className="stat-card group cursor-pointer">
+          <Link to="/app/relatorios-graficos?aba=vendas" className="stat-card group cursor-pointer">
             <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-emerald-400 to-green-500" />
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Vendas Hoje</span>
@@ -219,7 +219,7 @@ export function DashboardPage() {
             <p className="text-xs text-gray-400 mt-1.5 font-medium">{vendasHoje.length} venda(s)</p>
           </Link>
 
-          <Link to="/app/relatorios?aba=vendas" className="stat-card group cursor-pointer">
+          <Link to="/app/relatorios-graficos?aba=vendas" className="stat-card group cursor-pointer">
             <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-blue-400 to-indigo-500" />
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Vendas no Mes</span>
@@ -231,7 +231,7 @@ export function DashboardPage() {
             <p className="text-xs text-gray-400 mt-1.5 font-medium">{vendas.filter(v => v.status === 'finalizada').length} total de vendas</p>
           </Link>
 
-          <Link to="/app/relatorios?aba=financeiro" className="stat-card group cursor-pointer">
+          <Link to="/app/relatorios-graficos?aba=financeiro" className="stat-card group cursor-pointer">
             <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-teal-400 to-emerald-500" />
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">A Receber</span>
@@ -243,7 +243,7 @@ export function DashboardPage() {
             <p className="text-xs text-gray-400 mt-1.5 font-medium">Pendente</p>
           </Link>
 
-          <Link to="/app/relatorios?aba=financeiro" className="stat-card group cursor-pointer">
+          <Link to="/app/relatorios-graficos?aba=financeiro" className="stat-card group cursor-pointer">
             <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-rose-400 to-red-500" />
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">A Pagar</span>
