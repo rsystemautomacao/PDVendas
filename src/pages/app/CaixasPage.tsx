@@ -1,8 +1,10 @@
-import { useState, useMemo } from 'react'
-import { Package, PackageCheck, Plus, ArrowDownCircle, ArrowUpCircle, X, Eye, LayoutDashboard, Banknote, CreditCard, Smartphone, FileText, Receipt } from 'lucide-react'
+import { useState, useMemo, useCallback } from 'react'
+import { Package, PackageCheck, Plus, ArrowDownCircle, ArrowUpCircle, X, Eye, LayoutDashboard, Banknote, CreditCard, Smartphone, FileText, Receipt, Printer } from 'lucide-react'
 import { useCaixa } from '../../contexts/CaixaContext'
 import { useVendas } from '../../contexts/VendaContext'
+import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency, formatDateTime } from '../../utils/helpers'
+import { imprimirRecibo, deveImprimirAutomatico } from '../../utils/impressao'
 import type { Caixa, FormaPagamento } from '../../types'
 import { TutorialModal } from '../../components/app/TutorialModal'
 import { tutorialCaixas } from '../../config/tutorials'
@@ -24,6 +26,7 @@ function totalDoBreakdown(b: Record<FormaPagamento, number>) {
 export function CaixasPage() {
   const { caixas, caixaAberto, abrirCaixa, fecharCaixa, registrarMovimentacao } = useCaixa()
   const { vendas } = useVendas()
+  const { user } = useAuth()
 
   // Agrega vendas finalizadas de um caixa por forma de pagamento.
   // Cada Venda tem `pagamentos: Pagamento[]` (uma venda pode ter mais de uma forma).
@@ -109,12 +112,123 @@ export function CaixasPage() {
     setContagemForma({ dinheiro: '', credito: '', debito: '', pix: '', crediario: '', boleto: '' })
   }
 
+  // Gera HTML do comprovante de fechamento (formato cupom termico 80mm).
+  // Aceita o Caixa ja persistido OU um snapshot construido localmente
+  // logo apos o fechamento (antes do reload do contexto).
+  const gerarComprovanteFechamentoHtml = useCallback((c: Caixa): string => {
+    const empresa = user?.empresa?.nome || 'MeuPDV'
+    const cnpj = user?.empresa?.cnpj ? `<div class="centro">CNPJ: ${user.empresa.cnpj}</div>` : ''
+    const tel = user?.empresa?.telefone ? `<div class="centro">Tel: ${user.empresa.telefone}</div>` : ''
+
+    const breakdown = getBreakdown(c._id)
+    const totalVendasForma = totalDoBreakdown(breakdown)
+
+    const linhasFormas = FORMAS_PAGAMENTO.map(f => {
+      const v = breakdown[f.key] || 0
+      if (v === 0) return ''
+      return `<div>${f.label.padEnd(18, ' ')} ${formatCurrency(v)}</div>`
+    }).filter(Boolean).join('')
+
+    const conferenciaHtml = typeof c.valorContado === 'number'
+      ? `
+        <div class="linha"></div>
+        <div class="bold">CONFERENCIA:</div>
+        <div>Esperado: ${formatCurrency(c.valorEsperado ?? c.valorFechamento ?? 0)}</div>
+        <div>Contado:  ${formatCurrency(c.valorContado)}</div>
+        <div class="bold">Diferenca: ${(c.diferenca ?? 0) > 0 ? '+' : ''}${formatCurrency(c.diferenca ?? 0)}</div>
+        ${(c.contagemPorForma && c.contagemPorForma.length > 0) ? `
+          <div class="linha"></div>
+          <div class="bold">CONTAGEM POR FORMA:</div>
+          ${c.contagemPorForma.map(cf => {
+            const f = FORMAS_PAGAMENTO.find(x => x.key === cf.forma)
+            const label = f?.label || cf.forma
+            return `<div>${label.padEnd(18, ' ')} ${formatCurrency(cf.valor)}</div>`
+          }).join('')}
+        ` : ''}
+      `
+      : ''
+
+    const movimentacoesHtml = c.movimentacoes && c.movimentacoes.length > 0
+      ? `
+        <div class="linha"></div>
+        <div class="bold">MOVIMENTACOES (${c.movimentacoes.length}):</div>
+        ${c.movimentacoes.map(m => {
+          const sinal = m.tipo === 'sangria' ? '-' : '+'
+          const tipo = m.tipo.charAt(0).toUpperCase() + m.tipo.slice(1)
+          return `<div>${tipo}: ${sinal}${formatCurrency(m.valor)}<br>&nbsp;&nbsp;${m.descricao}</div>`
+        }).join('')}
+      `
+      : ''
+
+    const observacoesHtml = c.observacoes
+      ? `<div class="linha"></div><div class="bold">OBS:</div><div>${c.observacoes}</div>`
+      : ''
+
+    const diffWarning = (c.diferenca && Math.abs(c.diferenca) >= 0.01)
+      ? `
+        <div class="linha"></div>
+        <div class="centro">_______________________</div>
+        <div class="centro">Assinatura Gerente</div>
+      `
+      : ''
+
+    return `
+      <div class="centro bold">${empresa}</div>
+      ${cnpj}
+      ${tel}
+      <div class="linha"></div>
+      <div class="centro bold">COMPROVANTE DE FECHAMENTO DE CAIXA</div>
+      <div class="linha"></div>
+      <div>Caixa #${c.numero}</div>
+      <div>Operador: ${c.operadorNome}</div>
+      <div>Aberto:   ${formatDateTime(c.abertoEm)}</div>
+      <div>Fechado:  ${formatDateTime(c.fechadoEm || '')}</div>
+      <div class="linha"></div>
+      <div>Abertura:  ${formatCurrency(c.valorAbertura)}</div>
+      <div>Vendas:    +${formatCurrency(c.totalVendas)}</div>
+      <div>Reforcos:  +${formatCurrency(c.totalEntradas)}</div>
+      <div>Sangrias:  -${formatCurrency(c.totalSaidas)}</div>
+      <div class="bold">Saldo Esperado: ${formatCurrency(c.valorFechamento || 0)}</div>
+      ${totalVendasForma > 0 ? `
+        <div class="linha"></div>
+        <div class="bold">VENDAS POR FORMA:</div>
+        ${linhasFormas}
+        <div>${'Subtotal'.padEnd(18, ' ')} ${formatCurrency(totalVendasForma)}</div>
+      ` : ''}
+      ${conferenciaHtml}
+      ${movimentacoesHtml}
+      ${observacoesHtml}
+      <div class="linha"></div>
+      <div class="centro">_______________________</div>
+      <div class="centro">Assinatura ${c.operadorNome}</div>
+      ${diffWarning}
+    `
+  }, [user, breakdownPorCaixa])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const imprimirComprovante = useCallback((c: Caixa) => {
+    const html = gerarComprovanteFechamentoHtml(c)
+    imprimirRecibo(html, undefined, user?.empresa?.logoBase64)
+  }, [gerarComprovanteFechamentoHtml, user])
+
   const handleFechar = () => {
     if (!caixaAberto) return
     // Monta a lista de formas que o operador realmente conferiu (preencheu valor)
     const contagemPorForma = (Object.entries(contagemForma) as [FormaPagamento, string][])
       .filter(([, v]) => v !== '' && !isNaN(parseFloat(v)))
       .map(([forma, v]) => ({ forma, valor: parseFloat(v) }))
+
+    // Snapshot do caixa fechado para imprimir antes do reload do contexto
+    const snapshot: Caixa = {
+      ...caixaAberto,
+      status: 'fechado',
+      fechadoEm: new Date().toISOString(),
+      valorFechamento: totalEsperado,
+      valorEsperado: totalEsperado,
+      valorContado: totalContado,
+      diferenca: diferencaTotal,
+      contagemPorForma: contagemPorForma.length > 0 ? contagemPorForma : undefined,
+      observacoes: obsFechar.trim() || caixaAberto.observacoes,
+    }
 
     fecharCaixa(
       caixaAberto._id,
@@ -124,6 +238,12 @@ export function CaixasPage() {
         contagemPorForma: contagemPorForma.length > 0 ? contagemPorForma : undefined,
       },
     )
+
+    // Auto-impressao do comprovante se a impressora estiver configurada para isso
+    if (deveImprimirAutomatico()) {
+      setTimeout(() => imprimirComprovante(snapshot), 500)
+    }
+
     resetFecharModal()
   }
 
@@ -644,6 +764,17 @@ export function CaixasPage() {
               {showDetalhe.observacoes && (
                 <div className="text-sm text-gray-500"><span className="font-medium">Obs:</span> {showDetalhe.observacoes}</div>
               )}
+
+              {/* Botao: Imprimir comprovante */}
+              <div className="flex justify-end pt-2 border-t border-gray-100">
+                <button
+                  onClick={() => imprimirComprovante(showDetalhe)}
+                  className="btn-secondary"
+                  title="Imprimir comprovante de fechamento"
+                >
+                  <Printer size={16} /> Imprimir comprovante
+                </button>
+              </div>
             </div>
           </div>
         </div>
