@@ -309,29 +309,57 @@ export function NovoPedidoPage() {
 
   // Keyboard nav for product search dropdown
   const handleProductSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // Enter com codigo de barras nao encontrado: abrir modal de confirmacao
     if (e.key === 'Enter') {
-      const cleanTerm = searchTerm.replace(/\D/g, '')
-      // Codigo de barras (8+ digitos) sem resultados → modal de confirmacao
-      if (cleanTerm.length >= 8 && cleanTerm === searchTerm.trim() && (searchResults.length === 0 || !showResults)) {
+      const trimmed = searchTerm.trim()
+      const cleanTerm = trimmed.replace(/\D/g, '')
+
+      // Codigo de balanca: lookup SINCRONO (evita race condition com leitor)
+      if (isCodigoBalanca(cleanTerm)) {
+        const balResult = buscarPorCodigoBalanca(cleanTerm)
+        if (balResult) {
+          e.preventDefault()
+          addToCartBalanca(
+            balResult.produto._id,
+            balResult.produto.nome,
+            balResult.produto.codigo,
+            balResult.peso,
+            balResult.produto.preco,
+            balResult.valorTotal,
+          )
+          setSearchTerm('')
+          setShowResults(false)
+          setSelectedProductIdx(-1)
+          searchRef.current?.focus()
+          return
+        }
+      }
+
+      // Codigo de barras (8+ digitos) ou codigo proprio: lookup SINCRONO em `produtos`.
+      // Evita o race entre o leitor (que dispara Enter antes do useEffect de busca rodar)
+      // e abrir o modal "nao encontrado" indevidamente.
+      if (cleanTerm.length >= 8 && cleanTerm === trimmed) {
+        const direct = produtos.find(p => p.ativo && (
+          p.codigoBarras === cleanTerm ||
+          p.codigo === trimmed ||
+          p.codigo === cleanTerm
+        ))
+        if (direct) {
+          e.preventDefault()
+          handleAddProduct(direct._id)
+          return
+        }
+        // Realmente nao existe — abre modal de cadastro
         e.preventDefault()
-        setNotFoundBarcode(searchTerm.trim())
+        setNotFoundBarcode(trimmed)
         setShowNotFoundModal(true)
         setShowResults(false)
         return
       }
+
       // Se tem resultados e um item selecionado, adicionar ao carrinho
       if (showResults && selectedProductIdx >= 0 && selectedProductIdx < searchResults.length) {
         e.preventDefault()
         handleAddProduct(searchResults[selectedProductIdx]._id)
-        return
-      }
-      // Se tem resultados mas nenhum selecionado e é codigo numerico sem match
-      if (showResults && searchResults.length === 0 && cleanTerm.length >= 8) {
-        e.preventDefault()
-        setNotFoundBarcode(searchTerm.trim())
-        setShowNotFoundModal(true)
-        setShowResults(false)
         return
       }
       return
@@ -351,7 +379,7 @@ export function NovoPedidoPage() {
         handleAddProduct(searchResults[selectedProductIdx]._id)
       }
     }
-  }, [showResults, searchResults, searchTerm, selectedProductIdx, handleAddProduct])
+  }, [showResults, searchResults, searchTerm, selectedProductIdx, handleAddProduct, produtos, buscarPorCodigoBalanca, addToCartBalanca])
 
   // Keyboard nav for client search dropdown
   const handleClientSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
