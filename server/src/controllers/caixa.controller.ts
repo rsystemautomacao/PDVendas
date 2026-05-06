@@ -38,7 +38,15 @@ export const caixaController = {
 
   close: asyncHandler(async (req: Request, res: Response) => {
     const empresaId = req.user!.empresaId;
-    const caixa = await caixaService.close(req.params.id as string, empresaId, req.body?.observacoes);
+    const caixa = await caixaService.close(
+      req.params.id as string,
+      empresaId,
+      req.body?.observacoes,
+      {
+        valorContado: req.body?.valorContado,
+        contagemPorForma: req.body?.contagemPorForma,
+      }
+    );
     res.json({ success: true, data: caixa });
   }),
 

@@ -11,6 +11,14 @@ const movimentacaoCaixaSchema = new Schema({
   criadoEm: { type: Date, default: Date.now },
 });
 
+const contagemFormaSchema = new Schema(
+  {
+    forma: { type: String, required: true },
+    valor: { type: Number, required: true, min: 0 },
+  },
+  { _id: false }
+);
+
 const caixaSchema = new Schema({
   empresaId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   numero: { type: Number, required: true },
@@ -26,6 +34,11 @@ const caixaSchema = new Schema({
   abertoEm: { type: Date, default: Date.now },
   fechadoEm: Date,
   observacoes: String,
+  // Conferencia cega no fechamento (sobra/falta)
+  valorContado: Number,
+  valorEsperado: Number,
+  diferenca: Number,
+  contagemPorForma: [contagemFormaSchema],
 });
 
 caixaSchema.index({ empresaId: 1, numero: 1 }, { unique: true });

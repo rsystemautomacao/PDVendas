@@ -10,3 +10,15 @@ export const movimentacaoSchema = z.object({
   valor: z.number().min(0.01, 'Valor deve ser positivo'),
   descricao: z.string().default(''),
 });
+
+const contagemFormaSchema = z.object({
+  forma: z.string().min(1),
+  valor: z.number().min(0),
+});
+
+export const fecharCaixaSchema = z.object({
+  observacoes: z.string().optional(),
+  // Conferencia cega: opcional - se informado, registra valor contado e diferenca
+  valorContado: z.number().min(0).optional(),
+  contagemPorForma: z.array(contagemFormaSchema).optional(),
+});

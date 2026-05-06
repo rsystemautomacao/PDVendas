@@ -58,6 +58,12 @@ export function CaixasPage() {
   const [descricaoMov, setDescricaoMov] = useState('')
   const [obsFechar, setObsFechar] = useState('')
 
+  // Conferencia cega: contagem por forma e passo do modal de fechar (1 = conta, 2 = compara)
+  const [fecharStep, setFecharStep] = useState<1 | 2>(1)
+  const [contagemForma, setContagemForma] = useState<Record<FormaPagamento, string>>({
+    dinheiro: '', credito: '', debito: '', pix: '', crediario: '', boleto: '',
+  })
+
   const caixasFechados = useMemo(() =>
     caixas.filter(c => c.status === 'fechado').sort((a, b) => (b.fechadoEm || '').localeCompare(a.fechadoEm || '')),
     [caixas]
@@ -70,11 +76,55 @@ export function CaixasPage() {
     setValorAbertura('0')
   }
 
-  const handleFechar = () => {
-    if (!caixaAberto) return
-    fecharCaixa(caixaAberto._id, obsFechar.trim() || undefined)
+  // Esperado por forma de pagamento no momento do fechamento
+  const esperadoPorForma = useMemo(() => {
+    if (!caixaAberto) return null
+    const b = getBreakdown(caixaAberto._id)
+    // Dinheiro fisico = vendas em dinheiro + abertura + reforcos - sangrias
+    // Outras formas = somente as vendas naquela forma (cartao/PIX ficam na maquina/banco)
+    return {
+      dinheiro: b.dinheiro + caixaAberto.valorAbertura + caixaAberto.totalEntradas - caixaAberto.totalSaidas,
+      credito: b.credito,
+      debito: b.debito,
+      pix: b.pix,
+      crediario: b.crediario,
+      boleto: b.boleto,
+    } as Record<FormaPagamento, number>
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caixaAberto, breakdownPorCaixa])
+
+  const totalEsperado = esperadoPorForma
+    ? (Object.values(esperadoPorForma) as number[]).reduce((s, v) => s + v, 0)
+    : 0
+
+  const totalContado = (Object.values(contagemForma) as string[])
+    .reduce((s, v) => s + (parseFloat(v) || 0), 0)
+
+  const diferencaTotal = totalContado - totalEsperado
+
+  const resetFecharModal = () => {
     setShowFecharModal(false)
     setObsFechar('')
+    setFecharStep(1)
+    setContagemForma({ dinheiro: '', credito: '', debito: '', pix: '', crediario: '', boleto: '' })
+  }
+
+  const handleFechar = () => {
+    if (!caixaAberto) return
+    // Monta a lista de formas que o operador realmente conferiu (preencheu valor)
+    const contagemPorForma = (Object.entries(contagemForma) as [FormaPagamento, string][])
+      .filter(([, v]) => v !== '' && !isNaN(parseFloat(v)))
+      .map(([forma, v]) => ({ forma, valor: parseFloat(v) }))
+
+    fecharCaixa(
+      caixaAberto._id,
+      obsFechar.trim() || undefined,
+      {
+        valorContado: totalContado,
+        contagemPorForma: contagemPorForma.length > 0 ? contagemPorForma : undefined,
+      },
+    )
+    resetFecharModal()
   }
 
   const handleMov = () => {
@@ -319,60 +369,141 @@ export function CaixasPage() {
         </div>
       )}
 
-      {/* Modal: Fechar Caixa */}
-      {showFecharModal && caixaAberto && (
+      {/* Modal: Fechar Caixa - fluxo 2 passos (conferencia cega) */}
+      {showFecharModal && caixaAberto && esperadoPorForma && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto animate-scale-in">
-            <h3 className="text-lg font-bold text-gray-800 mb-3">Fechar Caixa #{caixaAberto.numero}</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-gray-800">Fechar Caixa #{caixaAberto.numero}</h3>
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Passo {fecharStep}/2</span>
+            </div>
 
-            {/* Quebra por forma de pagamento */}
-            {(() => {
-              const b = getBreakdown(caixaAberto._id)
-              const totalVendasCalc = totalDoBreakdown(b)
-              if (totalVendasCalc === 0) return null
-              return (
-                <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Vendas por forma</p>
-                  <div className="space-y-1">
-                    {FORMAS_PAGAMENTO.map(f => {
-                      const valor = b[f.key] || 0
-                      if (valor === 0) return null
-                      const Icon = f.icon
-                      return (
-                        <div key={f.key} className="flex items-center gap-2 text-sm">
+            {/* PASSO 1: Conferencia cega - operador conta sem ver o esperado */}
+            {fecharStep === 1 && (
+              <>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-blue-800 font-medium mb-1">Conferencia cega</p>
+                  <p className="text-xs text-blue-700">
+                    Conte fisicamente o que voce tem em cada forma de pagamento. So depois o sistema mostra o esperado e a diferenca.
+                  </p>
+                </div>
+
+                <div className="space-y-2 mb-4">
+                  {FORMAS_PAGAMENTO.map(f => {
+                    const Icon = f.icon
+                    return (
+                      <div key={f.key} className="flex items-center gap-2">
+                        <Icon size={16} className={f.cor} />
+                        <label className="text-sm text-gray-700 flex-1">{f.label}</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          inputMode="decimal"
+                          value={contagemForma[f.key]}
+                          onChange={e => setContagemForma(prev => ({ ...prev, [f.key]: e.target.value }))}
+                          placeholder="0,00"
+                          className="input-field w-32 text-right"
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-3 mb-4 flex justify-between items-center">
+                  <span className="text-sm font-semibold text-gray-700">Total contado</span>
+                  <span className="text-lg font-bold text-gray-800">{formatCurrency(totalContado)}</span>
+                </div>
+
+                <p className="text-xs text-gray-400 mb-3">
+                  Deixe em branco a forma que voce nao conferiu — ela sera ignorada na contagem.
+                </p>
+
+                <div className="flex gap-3">
+                  <button onClick={resetFecharModal} className="btn-secondary flex-1">Cancelar</button>
+                  <button onClick={() => setFecharStep(2)} className="btn-primary flex-1">Conferir</button>
+                </div>
+              </>
+            )}
+
+            {/* PASSO 2: Comparacao - mostra esperado vs contado vs diferenca */}
+            {fecharStep === 2 && (
+              <>
+                <div className={`rounded-lg p-3 mb-4 border ${
+                  Math.abs(diferencaTotal) < 0.01 ? 'bg-green-50 border-green-200' :
+                  diferencaTotal > 0 ? 'bg-blue-50 border-blue-200' :
+                  'bg-red-50 border-red-200'
+                }`}>
+                  <p className={`text-sm font-bold ${
+                    Math.abs(diferencaTotal) < 0.01 ? 'text-green-700' :
+                    diferencaTotal > 0 ? 'text-blue-700' :
+                    'text-red-700'
+                  }`}>
+                    {Math.abs(diferencaTotal) < 0.01 ? 'Caixa bateu certinho' :
+                     diferencaTotal > 0 ? `Sobra de ${formatCurrency(diferencaTotal)}` :
+                     `Falta de ${formatCurrency(Math.abs(diferencaTotal))}`}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 overflow-hidden mb-4">
+                  <div className="grid grid-cols-12 gap-1 px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <div className="col-span-4">Forma</div>
+                    <div className="col-span-3 text-right">Esperado</div>
+                    <div className="col-span-3 text-right">Contado</div>
+                    <div className="col-span-2 text-right">Diff</div>
+                  </div>
+                  {FORMAS_PAGAMENTO.map(f => {
+                    const esp = esperadoPorForma[f.key] || 0
+                    const cont = parseFloat(contagemForma[f.key]) || 0
+                    const naoConferiu = contagemForma[f.key] === ''
+                    const diff = naoConferiu ? 0 : cont - esp
+                    if (esp === 0 && naoConferiu) return null
+                    const Icon = f.icon
+                    return (
+                      <div key={f.key} className="grid grid-cols-12 gap-1 px-3 py-2 text-sm border-t border-gray-100 items-center">
+                        <div className="col-span-4 flex items-center gap-1.5 truncate">
                           <Icon size={14} className={f.cor} />
-                          <span className="text-gray-600 flex-1">{f.label}</span>
-                          <span className="font-medium text-gray-800">{formatCurrency(valor)}</span>
+                          <span className="text-gray-700 truncate">{f.label}</span>
                         </div>
-                      )
-                    })}
-                    <div className="flex justify-between text-sm font-semibold border-t pt-1 mt-1">
-                      <span className="text-gray-700">Subtotal vendas</span>
-                      <span className="text-gray-800">{formatCurrency(totalVendasCalc)}</span>
-                    </div>
+                        <div className="col-span-3 text-right text-gray-700">{formatCurrency(esp)}</div>
+                        <div className="col-span-3 text-right text-gray-700">
+                          {naoConferiu ? <span className="text-gray-400 italic">--</span> : formatCurrency(cont)}
+                        </div>
+                        <div className={`col-span-2 text-right text-xs font-semibold ${
+                          naoConferiu ? 'text-gray-400' :
+                          Math.abs(diff) < 0.01 ? 'text-green-600' :
+                          diff > 0 ? 'text-blue-600' :
+                          'text-red-500'
+                        }`}>
+                          {naoConferiu ? '--' : (diff > 0 ? '+' : '') + formatCurrency(diff)}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div className="grid grid-cols-12 gap-1 px-3 py-2 text-sm font-bold bg-gray-50 border-t border-gray-200">
+                    <div className="col-span-4 text-gray-800">Total</div>
+                    <div className="col-span-3 text-right text-gray-800">{formatCurrency(totalEsperado)}</div>
+                    <div className="col-span-3 text-right text-gray-800">{formatCurrency(totalContado)}</div>
+                    <div className={`col-span-2 text-right text-xs ${
+                      Math.abs(diferencaTotal) < 0.01 ? 'text-green-600' :
+                      diferencaTotal > 0 ? 'text-blue-600' :
+                      'text-red-500'
+                    }`}>{(diferencaTotal > 0 ? '+' : '') + formatCurrency(diferencaTotal)}</div>
                   </div>
                 </div>
-              )
-            })()}
 
-            {/* Resumo geral */}
-            <div className="bg-gray-50 rounded-lg p-3 mb-4 space-y-1 text-sm">
-              <div className="flex justify-between"><span className="text-gray-500">Abertura</span><span className="text-gray-800 font-medium">{formatCurrency(caixaAberto.valorAbertura)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Vendas</span><span className="text-green-600 font-medium">+{formatCurrency(caixaAberto.totalVendas)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Reforcos (entradas)</span><span className="text-blue-600 font-medium">+{formatCurrency(caixaAberto.totalEntradas)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Sangrias (saidas)</span><span className="text-red-500 font-medium">-{formatCurrency(caixaAberto.totalSaidas)}</span></div>
-              <div className="flex justify-between font-bold border-t pt-1"><span>Saldo final esperado</span><span>{formatCurrency(caixaAberto.valorAbertura + caixaAberto.totalVendas + caixaAberto.totalEntradas - caixaAberto.totalSaidas)}</span></div>
-            </div>
+                <div className="mb-4">
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Observacoes (opcional)</label>
+                  <textarea value={obsFechar} onChange={e => setObsFechar(e.target.value)}
+                    placeholder={Math.abs(diferencaTotal) >= 0.01 ? 'Justifique a diferenca, se possivel...' : 'Observacoes do fechamento...'}
+                    rows={2} className="input-field resize-none" />
+                </div>
 
-            <div className="mb-4">
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Observacoes (opcional)</label>
-              <textarea value={obsFechar} onChange={e => setObsFechar(e.target.value)}
-                placeholder="Observacoes do fechamento..." rows={2} className="input-field resize-none" />
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowFecharModal(false)} className="btn-secondary flex-1">Cancelar</button>
-              <button onClick={handleFechar} className="btn-danger flex-1">Fechar Caixa</button>
-            </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setFecharStep(1)} className="btn-secondary flex-1">Voltar</button>
+                  <button onClick={handleFechar} className="btn-danger flex-1">Confirmar Fechamento</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -429,8 +560,41 @@ export function CaixasPage() {
                 <div className="flex justify-between"><span className="text-gray-500">Vendas</span><span className="font-medium">{formatCurrency(showDetalhe.totalVendas)}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Entradas</span><span className="text-green-600 font-medium">{formatCurrency(showDetalhe.totalEntradas)}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Saidas</span><span className="text-red-500 font-medium">{formatCurrency(showDetalhe.totalSaidas)}</span></div>
-                <div className="flex justify-between font-bold border-t pt-1"><span>Saldo Final</span><span>{formatCurrency(showDetalhe.valorFechamento || 0)}</span></div>
+                <div className="flex justify-between font-bold border-t pt-1"><span>Saldo Esperado</span><span>{formatCurrency(showDetalhe.valorFechamento || 0)}</span></div>
+                {typeof showDetalhe.valorContado === 'number' && (
+                  <>
+                    <div className="flex justify-between"><span className="text-gray-500">Valor Contado</span><span className="font-medium">{formatCurrency(showDetalhe.valorContado)}</span></div>
+                    <div className={`flex justify-between font-bold ${
+                      Math.abs(showDetalhe.diferenca || 0) < 0.01 ? 'text-green-600' :
+                      (showDetalhe.diferenca || 0) > 0 ? 'text-blue-600' :
+                      'text-red-500'
+                    }`}>
+                      <span>Diferenca</span>
+                      <span>{((showDetalhe.diferenca || 0) > 0 ? '+' : '') + formatCurrency(showDetalhe.diferenca || 0)}</span>
+                    </div>
+                  </>
+                )}
               </div>
+
+              {/* Detalhamento da conferencia por forma */}
+              {showDetalhe.contagemPorForma && showDetalhe.contagemPorForma.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Conferencia por forma</p>
+                  <div className="bg-gray-50 rounded-lg divide-y divide-gray-200">
+                    {showDetalhe.contagemPorForma.map(c => {
+                      const f = FORMAS_PAGAMENTO.find(x => x.key === c.forma)
+                      const Icon = f?.icon || Banknote
+                      return (
+                        <div key={c.forma} className="flex items-center gap-3 px-3 py-2 text-sm">
+                          <Icon size={14} className={f?.cor || 'text-gray-500'} />
+                          <span className="text-gray-700 flex-1">{f?.label || c.forma}</span>
+                          <span className="font-medium text-gray-800">{formatCurrency(c.valor)}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Vendas por forma de pagamento */}
               {(() => {

@@ -42,7 +42,12 @@ export const caixaService = {
     });
   },
 
-  async close(id: string, empresaId: string, observacoes?: string) {
+  async close(
+    id: string,
+    empresaId: string,
+    observacoes?: string,
+    conferencia?: { valorContado?: number; contagemPorForma?: { forma: string; valor: number }[] }
+  ) {
     const caixa = await Caixa.findOne({ _id: id, empresaId });
     if (!caixa) throw new AppError('Caixa não encontrado', 404);
     if (caixa.status === 'fechado') throw new AppError('Caixa já está fechado', 400);
@@ -50,8 +55,21 @@ export const caixaService = {
     const saldo = caixa.valorAbertura + caixa.totalEntradas - caixa.totalSaidas + caixa.totalVendas;
     caixa.status = 'fechado';
     caixa.valorFechamento = saldo;
+    caixa.valorEsperado = saldo;
     caixa.fechadoEm = new Date();
     if (observacoes) caixa.observacoes = observacoes;
+
+    // Conferencia cega: registra o que o operador contou e a diferenca
+    if (conferencia) {
+      if (typeof conferencia.valorContado === 'number') {
+        caixa.valorContado = conferencia.valorContado;
+        caixa.diferenca = conferencia.valorContado - saldo;
+      }
+      if (Array.isArray(conferencia.contagemPorForma) && conferencia.contagemPorForma.length > 0) {
+        caixa.contagemPorForma = conferencia.contagemPorForma as any;
+      }
+    }
+
     await caixa.save();
     return caixa;
   },

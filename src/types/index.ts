@@ -222,6 +222,11 @@ export interface Troca {
 }
 
 // ---- Caixa ----
+export interface ContagemForma {
+  forma: FormaPagamento
+  valor: number
+}
+
 export interface Caixa {
   _id: string
   numero: number
@@ -237,6 +242,11 @@ export interface Caixa {
   abertoEm: string
   fechadoEm?: string
   observacoes?: string
+  // Conferencia cega no fechamento (sobra/falta)
+  valorContado?: number          // total fisicamente conferido pelo operador
+  valorEsperado?: number          // snapshot do esperado no momento do fechamento
+  diferenca?: number              // valorContado - valorEsperado (negativo = falta, positivo = sobra)
+  contagemPorForma?: ContagemForma[]  // detalhamento da contagem por forma de pagamento
 }
 
 export interface MovimentacaoCaixa {

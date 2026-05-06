@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import type { Caixa, MovimentacaoCaixa } from '../types'
+import type { Caixa, MovimentacaoCaixa, ContagemForma } from '../types'
 import { api } from '../services/api'
 import { useToast } from './ToastContext'
 
@@ -8,7 +8,7 @@ interface CaixaContextType {
   caixaAberto: Caixa | null
   loading: boolean
   abrirCaixa: (valorAbertura: number, observacoes?: string) => Promise<Caixa | null>
-  fecharCaixa: (id: string, observacoes?: string) => Promise<void>
+  fecharCaixa: (id: string, observacoes?: string, conferencia?: { valorContado?: number; contagemPorForma?: ContagemForma[] }) => Promise<void>
   registrarMovimentacao: (caixaId: string, mov: Omit<MovimentacaoCaixa, '_id' | 'criadoEm'>) => Promise<void>
   getCaixaById: (id: string) => Caixa | undefined
   getCaixasFechados: () => Caixa[]
@@ -60,9 +60,17 @@ export function CaixaProvider({ children }: { children: ReactNode }) {
     }
   }, [recarregar, toast])
 
-  const fecharCaixa = useCallback(async (id: string, observacoes?: string) => {
+  const fecharCaixa = useCallback(async (
+    id: string,
+    observacoes?: string,
+    conferencia?: { valorContado?: number; contagemPorForma?: ContagemForma[] },
+  ) => {
     try {
-      await api.put(`/caixas/${id}/fechar`, { observacoes })
+      await api.put(`/caixas/${id}/fechar`, {
+        observacoes,
+        valorContado: conferencia?.valorContado,
+        contagemPorForma: conferencia?.contagemPorForma,
+      })
       await recarregar()
       toast.sucesso('Caixa fechado com sucesso')
     } catch (err: any) {
