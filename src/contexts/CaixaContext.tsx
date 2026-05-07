@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import type { Caixa, MovimentacaoCaixa, ContagemForma } from '../types'
 import { api } from '../services/api'
 import { useToast } from './ToastContext'
+import { useAuth } from './AuthContext'
 
 interface CaixaContextType {
   caixas: Caixa[]
@@ -27,6 +28,7 @@ export function CaixaProvider({ children }: { children: ReactNode }) {
   const [caixas, setCaixas] = useState<Caixa[]>([])
   const [loading, setLoading] = useState(true)
   const toast = useToast()
+  const { user } = useAuth()
 
   const recarregar = useCallback(async () => {
     try {
@@ -43,7 +45,14 @@ export function CaixaProvider({ children }: { children: ReactNode }) {
     recarregar().finally(() => setLoading(false))
   }, [recarregar])
 
-  const caixaAberto = caixas.find(c => c.status === 'aberto') || null
+  // Multi-PDV: cada operador ve apenas o proprio caixa aberto. Varios caixas
+  // podem coexistir abertos na mesma empresa (um por operador). Se nao houver
+  // user logado ainda, cai no comportamento antigo (qualquer caixa aberto).
+  const caixaAberto = useMemo(() => {
+    const abertos = caixas.filter(c => c.status === 'aberto')
+    if (!user) return abertos[0] || null
+    return abertos.find(c => c.operadorId === user._id) || null
+  }, [caixas, user])
 
   const abrirCaixa = useCallback(async (valorAbertura: number, observacoes?: string) => {
     try {

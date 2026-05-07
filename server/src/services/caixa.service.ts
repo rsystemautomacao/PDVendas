@@ -21,13 +21,19 @@ export const caixaService = {
     return caixa;
   },
 
-  async getOpen(empresaId: string) {
-    return Caixa.findOne({ status: 'aberto', empresaId });
+  // Por padrao retorna o caixa aberto do operador. Se operadorId nao for passado
+  // (uso administrativo), retorna qualquer caixa aberto da empresa (compat).
+  async getOpen(empresaId: string, operadorId?: string) {
+    const filter: any = { status: 'aberto', empresaId };
+    if (operadorId) filter.operadorId = operadorId;
+    return Caixa.findOne(filter);
   },
 
   async open(operadorId: string, operadorNome: string, valorAbertura: number, empresaId: string, observacoes?: string) {
-    const existing = await Caixa.findOne({ status: 'aberto', empresaId });
-    if (existing) throw new AppError('Já existe um caixa aberto', 409);
+    // Permite varios caixas abertos na mesma empresa (multi-PDV / multi-operador),
+    // mas cada operador so pode ter UM caixa aberto por vez.
+    const existing = await Caixa.findOne({ status: 'aberto', empresaId, operadorId });
+    if (existing) throw new AppError('Voce ja tem um caixa aberto', 409);
 
     const numero = await getNextSequence('caixa_num', empresaId!);
     return Caixa.create({

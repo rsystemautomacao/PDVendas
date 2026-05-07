@@ -18,7 +18,10 @@ export const caixaController = {
 
   getOpen: asyncHandler(async (req: Request, res: Response) => {
     const empresaId = req.user!.empresaId;
-    const caixa = await caixaService.getOpen(empresaId);
+    // Filtra pelo operador logado: cada operador ve apenas o proprio caixa aberto.
+    // Para administrador/diagnostico, query ?todos=1 retorna qualquer caixa aberto.
+    const operadorId = req.query?.todos === '1' ? undefined : req.user!._id;
+    const caixa = await caixaService.getOpen(empresaId, operadorId);
     res.json({ success: true, data: caixa });
   }),
 
