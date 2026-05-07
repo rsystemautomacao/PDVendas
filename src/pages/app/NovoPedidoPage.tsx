@@ -216,6 +216,15 @@ export function NovoPedidoPage() {
 
     // Detectar codigo de barras de balanca (13 digitos, comeca com 2)
     if (isCodigoBalanca(cleanTerm)) {
+      // Bloqueia adicao automatica de produto de balanca sem caixa aberto
+      if (!caixaAberto) {
+        if (searchTerm.trim().length > 0) {
+          toast.alerta('Abra um caixa antes de adicionar produtos')
+          setShowCaixaModal(true)
+          setSearchTerm('')
+        }
+        return
+      }
       const result = buscarPorCodigoBalanca(cleanTerm)
       if (result) {
         addToCartBalanca(
@@ -249,7 +258,7 @@ export function NovoPedidoPage() {
       setShowResults(false)
       setSelectedProductIdx(-1)
     }
-  }, [searchTerm, buscarProdutos, buscarPorCodigoBalanca, addToCartBalanca])
+  }, [searchTerm, buscarProdutos, buscarPorCodigoBalanca, addToCartBalanca, caixaAberto, toast])
 
   // Client search
   useEffect(() => {
@@ -272,6 +281,13 @@ export function NovoPedidoPage() {
   }, [])
 
   const handleAddProduct = useCallback((produtoId: string) => {
+    // Bloqueia adicao ao carrinho sem caixa aberto (evita usuario montar carrinho
+    // a toa e descobrir que nao pode finalizar so na hora do pagamento).
+    if (!caixaAberto) {
+      toast.alerta('Abra um caixa antes de adicionar produtos')
+      setShowCaixaModal(true)
+      return
+    }
     const prod = produtos.find(p => p._id === produtoId)
     // Se tem variações ou serial, abrir modal de seleção
     if (prod && (prod.temVariacoes && prod.variacoes && prod.variacoes.length > 0)) {
@@ -298,7 +314,7 @@ export function NovoPedidoPage() {
     setSelectedProductIdx(-1)
     setSelectedCartIdx(-1)
     searchRef.current?.focus()
-  }, [addToCart, produtos])
+  }, [addToCart, produtos, caixaAberto, toast])
 
   const handleSelectClient = useCallback((id: string, nome: string) => {
     setClienteVenda(id, nome)
@@ -1016,6 +1032,18 @@ export function NovoPedidoPage() {
     <div className="flex flex-col lg:flex-row h-[calc(100vh-56px)]">
       {/* ====== LEFT PANEL - Products ====== */}
       <div className="flex-1 flex flex-col p-4 lg:p-6 overflow-hidden">
+        {/* Banner: caixa fechado (persistente, nao da pra ignorar) */}
+        {!caixaAberto && (
+          <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 flex items-center gap-3">
+            <AlertCircle className="text-amber-600 flex-shrink-0" size={18} />
+            <p className="text-sm text-amber-800 flex-1">
+              Nenhum caixa aberto. Abra um caixa para conseguir registrar vendas.
+            </p>
+            <button onClick={() => navigate('/app/caixas')} className="text-sm font-semibold text-amber-700 hover:text-amber-900 underline">
+              Abrir caixa
+            </button>
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -1261,9 +1289,10 @@ export function NovoPedidoPage() {
               setShowPayment(true)
             }}
             className="btn-primary w-full"
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || !caixaAberto}
+            title={!caixaAberto ? 'Abra um caixa para vender' : undefined}
           >
-            <DollarSign size={18} /> Finalizar Venda (F9)
+            <DollarSign size={18} /> {!caixaAberto ? 'Caixa fechado' : 'Finalizar Venda (F9)'}
           </button>
           <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-gray-400 justify-center">
             <span>F2: Buscar</span>
