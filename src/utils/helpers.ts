@@ -2,6 +2,26 @@
 // MeuPDV - Funções Utilitárias
 // ==========================================
 
+// ---- Parametros do sistema (localStorage) ----
+
+const PARAMETROS_STORAGE_KEY = 'meupdv_parametros'
+
+/**
+ * Le o limite maximo de dinheiro fisico em caixa (em reais), configurado em
+ * Configuracoes > Parametros. Retorna 0 quando nao configurado (= sem limite).
+ */
+export function getLimiteCaixaDinheiro(): number {
+  try {
+    const saved = localStorage.getItem(PARAMETROS_STORAGE_KEY)
+    if (!saved) return 0
+    const params = JSON.parse(saved)
+    const v = parseFloat(params.limiteCaixaDinheiro)
+    return Number.isFinite(v) && v > 0 ? v : 0
+  } catch {
+    return 0
+  }
+}
+
 // ---- Formatação ----
 
 export function formatCurrency(value: number): string {

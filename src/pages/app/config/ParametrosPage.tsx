@@ -12,6 +12,7 @@ interface Parametros {
   permitirEstoqueNegativo: boolean
   formatoData: string
   tema: string
+  limiteCaixaDinheiro: string  // 0 = sem limite
 }
 
 const DEFAULT_PARAMS: Parametros = {
@@ -22,6 +23,7 @@ const DEFAULT_PARAMS: Parametros = {
   permitirEstoqueNegativo: false,
   formatoData: 'DD/MM/YYYY',
   tema: 'claro',
+  limiteCaixaDinheiro: '0',
 }
 
 function loadParams(): Parametros {
@@ -140,6 +142,29 @@ export function ParametrosPage() {
                 <p className="text-xs text-text-muted">Permite vender mesmo sem estoque.</p>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Caixa */}
+        <div className="mt-4 rounded-xl border border-gray-200 bg-white p-6 shadow-card">
+          <h2 className="mb-4 font-semibold text-text-primary">Caixa</h2>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-text-primary">
+              Limite maximo de dinheiro em caixa
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={params.limiteCaixaDinheiro}
+              onChange={(e) => setParam('limiteCaixaDinheiro', e.target.value)}
+              placeholder="0,00"
+              className="input-field max-w-xs"
+            />
+            <p className="mt-1 text-xs text-text-muted">
+              Quando o dinheiro fisico no caixa ultrapassar esse valor, o sistema sugere
+              fazer uma sangria (deposito no cofre/banco). Use 0 para desativar o alerta.
+            </p>
           </div>
         </div>
 

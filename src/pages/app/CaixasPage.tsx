@@ -1,9 +1,9 @@
 import { useState, useMemo, useCallback } from 'react'
-import { Package, PackageCheck, Plus, ArrowDownCircle, ArrowUpCircle, X, Eye, LayoutDashboard, Banknote, CreditCard, Smartphone, FileText, Receipt, Printer } from 'lucide-react'
+import { Package, PackageCheck, Plus, ArrowDownCircle, ArrowUpCircle, X, Eye, LayoutDashboard, Banknote, CreditCard, Smartphone, FileText, Receipt, Printer, AlertTriangle } from 'lucide-react'
 import { useCaixa } from '../../contexts/CaixaContext'
 import { useVendas } from '../../contexts/VendaContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { formatCurrency, formatDateTime } from '../../utils/helpers'
+import { formatCurrency, formatDateTime, getLimiteCaixaDinheiro } from '../../utils/helpers'
 import { imprimirRecibo, deveImprimirAutomatico } from '../../utils/impressao'
 import type { Caixa, FormaPagamento } from '../../types'
 import { TutorialModal } from '../../components/app/TutorialModal'
@@ -333,6 +333,41 @@ export function CaixasPage() {
                     {formatCurrency(saldoAtual)}
                   </p>
                 </div>
+
+                {/* Alerta: limite de dinheiro em caixa ultrapassado */}
+                {(() => {
+                  const limite = getLimiteCaixaDinheiro()
+                  if (limite <= 0) return null
+                  const b = getBreakdown(caixaAberto._id)
+                  const dinheiroFisico = b.dinheiro + caixaAberto.valorAbertura + caixaAberto.totalEntradas - caixaAberto.totalSaidas
+                  if (dinheiroFisico <= limite) return null
+                  const excesso = dinheiroFisico - limite
+                  return (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 flex items-start gap-3">
+                      <AlertTriangle className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-amber-800">
+                          Dinheiro em caixa acima do limite
+                        </p>
+                        <p className="text-sm text-amber-700 mt-1">
+                          Voce tem aproximadamente <strong>{formatCurrency(dinheiroFisico)}</strong> em dinheiro fisico,
+                          {' '}acima do limite configurado de <strong>{formatCurrency(limite)}</strong>.
+                          {' '}Considere fazer uma sangria de <strong>{formatCurrency(excesso)}</strong> para o cofre/banco.
+                        </p>
+                        <button
+                          onClick={() => {
+                            setValorMov(excesso.toFixed(2))
+                            setDescricaoMov('Sangria por limite de caixa')
+                            setShowMovModal('sangria')
+                          }}
+                          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 transition-colors"
+                        >
+                          <ArrowUpCircle size={14} /> Fazer sangria de {formatCurrency(excesso)}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* Vendas por forma de pagamento */}
                 <div className="card">
