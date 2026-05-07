@@ -20,6 +20,9 @@ const empresaSchema = new Schema(
       ],
       default: '',
     },
+    // Define se a empresa usa controle de caixa (abrir/fechar/sangria/reforco).
+    // Quando false, vendas podem ser realizadas sem caixa aberto.
+    usaCaixa: { type: Boolean, default: true },
   },
   { _id: false }
 );

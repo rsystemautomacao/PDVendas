@@ -4,6 +4,7 @@ import { api } from '../services/api'
 import { useToast } from './ToastContext'
 import { useProdutos } from './ProdutoContext'
 import { useCaixa } from './CaixaContext'
+import { useEmpresaUsaCaixa } from './AuthContext'
 
 interface VendaContextType {
   vendas: Venda[]
@@ -72,6 +73,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
   const toast = useToast()
   const { getProduto, recarregar: recarregarProdutos } = useProdutos()
   const { caixaAberto, recarregar: recarregarCaixas } = useCaixa()
+  const empresaUsaCaixa = useEmpresaUsaCaixa()
 
   // Persistir carrinho no localStorage a cada alteração
   useEffect(() => {
@@ -258,7 +260,9 @@ export function VendaProvider({ children }: { children: ReactNode }) {
       toast.erro('Adicione pelo menos um item ao carrinho')
       return null
     }
-    if (!caixaAberto) {
+    // Empresas que usam controle de caixa (default) exigem caixa aberto.
+    // Quando empresa.usaCaixa === false, vendas podem ser registradas sem caixa.
+    if (empresaUsaCaixa && !caixaAberto) {
       toast.erro('Nao ha caixa aberto. Abra um caixa primeiro.')
       return null
     }
@@ -284,7 +288,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
         pagamentos,
         troco,
         status: 'finalizada',
-        caixaId: caixaAberto._id,
+        caixaId: caixaAberto?._id,
         observacoes: observacoes || undefined,
       })
 
@@ -304,7 +308,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
       toast.erro(err.message || 'Erro ao finalizar venda')
       return null
     }
-  }, [cart, caixaAberto, totalVenda, clienteId, clienteNome, subtotal, totalDesconto, descontoTipo, observacoes, finalizando, clearCart, recarregar, recarregarProdutos, recarregarCaixas, toast])
+  }, [cart, caixaAberto, empresaUsaCaixa, totalVenda, clienteId, clienteNome, subtotal, totalDesconto, descontoTipo, observacoes, finalizando, clearCart, recarregar, recarregarProdutos, recarregarCaixas, toast])
 
   const cancelarVenda = useCallback(async (id: string, motivo: string) => {
     try {

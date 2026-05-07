@@ -28,7 +28,9 @@ export const createVendaSchema = z.object({
   pagamentos: z.array(pagamentoSchema).min(1, 'Pelo menos uma forma de pagamento'),
   troco: z.number().min(0).default(0),
   status: z.enum(['finalizada', 'orcamento', 'cancelada']).default('finalizada'),
-  caixaId: z.string().min(1, 'Caixa é obrigatório'),
+  // caixaId opcional: empresas que nao usam controle de caixa enviam vazio.
+  // O servico checa empresa.usaCaixa e exige o caixa apenas quando aplicavel.
+  caixaId: z.string().optional(),
   observacoes: z.string().optional(),
 });
 

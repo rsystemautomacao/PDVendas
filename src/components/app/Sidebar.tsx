@@ -6,7 +6,7 @@ import {
   TrendingUp, LogOut, ChevronRight, Building2,
   ShieldCheck, Receipt, X, Wrench, FileText, Sparkles, RefreshCw, AlertTriangle, Tag,
 } from 'lucide-react'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth, useEmpresaUsaCaixa } from '../../contexts/AuthContext'
 import { usePermissao } from '../../hooks/usePermissao'
 import { useSegmento } from '../../hooks/useSegmento'
 
@@ -18,6 +18,7 @@ export function Sidebar({ onClose }: SidebarProps) {
   const { user, logout } = useAuth()
   const { temPermissao, isAdmin } = usePermissao()
   const seg = useSegmento()
+  const empresaUsaCaixa = useEmpresaUsaCaixa()
   const [configOpen, setConfigOpen] = useState(false)
 
   const handleSair = () => {
@@ -168,7 +169,7 @@ export function Sidebar({ onClose }: SidebarProps) {
           <div>
             <p className="px-3.5 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-gray-300">Financeiro</p>
             <ul className="space-y-0.5">
-              <MenuItem to="/app/caixas" icon={LayoutDashboard} label="Caixas" perm="caixa.abrir" />
+              {empresaUsaCaixa && <MenuItem to="/app/caixas" icon={LayoutDashboard} label="Caixas" perm="caixa.abrir" />}
               <MenuItem to="/app/contas-a-pagar" icon={DollarSign} label="Contas a Pagar" perm="financeiro.contas_pagar" />
               <MenuItem to="/app/contas-a-receber" icon={DollarSign} label="Contas a Receber" perm="financeiro.contas_receber" />
               <MenuItem to="/app/despesas" icon={Receipt} label="Despesas" perm="financeiro.despesas" />

@@ -10,7 +10,7 @@ import { useProdutos } from '../../contexts/ProdutoContext'
 import { useClientes } from '../../contexts/ClienteContext'
 import { useCaixa } from '../../contexts/CaixaContext'
 import { useToast } from '../../contexts/ToastContext'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth, useEmpresaUsaCaixa } from '../../contexts/AuthContext'
 import { formatCurrency, isCodigoBalanca } from '../../utils/helpers'
 import { imprimirRecibo, deveImprimirAutomatico, getImpressoraPadrao } from '../../utils/impressao'
 import { isAndroidDevice } from '../../utils/elginBridge'
@@ -32,6 +32,7 @@ export function NovoPedidoPage() {
   const { produtos, buscarProdutos, buscarPorCodigoBalanca } = useProdutos()
   const { buscarClientes } = useClientes()
   const { caixaAberto } = useCaixa()
+  const empresaUsaCaixa = useEmpresaUsaCaixa()
 
   // Search states
   const [searchTerm, setSearchTerm] = useState('')
@@ -152,8 +153,9 @@ export function NovoPedidoPage() {
   }, [cart.length])
 
   useEffect(() => {
-    if (!caixaAberto) setShowCaixaModal(true)
-  }, [caixaAberto])
+    // So abre o modal de aviso quando a empresa USA controle de caixa
+    if (empresaUsaCaixa && !caixaAberto) setShowCaixaModal(true)
+  }, [caixaAberto, empresaUsaCaixa])
 
   // Sorted product catalog for F3 modal
   const catalogProducts = useMemo(() => {
@@ -217,7 +219,8 @@ export function NovoPedidoPage() {
     // Detectar codigo de barras de balanca (13 digitos, comeca com 2)
     if (isCodigoBalanca(cleanTerm)) {
       // Bloqueia adicao automatica de produto de balanca sem caixa aberto
-      if (!caixaAberto) {
+      // (somente quando a empresa USA controle de caixa)
+      if (empresaUsaCaixa && !caixaAberto) {
         if (searchTerm.trim().length > 0) {
           toast.alerta('Abra um caixa antes de adicionar produtos')
           setShowCaixaModal(true)
@@ -258,7 +261,7 @@ export function NovoPedidoPage() {
       setShowResults(false)
       setSelectedProductIdx(-1)
     }
-  }, [searchTerm, buscarProdutos, buscarPorCodigoBalanca, addToCartBalanca, caixaAberto, toast])
+  }, [searchTerm, buscarProdutos, buscarPorCodigoBalanca, addToCartBalanca, caixaAberto, empresaUsaCaixa, toast])
 
   // Client search
   useEffect(() => {
@@ -283,7 +286,8 @@ export function NovoPedidoPage() {
   const handleAddProduct = useCallback((produtoId: string) => {
     // Bloqueia adicao ao carrinho sem caixa aberto (evita usuario montar carrinho
     // a toa e descobrir que nao pode finalizar so na hora do pagamento).
-    if (!caixaAberto) {
+    // Aplicavel somente quando a empresa USA controle de caixa.
+    if (empresaUsaCaixa && !caixaAberto) {
       toast.alerta('Abra um caixa antes de adicionar produtos')
       setShowCaixaModal(true)
       return
@@ -314,7 +318,7 @@ export function NovoPedidoPage() {
     setSelectedProductIdx(-1)
     setSelectedCartIdx(-1)
     searchRef.current?.focus()
-  }, [addToCart, produtos, caixaAberto, toast])
+  }, [addToCart, produtos, caixaAberto, empresaUsaCaixa, toast])
 
   const handleSelectClient = useCallback((id: string, nome: string) => {
     setClienteVenda(id, nome)
@@ -982,7 +986,7 @@ export function NovoPedidoPage() {
       if (e.key === 'F3') { e.preventDefault(); setShowProductCatalog(true); return }
       if (e.key === 'F4') { e.preventDefault(); clientSearchRef.current?.focus(); return }
       if (e.key === 'F6') { e.preventDefault(); navigate('/app/clientes/novo', { state: { returnTo: '/app/novo-pedido' } }); return }
-      if (e.key === 'F9') { e.preventDefault(); if (cart.length > 0 && caixaAberto) setShowPayment(true); return }
+      if (e.key === 'F9') { e.preventDefault(); if (cart.length > 0 && (!empresaUsaCaixa || caixaAberto)) setShowPayment(true); return }
       if (e.key === 'Escape') {
         if (showDesconto) { setShowDesconto(false); return }
         if (showResults) { setShowResults(false); return }
@@ -1032,8 +1036,8 @@ export function NovoPedidoPage() {
     <div className="flex flex-col lg:flex-row h-[calc(100vh-56px)]">
       {/* ====== LEFT PANEL - Products ====== */}
       <div className="flex-1 flex flex-col p-4 lg:p-6 overflow-hidden">
-        {/* Banner: caixa fechado (persistente, nao da pra ignorar) */}
-        {!caixaAberto && (
+        {/* Banner: caixa fechado (persistente, nao da pra ignorar) - so se a empresa usa caixa */}
+        {empresaUsaCaixa && !caixaAberto && (
           <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 flex items-center gap-3">
             <AlertCircle className="text-amber-600 flex-shrink-0" size={18} />
             <p className="text-sm text-amber-800 flex-1">
@@ -1284,15 +1288,15 @@ export function NovoPedidoPage() {
         <div className="p-4 border-t border-gray-100 space-y-2">
           <button
             onClick={() => {
-              if (!caixaAberto) { setShowCaixaModal(true); return }
+              if (empresaUsaCaixa && !caixaAberto) { setShowCaixaModal(true); return }
               if (cart.length === 0) { toast.alerta('Adicione produtos ao carrinho'); return }
               setShowPayment(true)
             }}
             className="btn-primary w-full"
-            disabled={cart.length === 0 || !caixaAberto}
-            title={!caixaAberto ? 'Abra um caixa para vender' : undefined}
+            disabled={cart.length === 0 || (empresaUsaCaixa && !caixaAberto)}
+            title={empresaUsaCaixa && !caixaAberto ? 'Abra um caixa para vender' : undefined}
           >
-            <DollarSign size={18} /> {!caixaAberto ? 'Caixa fechado' : 'Finalizar Venda (F9)'}
+            <DollarSign size={18} /> {empresaUsaCaixa && !caixaAberto ? 'Caixa fechado' : 'Finalizar Venda (F9)'}
           </button>
           <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-gray-400 justify-center">
             <span>F2: Buscar</span>

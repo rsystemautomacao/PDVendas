@@ -37,6 +37,13 @@ export interface EmpresaInfo {
   estado?: string
   logoBase64?: string
   segmento?: SegmentoEmpresa
+  /**
+   * Define se a empresa usa controle de caixa (abrir/fechar/sangria/reforco).
+   * Default true. Quando false, vendas podem ser realizadas sem caixa aberto
+   * e o modulo de caixa fica oculto na navegacao. Configuravel pelo admin
+   * (usuario maior da conta) em Configuracoes > Minha Empresa.
+   */
+  usaCaixa?: boolean
 }
 
 // ---- Produto ----

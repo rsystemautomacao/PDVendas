@@ -53,6 +53,7 @@ export function MinhaEmpresaPage() {
   const [estado, setEstado] = useState('')
   const [logoBase64, setLogoBase64] = useState('')
   const [segmento, setSegmento] = useState<SegmentoEmpresa>('varejo_geral')
+  const [usaCaixa, setUsaCaixa] = useState(true)
 
   // CEP auto-fill
   const { buscarCep, loading: cepLoading } = useCepLookup({
@@ -75,6 +76,7 @@ export function MinhaEmpresaPage() {
       setEstado(e.estado || '')
       setLogoBase64(e.logoBase64 || '')
       setSegmento(e.segmento || 'varejo_geral')
+      setUsaCaixa(e.usaCaixa !== false)  // default true
     }
   }, [user])
 
@@ -130,6 +132,7 @@ export function MinhaEmpresaPage() {
           estado: estado,
           logoBase64: logoBase64,
           segmento: segmento,
+          usaCaixa: usaCaixa,
         },
       })
       if (result.ok) {
@@ -142,7 +145,7 @@ export function MinhaEmpresaPage() {
     } finally {
       setLoading(false)
     }
-  }, [razaoSocial, nomeFantasia, cnpj, telefone, endereco, numero, complemento, cidade, estado, logoBase64, segmento, updateUser, sucesso, erro])
+  }, [razaoSocial, nomeFantasia, cnpj, telefone, endereco, numero, complemento, cidade, estado, logoBase64, segmento, usaCaixa, updateUser, sucesso, erro])
 
   const handleCancel = useCallback(() => {
     if (user?.empresa) {
@@ -156,6 +159,7 @@ export function MinhaEmpresaPage() {
       setEstado(e.estado || '')
       setLogoBase64(e.logoBase64 || '')
       setSegmento(e.segmento || 'varejo_geral')
+      setUsaCaixa(e.usaCaixa !== false)
     }
   }, [user])
 
@@ -318,6 +322,26 @@ export function MinhaEmpresaPage() {
                     ))}
                   </select>
                   <p className="text-xs text-gray-400 mt-1">Define quais campos e menus aparecem no sistema.</p>
+                </div>
+
+                {/* Toggle: usar controle de caixa */}
+                <div className="sm:col-span-2 flex items-start gap-3 pt-2">
+                  <label className="relative inline-flex cursor-pointer items-center mt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={usaCaixa}
+                      onChange={(e) => setUsaCaixa(e.target.checked)}
+                      className="peer sr-only"
+                    />
+                    <div className="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30" />
+                  </label>
+                  <div>
+                    <p className="text-sm font-medium text-text-primary">Usar controle de caixa</p>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      Quando ativo, vendas exigem caixa aberto e ha controle de abertura, fechamento, sangria e reforco.
+                      Desative se sua operacao nao usa fechamento de caixa diario (ex: prestacao de servicos).
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

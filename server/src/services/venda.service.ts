@@ -3,6 +3,7 @@ import { Venda } from '../models/Venda';
 import { Produto } from '../models/Produto';
 import { Caixa } from '../models/Caixa';
 import { ContaReceber } from '../models/ContaReceber';
+import { User } from '../models/User';
 import { AppError } from '../middleware/errorHandler';
 import { getNextSequence } from './counter.service';
 
@@ -49,16 +50,24 @@ export const vendaService = {
     session.startTransaction();
 
     try {
-      // Verificar caixa aberto
-      const caixa = await Caixa.findOne({ _id: data.caixaId, empresaId }).session(session);
-      if (!caixa || caixa.status !== 'aberto') {
-        throw new AppError('Caixa não está aberto', 400);
+      // Verifica se a empresa USA controle de caixa.
+      // Quando empresa.usaCaixa === false, vendas podem ser feitas sem caixa.
+      const tenant = await User.findById(empresaId).session(session);
+      const empresaUsaCaixa = (tenant as any)?.empresa?.usaCaixa !== false;  // default true
+
+      // Verificar caixa aberto somente quando a empresa usa caixa
+      let caixa: any = null;
+      if (empresaUsaCaixa) {
+        caixa = await Caixa.findOne({ _id: data.caixaId, empresaId }).session(session);
+        if (!caixa || caixa.status !== 'aberto') {
+          throw new AppError('Caixa não está aberto', 400);
+        }
       }
 
       // Gerar número sequencial
       const numero = await getNextSequence('venda_num', empresaId);
 
-      // Criar venda
+      // Criar venda (caixaId fica vazio quando empresa nao usa caixa)
       const [venda] = await Venda.create(
         [{
           ...data,
@@ -66,6 +75,7 @@ export const vendaService = {
           numero,
           vendedorId,
           vendedorNome,
+          ...(empresaUsaCaixa ? {} : { caixaId: undefined }),
         }],
         { session }
       );
@@ -81,15 +91,17 @@ export const vendaService = {
           if (!result) throw new AppError(`Produto ${item.nome || item.produtoId} não encontrado`, 404);
         }
 
-        // Registrar movimento no caixa
-        caixa.movimentacoes.push({
-          tipo: 'venda',
-          valor: data.total,
-          descricao: `Venda #${numero}`,
-          criadoEm: new Date(),
-        } as any);
-        caixa.totalVendas += data.total;
-        await caixa.save({ session });
+        // Registrar movimento no caixa apenas quando a empresa usa caixa
+        if (caixa) {
+          caixa.movimentacoes.push({
+            tipo: 'venda',
+            valor: data.total,
+            descricao: `Venda #${numero}`,
+            criadoEm: new Date(),
+          } as any);
+          caixa.totalVendas += data.total;
+          await caixa.save({ session });
+        }
 
         // Gerar parcelas de contas a receber para pagamentos em crediario
         const crediarioPagamentos = data.pagamentos?.filter((p: any) => p.forma === 'crediario') || [];

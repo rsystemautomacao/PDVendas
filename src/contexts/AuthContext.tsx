@@ -27,6 +27,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
+// Hook utilitario: retorna se a empresa do usuario usa controle de caixa.
+// Default true (compativel com empresas existentes que nao tem o campo).
+export function useEmpresaUsaCaixa(): boolean {
+  const ctx = useContext(AuthContext)
+  return ctx?.user?.empresa?.usaCaixa !== false
+}
+
 export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth deve ser usado dentro de AuthProvider')

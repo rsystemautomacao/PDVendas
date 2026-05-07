@@ -53,7 +53,9 @@ const vendaSchema = new Schema(
       enum: ['finalizada', 'orcamento', 'cancelada'],
       default: 'finalizada',
     },
-    caixaId: { type: Schema.Types.ObjectId, ref: 'Caixa', required: true },
+    // caixaId opcional: empresas que nao usam controle de caixa registram
+    // vendas sem vinculo a caixa (ver empresa.usaCaixa).
+    caixaId: { type: Schema.Types.ObjectId, ref: 'Caixa' },
     vendedorId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     vendedorNome: String,
     observacoes: String,
