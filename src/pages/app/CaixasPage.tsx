@@ -210,6 +210,80 @@ export function CaixasPage() {
     imprimirRecibo(html, undefined, user?.empresa?.logoBase64)
   }, [gerarComprovanteFechamentoHtml, user])
 
+  // Pre-fechamento ("X"): relatorio provisorio do caixa enquanto AINDA esta aberto.
+  // Util para troca de turno, conferencia parcial, levar pro escritorio sem fechar.
+  // Diferente do "Z" (fechamento definitivo), o caixa permanece operacional.
+  const gerarRelatorioXHtml = useCallback((c: Caixa): string => {
+    const empresa = user?.empresa?.nome || 'MeuPDV'
+    const cnpj = user?.empresa?.cnpj ? `<div class="centro">CNPJ: ${user.empresa.cnpj}</div>` : ''
+    const tel = user?.empresa?.telefone ? `<div class="centro">Tel: ${user.empresa.telefone}</div>` : ''
+    const agora = new Date()
+
+    const breakdown = getBreakdown(c._id)
+    const totalVendasForma = totalDoBreakdown(breakdown)
+
+    const linhasFormas = FORMAS_PAGAMENTO.map(f => {
+      const v = breakdown[f.key] || 0
+      if (v === 0) return ''
+      return `<div>${f.label.padEnd(18, ' ')} ${formatCurrency(v)}</div>`
+    }).filter(Boolean).join('')
+
+    const movimentacoesHtml = c.movimentacoes && c.movimentacoes.length > 0
+      ? `
+        <div class="linha"></div>
+        <div class="bold">MOVIMENTACOES ATE AGORA (${c.movimentacoes.length}):</div>
+        ${c.movimentacoes.map(m => {
+          const sinal = m.tipo === 'sangria' ? '-' : '+'
+          const tipo = m.tipo.charAt(0).toUpperCase() + m.tipo.slice(1)
+          return `<div>${tipo}: ${sinal}${formatCurrency(m.valor)}<br>&nbsp;&nbsp;${m.descricao}</div>`
+        }).join('')}
+      `
+      : ''
+
+    const saldoParcial = c.valorAbertura + c.totalVendas + c.totalEntradas - c.totalSaidas
+    const dinheiroFisicoEstimado = breakdown.dinheiro + c.valorAbertura + c.totalEntradas - c.totalSaidas
+
+    return `
+      <div class="centro bold">${empresa}</div>
+      ${cnpj}
+      ${tel}
+      <div class="linha"></div>
+      <div class="centro bold">PRE-FECHAMENTO (X)</div>
+      <div class="centro">RELATORIO PROVISORIO</div>
+      <div class="linha"></div>
+      <div>Caixa #${c.numero}</div>
+      <div>Operador: ${c.operadorNome}</div>
+      <div>Aberto:   ${formatDateTime(c.abertoEm)}</div>
+      <div>Emitido:  ${formatDateTime(agora.toISOString())}</div>
+      <div class="linha"></div>
+      <div>Abertura:  ${formatCurrency(c.valorAbertura)}</div>
+      <div>Vendas:    +${formatCurrency(c.totalVendas)}</div>
+      <div>Reforcos:  +${formatCurrency(c.totalEntradas)}</div>
+      <div>Sangrias:  -${formatCurrency(c.totalSaidas)}</div>
+      <div class="bold">Saldo Parcial: ${formatCurrency(saldoParcial)}</div>
+      <div>Dinheiro estimado em caixa: ${formatCurrency(dinheiroFisicoEstimado)}</div>
+      ${totalVendasForma > 0 ? `
+        <div class="linha"></div>
+        <div class="bold">VENDAS POR FORMA (parcial):</div>
+        ${linhasFormas}
+        <div>${'Subtotal'.padEnd(18, ' ')} ${formatCurrency(totalVendasForma)}</div>
+      ` : ''}
+      ${movimentacoesHtml}
+      <div class="linha"></div>
+      <div class="centro bold">CAIXA PERMANECE ABERTO</div>
+      <div class="centro">Este NAO e o fechamento</div>
+      <div class="centro">definitivo (Z)</div>
+      <div class="linha"></div>
+      <div class="centro">_______________________</div>
+      <div class="centro">Visto ${c.operadorNome}</div>
+    `
+  }, [user, breakdownPorCaixa])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const imprimirRelatorioX = useCallback((c: Caixa) => {
+    const html = gerarRelatorioXHtml(c)
+    imprimirRecibo(html, undefined, user?.empresa?.logoBase64)
+  }, [gerarRelatorioXHtml, user])
+
   const handleFechar = () => {
     if (!caixaAberto) return
     // Monta a lista de formas que o operador realmente conferiu (preencheu valor)
@@ -412,8 +486,15 @@ export function CaixasPage() {
                   <button onClick={() => setShowMovModal('sangria')} className="btn-secondary">
                     <ArrowUpCircle size={16} /> Sangria
                   </button>
+                  <button
+                    onClick={() => imprimirRelatorioX(caixaAberto)}
+                    className="btn-secondary"
+                    title="Imprime um relatorio provisorio do caixa, sem fechar (util para troca de turno ou conferencia parcial)"
+                  >
+                    <Printer size={16} /> Imprimir X
+                  </button>
                   <button onClick={() => setShowFecharModal(true)} className="btn-danger ml-auto">
-                    <PackageCheck size={16} /> Fechar Caixa
+                    <PackageCheck size={16} /> Fechar Caixa (Z)
                   </button>
                 </div>
 
