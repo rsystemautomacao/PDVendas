@@ -23,6 +23,7 @@ export function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [slowConnection, setSlowConnection] = useState(false)
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
   const [disconnectMsg, setDisconnectMsg] = useState('')
 
@@ -51,6 +52,10 @@ export function Login() {
 
   const doLogin = async (force: boolean) => {
     setLoading(true)
+    setSlowConnection(false)
+    // Apos 5s sem resposta, exibe aviso de "aquecendo servidor" (cold start
+    // do Render Free apos inatividade pode levar 30-50s no primeiro acesso)
+    const slowTimer = setTimeout(() => setSlowConnection(true), 5000)
     try {
       const result = await login(email.trim(), password, force)
       if (result.ok) {
@@ -70,7 +75,9 @@ export function Login() {
     } catch {
       toast.erro('Erro inesperado. Tente novamente.')
     } finally {
+      clearTimeout(slowTimer)
       setLoading(false)
+      setSlowConnection(false)
     }
   }
 
@@ -216,7 +223,7 @@ export function Login() {
             {loading ? (
               <>
                 <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Entrando...
+                {slowConnection ? 'Aquecendo o servidor...' : 'Entrando...'}
               </>
             ) : (
               <>
@@ -224,6 +231,16 @@ export function Login() {
               </>
             )}
           </button>
+
+          {/* Aviso de cold start - aparece apos 5s sem resposta */}
+          {loading && slowConnection && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 -mt-1 animate-fade-in">
+              <p className="font-medium">Primeiro acesso do dia detectado</p>
+              <p className="text-xs mt-1 text-amber-700">
+                O servidor estava em modo de economia. Este login pode levar ate 1 minuto. Os proximos serao instantaneos.
+              </p>
+            </div>
+          )}
 
           <div className="relative flex items-center gap-4 my-1">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
