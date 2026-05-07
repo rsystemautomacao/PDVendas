@@ -15,7 +15,7 @@ import { useProdutos } from '../../contexts/ProdutoContext'
 import { useClientes } from '../../contexts/ClienteContext'
 import { useCaixa } from '../../contexts/CaixaContext'
 import { useFinanceiro } from '../../contexts/FinanceiroContext'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth, useEmpresaUsaCaixa } from '../../contexts/AuthContext'
 import { formatCurrency } from '../../utils/helpers'
 import { TutorialModal } from '../../components/app/TutorialModal'
 import { tutorialDashboard } from '../../config/tutorials'
@@ -28,6 +28,7 @@ export function DashboardPage() {
   const { produtos, produtosBaixoEstoque } = useProdutos()
   const { clientes } = useClientes()
   const { caixaAberto } = useCaixa()
+  const empresaUsaCaixa = useEmpresaUsaCaixa()
   const { getTotalContasPagarPendentes, getTotalContasReceberPendentes, getContasPagarAtrasadas } = useFinanceiro()
 
   const vendasHoje = getVendasHoje()
@@ -135,13 +136,15 @@ export function DashboardPage() {
                 Ola, {user?.nome?.split(' ')[0] || 'Usuario'}!
               </h1>
               <p className="text-sm text-violet-100/80 mt-2 max-w-md">
-                {caixaAberto
-                  ? `Caixa #${caixaAberto.numero} aberto | ${vendasHoje.length} venda(s) hoje`
-                  : 'Nenhum caixa aberto. Abra um caixa para iniciar vendas.'
+                {!empresaUsaCaixa
+                  ? `${vendasHoje.length} venda(s) hoje`
+                  : caixaAberto
+                    ? `Caixa #${caixaAberto.numero} aberto | ${vendasHoje.length} venda(s) hoje`
+                    : 'Nenhum caixa aberto. Abra um caixa para iniciar vendas.'
                 }
               </p>
             </div>
-            {!caixaAberto && (
+            {empresaUsaCaixa && !caixaAberto && (
               <Link
                 to="/app/caixas"
                 className="inline-flex items-center gap-2 rounded-2xl bg-white/15 backdrop-blur-sm border border-white/20 px-5 py-3 text-sm font-semibold text-white hover:bg-white/25 transition-all duration-200 shadow-lg self-start"
@@ -187,7 +190,7 @@ export function DashboardPage() {
               </div>
             </div>
           </Link>
-          <Link to="/app/caixas" className="group relative rounded-2xl border border-gray-100/80 bg-white p-4 md:p-5 shadow-card hover:shadow-elevated hover:-translate-y-1 transition-all duration-300">
+          {empresaUsaCaixa && <Link to="/app/caixas" className="group relative rounded-2xl border border-gray-100/80 bg-white p-4 md:p-5 shadow-card hover:shadow-elevated hover:-translate-y-1 transition-all duration-300">
             <div className="flex items-center gap-3.5">
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                 <LayoutDashboard size={20} className="text-amber-600" />
@@ -202,7 +205,7 @@ export function DashboardPage() {
                 </p>
               </div>
             </div>
-          </Link>
+          </Link>}
         </div>
 
         {/* KPI Cards */}
