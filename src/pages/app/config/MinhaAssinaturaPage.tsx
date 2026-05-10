@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Crown, Check, CreditCard, ExternalLink, Loader2, AlertTriangle, Minus, Plus, Monitor, RefreshCw, XCircle } from 'lucide-react'
+import { Crown, Check, CreditCard, ExternalLink, Loader2, AlertTriangle, Minus, Plus, Monitor, RefreshCw, XCircle, Clock } from 'lucide-react'
 import { useToast } from '../../../contexts/ToastContext'
+import { useAuth } from '../../../contexts/AuthContext'
 import { api } from '../../../services/api'
 
 const PRECO_LICENCA = 49.90
@@ -14,6 +15,7 @@ interface AssinaturaStatus {
 
 export function MinhaAssinaturaPage() {
   const { sucesso, erro, info } = useToast()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [updateLoading, setUpdateLoading] = useState(false)
@@ -110,8 +112,13 @@ export function MinhaAssinaturaPage() {
   }
 
   const total = (quantidade * PRECO_LICENCA).toFixed(2).replace('.', ',')
-  const isAssinante = status?.temAssinatura && status.statusAssinatura === 'ativa'
+  const isAssinante = status?.temAssinatura && (status.statusAssinatura === 'ativa' || status.statusAssinatura === 'expirando')
+  const isTeste = status?.statusAssinatura === 'teste' || (!status?.temAssinatura && user?.statusAssinatura === 'teste')
   const quantidadeMudou = status ? quantidade !== status.maxLicencas : false
+
+  const diasRestantesTeste = user?.dataVencimento
+    ? Math.max(0, Math.ceil((new Date(user.dataVencimento).getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+    : 0
 
   if (statusLoading) {
     return (
@@ -142,7 +149,34 @@ export function MinhaAssinaturaPage() {
           </div>
         )}
 
-        {/* Status atual (se assinante) */}
+        {/* Card de status: Teste gratuito */}
+        {isTeste && !isAssinante && (
+          <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-800">Periodo de Teste Gratuito</p>
+                  <p className="mt-0.5 text-xs text-blue-600">
+                    {diasRestantesTeste > 0
+                      ? `${diasRestantesTeste} dia(s) restante(s) — Assine para continuar usando apos o teste`
+                      : 'Teste encerrado — Assine para continuar usando o sistema'}
+                  </p>
+                </div>
+              </div>
+              {user?.dataVencimento && (
+                <div className="text-right">
+                  <p className="text-xs text-blue-600">Expira em</p>
+                  <p className="text-sm font-semibold text-blue-800">
+                    {new Date(user.dataVencimento).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Card de status: Assinatura ativa */}
         {isAssinante && status && (
           <div className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4">
             <div className="flex items-center justify-between">
@@ -150,6 +184,9 @@ export function MinhaAssinaturaPage() {
                 <p className="text-sm font-semibold text-green-800">Assinatura Ativa</p>
                 <p className="mt-0.5 text-xs text-green-600">
                   {status.maxLicencas} licenca(s) — R$ {(status.maxLicencas * PRECO_LICENCA).toFixed(2).replace('.', ',')}/mes
+                </p>
+                <p className="mt-0.5 text-xs text-green-600">
+                  Renovacao automatica no cartao cadastrado
                 </p>
               </div>
               {status.dataVencimento && (
@@ -217,7 +254,6 @@ export function MinhaAssinaturaPage() {
               </div>
             </div>
 
-            {/* Info de proration para assinantes */}
             {isAssinante && quantidadeMudou && status && (
               <div className="mt-3 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700">
                 {quantidade > status.maxLicencas
@@ -249,7 +285,6 @@ export function MinhaAssinaturaPage() {
           <div className="mt-6 space-y-3">
             {isAssinante ? (
               <>
-                {/* Botao de alterar licencas */}
                 <button
                   type="button"
                   onClick={handleUpdateLicenses}
@@ -268,7 +303,6 @@ export function MinhaAssinaturaPage() {
                     : 'Selecione uma quantidade diferente'}
                 </button>
 
-                {/* Gerenciar no Stripe (cartao, faturas) */}
                 <button
                   type="button"
                   onClick={handleGerenciar}
@@ -279,7 +313,6 @@ export function MinhaAssinaturaPage() {
                   Gerenciar Cartao e Faturas
                 </button>
 
-                {/* Cancelar */}
                 <button
                   type="button"
                   onClick={handleCancelar}
@@ -291,17 +324,15 @@ export function MinhaAssinaturaPage() {
                 </button>
               </>
             ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={handleAssinar}
-                  disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
-                >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                  {loading ? 'Redirecionando...' : `Assinar ${quantidade} licenca(s) — R$ ${total}/mes`}
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={handleAssinar}
+                disabled={loading}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                {loading ? 'Redirecionando...' : `Assinar ${quantidade} licenca(s) — R$ ${total}/mes`}
+              </button>
             )}
           </div>
         </div>
