@@ -4,6 +4,8 @@ import { User } from '../models/User';
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 
+const frontendUrl = env.CORS_ORIGIN.split(',')[0].trim();
+
 export const stripeService = {
   async createCheckoutSession(userId: string, userEmail: string, quantity: number) {
     const user = await User.findById(userId);
@@ -32,8 +34,8 @@ export const stripeService = {
           quantity,
         },
       ],
-      success_url: `${env.CORS_ORIGIN}/app/config/assinatura?status=sucesso`,
-      cancel_url: `${env.CORS_ORIGIN}/app/config/assinatura?status=cancelado`,
+      success_url: `${frontendUrl}/app/config/assinatura?status=sucesso`,
+      cancel_url: `${frontendUrl}/app/config/assinatura?status=cancelado`,
       metadata: { userId, quantity: String(quantity) },
     });
 
@@ -48,7 +50,7 @@ export const stripeService = {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: (user as any).stripeCustomerId,
-      return_url: `${env.CORS_ORIGIN}/app/config/assinatura`,
+      return_url: `${frontendUrl}/app/config/assinatura`,
     });
 
     return session.url;
