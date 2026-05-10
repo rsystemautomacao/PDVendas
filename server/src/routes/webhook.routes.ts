@@ -6,7 +6,7 @@ import { stripeService } from '../services/stripe.service';
 const router = Router();
 const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 
-router.post('/stripe', async (req: Request, res: Response) => {
+async function stripeWebhookHandler(req: Request, res: Response) {
   const sig = req.headers['stripe-signature'] as string;
 
   if (!sig) {
@@ -29,6 +29,9 @@ router.post('/stripe', async (req: Request, res: Response) => {
   }
 
   res.json({ received: true });
-});
+}
+
+router.post('/stripe', stripeWebhookHandler);
+router.post('/stripe/', stripeWebhookHandler);
 
 export default router;

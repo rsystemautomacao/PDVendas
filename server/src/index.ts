@@ -11,6 +11,9 @@ import { checkSubscriptions } from './jobs/subscriptionCheck';
 
 const app = express();
 
+// Desabilitar redirect automático de trailing slash
+app.set('strict routing', true);
+
 // Security & parsing
 app.use(helmet());
 app.use(corsConfig);
