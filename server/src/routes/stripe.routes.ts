@@ -6,7 +6,8 @@ const router = Router();
 
 router.post('/create-checkout', authenticate, authorize('admin'), async (req: Request, res: Response) => {
   try {
-    const url = await stripeService.createCheckoutSession(req.user!._id, req.user!.email);
+    const quantity = parseInt(req.body.quantity, 10) || 1;
+    const url = await stripeService.createCheckoutSession(req.user!._id, req.user!.email, quantity);
     res.json({ success: true, data: { url } });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
