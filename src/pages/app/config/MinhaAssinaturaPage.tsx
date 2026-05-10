@@ -1,38 +1,57 @@
 import { useState, useEffect } from 'react'
-import { Crown, Check, CreditCard, ExternalLink, Loader2, AlertTriangle, Minus, Plus, Monitor } from 'lucide-react'
+import { Crown, Check, CreditCard, ExternalLink, Loader2, AlertTriangle, Minus, Plus, Monitor, RefreshCw, XCircle } from 'lucide-react'
 import { useToast } from '../../../contexts/ToastContext'
 import { api } from '../../../services/api'
 
 const PRECO_LICENCA = 49.90
 
+interface AssinaturaStatus {
+  maxLicencas: number
+  statusAssinatura: string
+  dataVencimento: string | null
+  temAssinatura: boolean
+}
+
 export function MinhaAssinaturaPage() {
   const { sucesso, erro, info } = useToast()
   const [loading, setLoading] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
+  const [updateLoading, setUpdateLoading] = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
   const [statusParam, setStatusParam] = useState<string | null>(null)
   const [quantidade, setQuantidade] = useState(1)
+  const [status, setStatus] = useState<AssinaturaStatus | null>(null)
+  const [statusLoading, setStatusLoading] = useState(true)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const status = params.get('status')
-    if (status) {
-      setStatusParam(status)
-      if (status === 'sucesso') {
-        sucesso('Pagamento realizado com sucesso! Sua assinatura está ativa.')
-      } else if (status === 'cancelado') {
-        info('Pagamento cancelado. Você pode tentar novamente quando quiser.')
-      }
+    const s = params.get('status')
+    if (s) {
+      setStatusParam(s)
+      if (s === 'sucesso') sucesso('Pagamento realizado com sucesso! Sua assinatura esta ativa.')
+      else if (s === 'cancelado') info('Pagamento cancelado. Voce pode tentar novamente quando quiser.')
       window.history.replaceState({}, '', window.location.pathname)
     }
+    loadStatus()
   }, [])
+
+  const loadStatus = async () => {
+    try {
+      const res = await api.get('/stripe/status')
+      if (res.success && res.data) {
+        setStatus(res.data)
+        setQuantidade(res.data.maxLicencas || 1)
+      }
+    } catch {} finally {
+      setStatusLoading(false)
+    }
+  }
 
   const handleAssinar = async () => {
     setLoading(true)
     try {
       const res = await api.post('/stripe/create-checkout', { quantity: quantidade })
-      if (res.data?.url) {
-        window.location.href = res.data.url
-      }
+      if (res.data?.url) window.location.href = res.data.url
     } catch (err: any) {
       erro(err.message || 'Erro ao iniciar pagamento')
     } finally {
@@ -40,13 +59,49 @@ export function MinhaAssinaturaPage() {
     }
   }
 
+  const handleUpdateLicenses = async () => {
+    if (!status || quantidade === status.maxLicencas) return
+    const isUpgrade = quantidade > status.maxLicencas
+    const msg = isUpgrade
+      ? `Aumentar para ${quantidade} licenca(s)? Sera cobrado o valor proporcional imediatamente.`
+      : `Diminuir para ${quantidade} licenca(s)? O novo valor sera aplicado no proximo ciclo de cobranca.`
+    if (!confirm(msg)) return
+
+    setUpdateLoading(true)
+    try {
+      const res = await api.patch('/stripe/update-licenses', { quantity: quantidade })
+      if (res.success && res.data) {
+        sucesso(res.data.message)
+        await loadStatus()
+      }
+    } catch (err: any) {
+      erro(err.message || 'Erro ao alterar licencas')
+    } finally {
+      setUpdateLoading(false)
+    }
+  }
+
+  const handleCancelar = async () => {
+    if (!confirm('Tem certeza que deseja cancelar? Sua assinatura continuara ativa ate o fim do periodo atual.')) return
+    setCancelLoading(true)
+    try {
+      const res = await api.post('/stripe/cancel')
+      if (res.success) {
+        info(res.data?.message || 'Assinatura sera cancelada ao fim do periodo.')
+        await loadStatus()
+      }
+    } catch (err: any) {
+      erro(err.message || 'Erro ao cancelar')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
   const handleGerenciar = async () => {
     setPortalLoading(true)
     try {
       const res = await api.post('/stripe/portal')
-      if (res.data?.url) {
-        window.location.href = res.data.url
-      }
+      if (res.data?.url) window.location.href = res.data.url
     } catch (err: any) {
       erro(err.message || 'Erro ao abrir portal')
     } finally {
@@ -55,6 +110,16 @@ export function MinhaAssinaturaPage() {
   }
 
   const total = (quantidade * PRECO_LICENCA).toFixed(2).replace('.', ',')
+  const isAssinante = status?.temAssinatura && status.statusAssinatura === 'ativa'
+  const quantidadeMudou = status ? quantidade !== status.maxLicencas : false
+
+  if (statusLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="p-4 md:p-6">
@@ -70,7 +135,6 @@ export function MinhaAssinaturaPage() {
           </div>
         </div>
 
-        {/* Feedback de retorno do Stripe */}
         {statusParam === 'sucesso' && (
           <div className="mt-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
             <Check className="h-5 w-5" />
@@ -78,12 +142,36 @@ export function MinhaAssinaturaPage() {
           </div>
         )}
 
+        {/* Status atual (se assinante) */}
+        {isAssinante && status && (
+          <div className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-green-800">Assinatura Ativa</p>
+                <p className="mt-0.5 text-xs text-green-600">
+                  {status.maxLicencas} licenca(s) — R$ {(status.maxLicencas * PRECO_LICENCA).toFixed(2).replace('.', ',')}/mes
+                </p>
+              </div>
+              {status.dataVencimento && (
+                <div className="text-right">
+                  <p className="text-xs text-green-600">Proxima cobranca</p>
+                  <p className="text-sm font-semibold text-green-800">
+                    {new Date(status.dataVencimento).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Card do Plano */}
         <div className="mt-6 rounded-xl border border-primary/30 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-text-primary">PDVendas Mensalidade</h2>
-              <p className="mt-1 text-sm text-text-secondary">R$ 49,90 por licença/mês</p>
+              <h2 className="text-lg font-bold text-text-primary">
+                {isAssinante ? 'Alterar Licencas' : 'PDVendas Mensalidade'}
+              </h2>
+              <p className="mt-1 text-sm text-text-secondary">R$ 49,90 por licenca/mes</p>
             </div>
             <div className="flex items-center gap-1 text-primary">
               <Monitor className="h-5 w-5" />
@@ -95,8 +183,10 @@ export function MinhaAssinaturaPage() {
 
           {/* Seletor de Quantidade */}
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <label className="text-sm font-medium text-text-primary">Quantas licenças você precisa?</label>
-            <p className="mt-0.5 text-xs text-text-secondary">Cada licença permite usar 1 PDV simultâneo</p>
+            <label className="text-sm font-medium text-text-primary">
+              {isAssinante ? 'Ajuste a quantidade de licencas' : 'Quantas licencas voce precisa?'}
+            </label>
+            <p className="mt-0.5 text-xs text-text-secondary">Cada licenca permite usar 1 PDV simultaneo</p>
 
             <div className="mt-3 flex items-center gap-4">
               <div className="flex items-center rounded-lg border border-gray-300 bg-white">
@@ -123,9 +213,18 @@ export function MinhaAssinaturaPage() {
 
               <div className="flex-1 text-right">
                 <p className="text-2xl font-bold text-primary">R$ {total}</p>
-                <p className="text-xs text-text-secondary">/mês</p>
+                <p className="text-xs text-text-secondary">/mes</p>
               </div>
             </div>
+
+            {/* Info de proration para assinantes */}
+            {isAssinante && quantidadeMudou && status && (
+              <div className="mt-3 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700">
+                {quantidade > status.maxLicencas
+                  ? 'O valor proporcional das novas licencas sera cobrado imediatamente no cartao.'
+                  : 'A reducao de licencas tera efeito no proximo ciclo de cobranca. Sem creditos de retorno.'}
+              </div>
+            )}
           </div>
 
           <hr className="my-4 border-gray-100" />
@@ -134,10 +233,10 @@ export function MinhaAssinaturaPage() {
             {[
               'Produtos ilimitados',
               'Vendas ilimitadas',
-              'Relatórios completos',
-              'Suporte prioritário',
+              'Relatorios completos',
+              'Suporte prioritario',
               'Todas as funcionalidades',
-              `${quantidade} PDV(s) simultâneo(s)`,
+              `${quantidade} PDV(s) simultaneo(s)`,
             ].map(r => (
               <li key={r} className="flex items-center gap-2 text-sm text-text-secondary">
                 <Check className="h-4 w-4 flex-shrink-0 text-green-600" />
@@ -146,35 +245,65 @@ export function MinhaAssinaturaPage() {
             ))}
           </ul>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={handleAssinar}
-              disabled={loading}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CreditCard className="h-4 w-4" />
-              )}
-              {loading ? 'Redirecionando...' : `Assinar ${quantidade} licença(s) — R$ ${total}/mês`}
-            </button>
-          </div>
+          {/* Botoes */}
+          <div className="mt-6 space-y-3">
+            {isAssinante ? (
+              <>
+                {/* Botao de alterar licencas */}
+                <button
+                  type="button"
+                  onClick={handleUpdateLicenses}
+                  disabled={!quantidadeMudou || updateLoading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {updateLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  {updateLoading
+                    ? 'Atualizando...'
+                    : quantidadeMudou
+                    ? `Alterar para ${quantidade} licenca(s) — R$ ${total}/mes`
+                    : 'Selecione uma quantidade diferente'}
+                </button>
 
-          <button
-            type="button"
-            onClick={handleGerenciar}
-            disabled={portalLoading}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 disabled:opacity-50"
-          >
-            {portalLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+                {/* Gerenciar no Stripe (cartao, faturas) */}
+                <button
+                  type="button"
+                  onClick={handleGerenciar}
+                  disabled={portalLoading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-text-primary transition-colors hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                  Gerenciar Cartao e Faturas
+                </button>
+
+                {/* Cancelar */}
+                <button
+                  type="button"
+                  onClick={handleCancelar}
+                  disabled={cancelLoading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-3 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
+                >
+                  {cancelLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                  Cancelar Assinatura
+                </button>
+              </>
             ) : (
-              <ExternalLink className="h-4 w-4" />
+              <>
+                <button
+                  type="button"
+                  onClick={handleAssinar}
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                  {loading ? 'Redirecionando...' : `Assinar ${quantidade} licenca(s) — R$ ${total}/mes`}
+                </button>
+              </>
             )}
-            Gerenciar Assinatura
-          </button>
+          </div>
         </div>
 
         {/* Info */}
@@ -182,12 +311,12 @@ export function MinhaAssinaturaPage() {
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
           <div className="text-xs text-amber-800">
             <p className="font-medium">Pagamento seguro via Stripe</p>
-            <p className="mt-1">A cobrança é recorrente e será renovada automaticamente todo mês. Você pode alterar a quantidade de licenças ou cancelar a qualquer momento pelo botão "Gerenciar Assinatura".</p>
+            <p className="mt-1">A cobranca e recorrente e sera renovada automaticamente todo mes no cartao cadastrado. Voce pode alterar licencas ou cancelar a qualquer momento.</p>
           </div>
         </div>
 
         <div className="mt-4 flex items-center justify-center gap-4 text-xs text-text-muted">
-          <span className="flex items-center gap-1"><Check className="h-3 w-3 text-green-600" /> Pagamento seguro</span>
+          <span className="flex items-center gap-1"><Check className="h-3 w-3 text-green-600" /> Renovacao automatica</span>
           <span className="flex items-center gap-1"><Check className="h-3 w-3 text-green-600" /> Cancele quando quiser</span>
           <span className="flex items-center gap-1"><Check className="h-3 w-3 text-green-600" /> Suporte incluso</span>
         </div>

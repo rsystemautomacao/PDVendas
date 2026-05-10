@@ -67,6 +67,52 @@ export const stripeService = {
     return { message: 'Assinatura será cancelada ao fim do período atual' };
   },
 
+  async updateLicenses(userId: string, newQuantity: number) {
+    if (newQuantity < 1 || newQuantity > 50) throw new Error('Quantidade de licenças inválida (1 a 50)');
+
+    const user = await User.findById(userId);
+    if (!user || !(user as any).stripeSubscriptionId) {
+      throw new Error('Assinatura ativa não encontrada');
+    }
+
+    const subscriptionId = (user as any).stripeSubscriptionId as string;
+    const currentQuantity = (user as any).maxLicencas || 1;
+
+    if (newQuantity === currentQuantity) {
+      throw new Error('A quantidade já é a mesma');
+    }
+
+    const sub = await stripe.subscriptions.retrieve(subscriptionId);
+    const itemId = sub.items?.data?.[0]?.id;
+    if (!itemId) throw new Error('Item da assinatura não encontrado');
+
+    const isUpgrade = newQuantity > currentQuantity;
+
+    if (isUpgrade) {
+      // Upgrade: cobra proporcional imediatamente
+      await stripe.subscriptions.update(subscriptionId, {
+        items: [{ id: itemId, quantity: newQuantity }],
+        proration_behavior: 'always_invoice',
+      });
+    } else {
+      // Downgrade: sem crédito, novo valor só no próximo ciclo
+      await stripe.subscriptions.update(subscriptionId, {
+        items: [{ id: itemId, quantity: newQuantity }],
+        proration_behavior: 'none',
+      });
+    }
+
+    await User.findByIdAndUpdate(userId, { maxLicencas: newQuantity });
+
+    const novoTotal = (newQuantity * 49.90).toFixed(2);
+    return {
+      maxLicencas: newQuantity,
+      message: isUpgrade
+        ? `Upgrade realizado! ${newQuantity} licença(s). Cobrança proporcional gerada.`
+        : `Downgrade realizado! ${newQuantity} licença(s). Novo valor de R$ ${novoTotal} a partir do próximo ciclo.`,
+    };
+  },
+
   async handleWebhookEvent(event: { type: string; data: { object: any } }) {
     switch (event.type) {
       case 'checkout.session.completed': {
