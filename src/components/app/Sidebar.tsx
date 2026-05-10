@@ -4,7 +4,7 @@ import {
   Home, HelpCircle, Store, Settings, LayoutDashboard,
   ShoppingCart, Users, Box, DollarSign, BarChart3,
   TrendingUp, LogOut, ChevronRight, Building2,
-  ShieldCheck, Receipt, X, Wrench, FileText, Sparkles, RefreshCw, AlertTriangle, Tag,
+  ShieldCheck, Receipt, X, Wrench, FileText, Sparkles, RefreshCw, AlertTriangle, Tag, CreditCard,
 } from 'lucide-react'
 import { useAuth, useEmpresaUsaCaixa } from '../../contexts/AuthContext'
 import { usePermissao } from '../../hooks/usePermissao'
@@ -216,6 +216,7 @@ export function Sidebar({ onClose }: SidebarProps) {
                     <li><Link to="/app/config/permissoes" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/permissoes') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Permissoes</Link></li>
                     <li><Link to="/app/config/impressoras" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/impressoras') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Impressoras</Link></li>
                     <li><Link to="/app/config/lojas" className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/lojas') ? 'text-primary bg-primary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`} onClick={onClose}>Lojas</Link></li>
+                    <li><Link to="/app/config/assinatura" className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${isActive('/app/config/assinatura') ? 'text-primary bg-primary/5' : 'text-primary/70 hover:text-primary hover:bg-primary/5'}`} onClick={onClose}><CreditCard className="h-3 w-3" />Minha Assinatura</Link></li>
                   </ul>
                 )}
               </li>

@@ -74,23 +74,26 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     }
 
     // Verificar assinatura bloqueada (somente para role=admin, pois sub-users herdam do admin)
-    // Rotas isentas: /auth/* (login, logout, /me para buscar status) e /admin/*
-    const isExemptRoute = req.path.startsWith('/auth') || req.path.startsWith('/admin');
+    // Rotas isentas: /auth/*, /admin/*, /stripe/* (para poder assinar mesmo bloqueado)
+    const isExemptRoute = req.path.startsWith('/auth') || req.path.startsWith('/admin') || req.path.startsWith('/stripe');
     if (!isExemptRoute && req.user.role === 'admin') {
-      const GRACE_DAYS = 3; // dias de carência após vencimento
-      const tenant = await User.findById(req.user._id).select('dataVencimento role').lean();
+      const tenant = await User.findById(req.user._id).select('dataVencimento statusAssinatura role').lean();
       if (tenant && (tenant as any).dataVencimento) {
         const vencimento = new Date((tenant as any).dataVencimento);
         const now = new Date();
         if (vencimento < now) {
           const diasVencidos = Math.floor((now.getTime() - vencimento.getTime()) / (24 * 60 * 60 * 1000));
-          if (diasVencidos > GRACE_DAYS) {
+          const isTeste = (tenant as any).statusAssinatura === 'teste';
+          // Teste gratuito: bloqueia imediatamente. Assinatura paga: 3 dias de carência.
+          const graceDays = isTeste ? 0 : 3;
+          if (diasVencidos > graceDays) {
             return res.status(402).json({
               success: false,
               error: 'Assinatura bloqueada',
               code: 'SUBSCRIPTION_BLOCKED',
               diasVencidos,
               dataVencimento: vencimento.toISOString(),
+              statusAssinatura: (tenant as any).statusAssinatura,
             });
           }
         }
@@ -99,20 +102,22 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
     // Para sub-users (caixa/gerente), verifica o admin da empresa
     if (!isExemptRoute && req.user.role !== 'admin' && req.user.empresaId) {
-      const GRACE_DAYS = 3;
-      const adminTenant = await User.findById(req.user.empresaId).select('dataVencimento').lean();
+      const adminTenant = await User.findById(req.user.empresaId).select('dataVencimento statusAssinatura').lean();
       if (adminTenant && (adminTenant as any).dataVencimento) {
         const vencimento = new Date((adminTenant as any).dataVencimento);
         const now = new Date();
         if (vencimento < now) {
           const diasVencidos = Math.floor((now.getTime() - vencimento.getTime()) / (24 * 60 * 60 * 1000));
-          if (diasVencidos > GRACE_DAYS) {
+          const isTeste = (adminTenant as any).statusAssinatura === 'teste';
+          const graceDays = isTeste ? 0 : 3;
+          if (diasVencidos > graceDays) {
             return res.status(402).json({
               success: false,
               error: 'Assinatura bloqueada',
               code: 'SUBSCRIPTION_BLOCKED',
               diasVencidos,
               dataVencimento: vencimento.toISOString(),
+              statusAssinatura: (adminTenant as any).statusAssinatura,
             });
           }
         }
