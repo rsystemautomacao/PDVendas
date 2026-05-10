@@ -6,6 +6,7 @@ import { connectDB } from './config/db';
 import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
 import routes from './routes';
+import webhookRoutes from './routes/webhook.routes';
 import { checkSubscriptions } from './jobs/subscriptionCheck';
 
 const app = express();
@@ -14,6 +15,10 @@ const app = express();
 app.use(helmet());
 app.use(corsConfig);
 app.use(morgan(env.NODE_ENV === 'production' ? 'short' : 'dev'));
+
+// Webhook do Stripe precisa do body raw (antes do express.json)
+app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
+
 app.use(express.json({ limit: '10mb' }));
 
 // Health check

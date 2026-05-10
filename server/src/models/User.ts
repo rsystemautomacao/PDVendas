@@ -52,6 +52,9 @@ const userSchema = new Schema(
     dataVencimento: { type: Date, default: null },
     statusAssinatura: { type: String, enum: ['ativa', 'expirando', 'vencida', 'teste'], default: 'teste' },
     notificacaoVencimentoEnviada: { type: Boolean, default: false },
+    // Stripe
+    stripeCustomerId: { type: String, default: null },
+    stripeSubscriptionId: { type: String, default: null },
   },
   {
     timestamps: { createdAt: 'criadoEm', updatedAt: false },

@@ -13,6 +13,10 @@ export const env = {
   SUPERADMIN_EMAIL: process.env.SUPERADMIN_EMAIL || '',
   // Sessões sem atividade por mais que este tempo são consideradas abandonadas e liberadas automaticamente
   SESSION_INACTIVITY_HOURS: parseInt(process.env.SESSION_INACTIVITY_HOURS || '4', 10),
+  // Stripe
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
+  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || '',
+  STRIPE_PRICE_ID: process.env.STRIPE_PRICE_ID || '',
 };
 
 // Validate required env vars

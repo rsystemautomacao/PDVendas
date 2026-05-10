@@ -14,6 +14,7 @@ import userRoutes from './user.routes';
 import adminRoutes from './admin.routes';
 import trocaRoutes from './troca.routes';
 import lojaRoutes from './loja.routes';
+import stripeRoutes from './stripe.routes';
 import { Produto } from '../models/Produto';
 import { User } from '../models/User';
 
@@ -52,5 +53,6 @@ router.use('/usuarios', userRoutes);
 router.use('/admin', adminRoutes);
 router.use('/trocas', trocaRoutes);
 router.use('/lojas', lojaRoutes);
+router.use('/stripe', stripeRoutes);
 
 export default router;
