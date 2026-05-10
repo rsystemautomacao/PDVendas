@@ -53,7 +53,7 @@ export function MinhaAssinaturaPage() {
     setLoading(true)
     try {
       const res = await api.post('/stripe/create-checkout', { quantity: quantidade })
-      if (res.data?.url) window.location.href = res.data.url
+      if (res.data?.url) window.open(res.data.url, '_blank')
     } catch (err: any) {
       erro(err.message || 'Erro ao iniciar pagamento')
     } finally {
@@ -103,7 +103,7 @@ export function MinhaAssinaturaPage() {
     setPortalLoading(true)
     try {
       const res = await api.post('/stripe/portal')
-      if (res.data?.url) window.location.href = res.data.url
+      if (res.data?.url) window.open(res.data.url, '_blank')
     } catch (err: any) {
       erro(err.message || 'Erro ao abrir portal')
     } finally {
