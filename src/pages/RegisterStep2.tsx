@@ -25,6 +25,7 @@ export function RegisterStep2() {
       align="left"
       promoTitle={PROMO_TITLE}
       promoText={PROMO_TEXT}
+      videoSrc="/video_register.mp4"
     >
       <div className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-4">

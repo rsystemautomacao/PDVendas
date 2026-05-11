@@ -7,6 +7,7 @@ interface AuthSplitLayoutProps {
   promoTitle: string
   promoText: string
   align?: PromoAlign
+  videoSrc?: string
   children: ReactNode
 }
 
@@ -26,6 +27,7 @@ export function AuthSplitLayout({
   promoTitle,
   promoText,
   align = 'right',
+  videoSrc = '/video_login.mp4',
   children,
 }: AuthSplitLayoutProps) {
   const promoPanel = (
@@ -39,7 +41,7 @@ export function AuthSplitLayout({
         className="absolute inset-0 h-full w-full object-cover"
         poster=""
       >
-        <source src="/video_login.mp4" type="video/mp4" />
+        <source src={videoSrc} type="video/mp4" />
       </video>
 
       {/* Dark overlay */}
