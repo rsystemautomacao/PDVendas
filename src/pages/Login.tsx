@@ -110,9 +110,9 @@ export function Login() {
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-6 animate-fade-in">
         {/* Logo */}
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-gradient-to-br from-primary via-indigo-600 to-violet-700 text-white shadow-2xl shadow-primary/30">
-            <svg viewBox="0 0 64 64" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex h-28 w-28 items-center justify-center rounded-[28px] bg-gradient-to-br from-primary via-indigo-600 to-violet-700 text-white shadow-2xl shadow-primary/30">
+            <svg viewBox="0 0 64 64" className="h-16 w-16" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               {/* Monitor */}
               <rect x="8" y="12" width="20" height="14" rx="2" />
               <line x1="14" y1="26" x2="14" y2="30" />
@@ -143,11 +143,11 @@ export function Login() {
               <line x1="54" y1="46" x2="54" y2="50" />
             </svg>
           </div>
-          <h1 className="text-5xl font-black tracking-tight text-center">
+          <h1 className="text-7xl font-black tracking-tight text-center">
             <span className="text-primary">MEU</span>
             <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent"> PDV</span>
           </h1>
-          <p className="text-[10px] font-bold tracking-[0.25em] text-gray-400 uppercase">
+          <p className="text-xs font-bold tracking-[0.25em] text-gray-400 uppercase">
             Sistema de Gestao Comercial
           </p>
         </div>
