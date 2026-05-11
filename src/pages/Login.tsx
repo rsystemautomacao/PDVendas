@@ -98,11 +98,36 @@ export function Login() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-6 animate-fade-in">
         {/* Logo */}
         <div className="flex flex-col items-center gap-2">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-700 text-white shadow-xl shadow-primary/25">
-            <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <path d="M16 10a4 4 0 01-8 0" />
+          <div className="flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-gradient-to-br from-primary via-indigo-600 to-violet-700 text-white shadow-2xl shadow-primary/30">
+            <svg viewBox="0 0 64 64" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              {/* Monitor */}
+              <rect x="8" y="12" width="20" height="14" rx="2" />
+              <line x1="14" y1="26" x2="14" y2="30" />
+              <line x1="22" y1="26" x2="22" y2="30" />
+              {/* Caixa registradora body */}
+              <rect x="6" y="30" width="52" height="16" rx="3" />
+              {/* Gaveta */}
+              <line x1="14" y1="38" x2="34" y2="38" />
+              <circle cx="48" cy="38" r="2.5" />
+              {/* Teclado */}
+              <rect x="36" y="20" width="18" height="10" rx="2" />
+              <line x1="40" y1="23" x2="40" y2="23.01" strokeWidth="2.5" />
+              <line x1="46" y1="23" x2="46" y2="23.01" strokeWidth="2.5" />
+              <line x1="50" y1="23" x2="50" y2="23.01" strokeWidth="2.5" />
+              <line x1="40" y1="27" x2="40" y2="27.01" strokeWidth="2.5" />
+              <line x1="46" y1="27" x2="46" y2="27.01" strokeWidth="2.5" />
+              <line x1="50" y1="27" x2="50" y2="27.01" strokeWidth="2.5" />
+              {/* Recibo */}
+              <path d="M30 20V8c0-1 .5-2 1.5-2h14c1 0 1.5 1 1.5 2v12" />
+              <line x1="34" y1="10" x2="44" y2="10" />
+              <line x1="34" y1="13.5" x2="42" y2="13.5" />
+              <line x1="34" y1="17" x2="40" y2="17" />
+              {/* Borda ondulada do recibo */}
+              <path d="M30 8c.5-.5 1 .5 1.5 0s1 .5 1.5 0 1 .5 1.5 0 1 .5 1.5 0 1 .5 1.5 0 1 .5 1.5 0 1 .5 1.5 0 1 .5 1.5 0 1 .5 1.5 0" />
+              {/* Base */}
+              <line x1="6" y1="50" x2="58" y2="50" strokeWidth="2" />
+              <line x1="10" y1="46" x2="10" y2="50" />
+              <line x1="54" y1="46" x2="54" y2="50" />
             </svg>
           </div>
           <h1 className="text-5xl font-black tracking-tight text-center">
