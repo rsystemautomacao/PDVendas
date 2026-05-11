@@ -79,7 +79,7 @@ export function ForgotPassword() {
     <AuthSplitLayout align="right" promoTitle={PROMO_TITLE} promoText={PROMO_TEXT}>
       <div className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-4">
-          <LogoMeuPDV />
+          <LogoMeuPDV size="xl" />
           <div className="text-center">
             <h1 className="text-2xl font-bold text-text-primary">
               {step === 1 ? 'Esqueci a senha' : 'Redefinir senha'}

@@ -1,7 +1,7 @@
 interface LogoMeuPDVProps {
   showSubtitle?: boolean
   className?: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
 function CashRegisterIcon({ className }: { className?: string }) {
@@ -37,6 +37,7 @@ export function LogoMeuPDV({ showSubtitle = true, className = '', size = 'md' }:
     sm: { box: 'h-12 w-12 rounded-xl', icon: 'h-7 w-7', text: 'text-2xl', sub: 'text-[9px]' },
     md: { box: 'h-16 w-16 rounded-[18px]', icon: 'h-9 w-9', text: 'text-4xl', sub: 'text-[10px]' },
     lg: { box: 'h-[72px] w-[72px] rounded-[20px]', icon: 'h-10 w-10', text: 'text-5xl', sub: 'text-[10px]' },
+    xl: { box: 'h-28 w-28 rounded-[28px]', icon: 'h-16 w-16', text: 'text-7xl', sub: 'text-xs' },
   }
   const s = sizes[size]
 

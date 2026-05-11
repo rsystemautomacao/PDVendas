@@ -29,7 +29,7 @@ export function RegisterStep2() {
     >
       <div className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-4">
-          <LogoMeuPDV />
+          <LogoMeuPDV size="xl" />
           <Stepper steps={4} activeStep={2} completedSteps={1} />
           <h1 className="text-2xl font-bold text-text-primary">Confirme seu e-mail</h1>
         </div>

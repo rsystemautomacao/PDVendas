@@ -71,7 +71,7 @@ export function RegisterStep3() {
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-4">
-          <LogoMeuPDV />
+          <LogoMeuPDV size="xl" />
           <Stepper steps={3} activeStep={2} completedSteps={1} />
           <h1 className="text-2xl font-bold text-text-primary">Crie sua senha</h1>
         </div>

@@ -49,7 +49,7 @@ export function RegisterStep1() {
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-4">
-          <LogoMeuPDV />
+          <LogoMeuPDV size="xl" />
           <Stepper steps={3} activeStep={1} completedSteps={0} />
           <h1 className="text-2xl font-bold text-text-primary">Crie sua conta</h1>
         </div>
