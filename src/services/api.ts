@@ -34,7 +34,8 @@ async function request<T = any>(path: string, options?: RequestInit): Promise<Ap
   }
 
   // Token expirado ou invalido - redirect uma única vez
-  if (res.status === 401) {
+  // Nao redirecionar se for rota de login (401 = senha errada, nao token expirado)
+  if (res.status === 401 && !path.includes('/auth/login')) {
     if (!isRedirecting) {
       isRedirecting = true;
       const body = await res.json().catch(() => ({}));

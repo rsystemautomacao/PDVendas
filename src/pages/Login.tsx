@@ -33,6 +33,7 @@ export function Login() {
   // License confirmation modal
   const [showLicenseModal, setShowLicenseModal] = useState(false)
   const [licenseInfo, setLicenseInfo] = useState<{ activeSessions: number; maxLicencas: number; message: string } | null>(null)
+  const [showNotFoundModal, setShowNotFoundModal] = useState(false)
 
   useEffect(() => {
     const reason = sessionStorage.getItem('meupdv_disconnect_reason')
@@ -68,6 +69,8 @@ export function Login() {
           message: result.message || '',
         })
         setShowLicenseModal(true)
+      } else if (result.error?.includes('Nenhuma conta encontrada')) {
+        setShowNotFoundModal(true)
       } else {
         setErrors({ email: result.error })
         toast.erro(result.error || 'Erro ao fazer login')
@@ -269,6 +272,35 @@ export function Login() {
           </a>
         </footer>
       </form>
+
+      {/* Account not found modal */}
+      {showNotFoundModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full mx-4 text-center animate-scale-in">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-indigo-500/30">
+              <User size={30} className="text-white" />
+            </div>
+            <h2 className="text-xl font-extrabold text-gray-800 mb-2">Conta não encontrada</h2>
+            <p className="text-gray-500 mb-6 leading-relaxed">
+              Não existe nenhuma conta cadastrada com o e-mail <span className="font-bold text-gray-800">{email.trim()}</span>. Deseja criar uma nova conta?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowNotFoundModal(false)}
+                className="flex-1 px-4 py-3.5 border-2 border-gray-200 rounded-2xl font-bold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-[0.98]"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={() => navigate('/register')}
+                className="flex-1 px-4 py-3.5 bg-gradient-to-r from-primary via-indigo-500 to-purple-600 text-white rounded-2xl font-bold hover:from-primary-hover hover:to-purple-700 transition-all shadow-lg shadow-primary/25 hover:shadow-xl active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <Sparkles size={18} /> Criar conta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* License limit modal */}
       {showLicenseModal && licenseInfo && (

@@ -120,7 +120,7 @@ export const authService = {
 
   async login(email: string, senha: string, options?: { forceLogin?: boolean; deviceInfo?: string; ipAddress?: string }) {
     const user = await User.findOne({ email: email.toLowerCase() }).select('+senha');
-    if (!user) throw new AppError('Email ou senha inválidos', 401);
+    if (!user) throw new AppError('Nenhuma conta encontrada com este e-mail.', 404);
     if (!user.ativo) throw new AppError('Usuário inativo', 403);
 
     const isMatch = await (user as any).comparePassword(senha);
