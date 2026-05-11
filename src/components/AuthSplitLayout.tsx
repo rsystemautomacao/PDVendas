@@ -75,8 +75,10 @@ export function AuthSplitLayout({
   )
 
   const formPanel = (
-    <div className="flex min-h-[50vh] flex-1 flex-col items-center justify-center bg-white px-4 py-8 md:min-h-full md:px-8 md:py-12">
-      <div className="w-full max-w-[420px]">{children}</div>
+    <div className="relative flex min-h-[50vh] flex-1 flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 px-4 py-8 md:min-h-full md:px-8 md:py-12 overflow-hidden">
+      <div className="absolute top-0 right-0 w-96 h-96 bg-primary/[0.03] rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" aria-hidden />
+      <div className="absolute bottom-0 left-0 w-72 h-72 bg-violet-500/[0.03] rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" aria-hidden />
+      <div className="relative z-10 w-full max-w-[420px]">{children}</div>
     </div>
   )
 
