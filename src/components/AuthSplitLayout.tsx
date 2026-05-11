@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react'
-import { ShoppingCart, BarChart3, Package, Users, CreditCard, Shield, RefreshCw, Headphones } from 'lucide-react'
+import { BarChart3, Package, DollarSign } from 'lucide-react'
 
 export type PromoAlign = 'left' | 'right'
 
@@ -11,27 +11,14 @@ interface AuthSplitLayoutProps {
   children: ReactNode
 }
 
-function FeatureItem({ icon, title, sub }: { icon: ReactNode; title: string; sub: string }) {
+function FeatureCard({ icon, title, sub }: { icon: ReactNode; title: string; sub: string }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
+    <div className="group flex flex-col items-center gap-2 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md px-5 py-4 transition-all duration-300 hover:bg-white/20 hover:scale-105 hover:shadow-lg hover:shadow-white/5">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15 text-white transition-colors group-hover:bg-white/25">
         {icon}
       </div>
-      <div>
-        <p className="text-sm font-bold text-white">{title}</p>
-        <p className="text-[11px] text-white/60">{sub}</p>
-      </div>
-    </div>
-  )
-}
-
-function BottomFeature({ icon, label }: { icon: ReactNode; label: string }) {
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm">
-        {icon}
-      </div>
-      <p className="text-[10px] font-semibold text-white/70 text-center leading-tight">{label}</p>
+      <p className="text-sm font-bold text-white">{title}</p>
+      <p className="text-[11px] text-white/70">{sub}</p>
     </div>
   )
 }
@@ -55,47 +42,29 @@ export function AuthSplitLayout({
         <source src={videoSrc} type="video/mp4" />
       </video>
 
-      <div className="absolute inset-0 bg-gradient-to-b from-indigo-900/85 via-slate-900/80 to-indigo-900/90" />
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/80 via-purple-900/75 to-violet-900/80" />
 
-      <div className="relative z-10 flex h-full flex-col justify-between px-8 py-10 text-white md:px-12 md:py-14 w-full max-w-lg mx-auto">
-        {/* Top: Brand + Title */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '32px 32px' }} aria-hidden />
+
+      <div className="relative z-10 flex flex-col items-center gap-6 px-6 py-10 text-center text-white md:gap-8 md:px-10 md:py-12">
         <div>
-          <div className="flex items-center gap-2.5 mb-8">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <path d="M16 10a4 4 0 01-8 0" />
-              </svg>
-            </div>
-            <span className="text-lg font-black tracking-tight">
-              MEU <span className="text-indigo-300">PDV</span>
-            </span>
-          </div>
-
-          <h2 className="text-2xl font-extrabold leading-tight md:text-3xl lg:text-[2.5rem] lg:leading-[1.15]">
-            {promoTitle}
+          <h2 className="text-2xl font-extrabold leading-tight md:text-3xl lg:text-4xl drop-shadow-lg">
+            {promoTitle.split(' e ').length > 1 ? (
+              <>
+                {promoTitle.split(' e ')[0]} e{' '}
+                <span className="bg-gradient-to-r from-purple-200 to-pink-200 bg-clip-text text-transparent">
+                  {promoTitle.split(' e ')[1]}
+                </span>
+              </>
+            ) : promoTitle}
           </h2>
-          <p className="mt-3 text-sm leading-relaxed text-white/60 md:text-base max-w-sm">{promoText}</p>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-white/80 md:text-base">{promoText}</p>
         </div>
 
-        {/* Middle: Features */}
-        <div className="my-8 space-y-4">
-          <FeatureItem icon={<ShoppingCart size={18} className="text-indigo-300" />} title="Vendas rapidas e seguras" sub="PDV moderno e intuitivo" />
-          <FeatureItem icon={<BarChart3 size={18} className="text-emerald-300" />} title="Gestao inteligente" sub="Relatorios e graficos em tempo real" />
-          <FeatureItem icon={<Package size={18} className="text-amber-300" />} title="Controle total" sub="Estoque, produtos e clientes" />
-          <FeatureItem icon={<Users size={18} className="text-sky-300" />} title="Multi-usuario" sub="Gerencie sua equipe com permissoes" />
-        </div>
-
-        {/* Bottom: Trust badges */}
-        <div>
-          <div className="h-px bg-gradient-to-r from-transparent via-white/15 to-transparent mb-6" />
-          <div className="grid grid-cols-4 gap-4">
-            <BottomFeature icon={<CreditCard size={16} className="text-white/70" />} label="Aceita todos os cartoes" />
-            <BottomFeature icon={<Shield size={16} className="text-white/70" />} label="Seguranca e confiabilidade" />
-            <BottomFeature icon={<RefreshCw size={16} className="text-white/70" />} label="Sincronizacao em tempo real" />
-            <BottomFeature icon={<Headphones size={16} className="text-white/70" />} label="Suporte que te acompanha" />
-          </div>
+        <div className="grid grid-cols-3 gap-3 mt-2">
+          <FeatureCard icon={<BarChart3 size={22} />} title="Vendas" sub="Acompanhe em tempo real" />
+          <FeatureCard icon={<Package size={22} />} title="Estoque" sub="Controle total" />
+          <FeatureCard icon={<DollarSign size={22} />} title="Financeiro" sub="Lucros e despesas" />
         </div>
       </div>
     </div>

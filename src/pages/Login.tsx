@@ -97,25 +97,21 @@ export function Login() {
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-6 animate-fade-in">
         {/* Logo */}
-        <div className="flex flex-col items-center gap-1">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-indigo-700 text-white shadow-lg shadow-primary/25">
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <path d="M16 10a4 4 0 01-8 0" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-3xl font-black tracking-tight">
-                <span className="text-primary">MEU</span>
-                <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent"> PDV</span>
-              </h1>
-              <p className="text-[9px] font-bold tracking-[0.25em] text-gray-400 uppercase -mt-0.5">
-                Sistema de Gestao Comercial
-              </p>
-            </div>
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-700 text-white shadow-xl shadow-primary/25">
+            <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 01-8 0" />
+            </svg>
           </div>
+          <h1 className="text-5xl font-black tracking-tight text-center">
+            <span className="text-primary">MEU</span>
+            <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent"> PDV</span>
+          </h1>
+          <p className="text-[10px] font-bold tracking-[0.25em] text-gray-400 uppercase">
+            Sistema de Gestao Comercial
+          </p>
         </div>
 
         {/* Welcome text */}
