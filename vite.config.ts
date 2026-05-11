@@ -1,10 +1,23 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { writeFileSync } from 'fs'
+import { resolve } from 'path'
+
+const generateVersionPlugin = {
+  name: 'generate-version-json',
+  buildStart() {
+    writeFileSync(
+      resolve(process.cwd(), 'public/version.json'),
+      JSON.stringify({ buildTime: new Date().toISOString() }),
+    )
+  },
+}
 
 export default defineConfig({
   plugins: [
     react(),
+    generateVersionPlugin,
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],

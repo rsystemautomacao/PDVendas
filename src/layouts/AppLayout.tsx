@@ -6,6 +6,8 @@ import { Sidebar } from '../components/app/Sidebar'
 import { RequireAuth, useAuth } from '../contexts/AuthContext'
 import { usePermissao, ROTA_PERMISSAO } from '../hooks/usePermissao'
 import { useSessionCheck } from '../hooks/useSessionCheck'
+import { useVersionCheck } from '../hooks/useVersionCheck'
+import { UpdateBanner } from '../components/app/UpdateBanner'
 import { ProdutoProvider } from '../contexts/ProdutoContext'
 import { ClienteProvider } from '../contexts/ClienteContext'
 import { CaixaProvider } from '../contexts/CaixaContext'
@@ -173,6 +175,7 @@ function PermissionGate() {
 
 function AppLayoutInner() {
   useSessionCheck()
+  const { hasUpdate, doUpdate } = useVersionCheck()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const { user } = useAuth()
   const location = useLocation()
@@ -195,6 +198,8 @@ function AppLayoutInner() {
 
   return (
     <div className="min-h-screen bg-surface-50 dark:bg-slate-950 dark:text-gray-200">
+      {/* Banner de nova versão */}
+      {hasUpdate && <UpdateBanner onUpdate={doUpdate} />}
       {(assinaturaStatus.expirando || assinaturaStatus.diasVencidos > 0) && (
         <AssinaturaBanner
           diasRestantes={assinaturaStatus.diasRestantes}

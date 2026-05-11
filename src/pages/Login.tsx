@@ -4,6 +4,7 @@ import { Mail, Lock, AlertTriangle, Monitor, ArrowRight, Sparkles, Eye, EyeOff, 
 import { AuthSplitLayout } from '../components/AuthSplitLayout'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
+import { clearAllCaches } from '../utils/cacheUtils'
 
 const PROMO_TITLE = 'Chega de planilhas e anotações!'
 const PROMO_TEXT = 'Controle suas vendas, estoque e financeiro de forma simples e centralizada.'
@@ -30,6 +31,18 @@ export function Login() {
   const [showLicenseModal, setShowLicenseModal] = useState(false)
   const [licenseInfo, setLicenseInfo] = useState<{ activeSessions: number; maxLicencas: number; message: string } | null>(null)
   const [showNotFoundModal, setShowNotFoundModal] = useState(false)
+
+  // Force cache clear once per day on login page
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0]
+    const lastClear = localStorage.getItem('meupdv_last_cache_clear')
+    if (lastClear !== today) {
+      localStorage.setItem('meupdv_last_cache_clear', today)
+      clearAllCaches()
+        .then(() => window.location.reload())
+        .catch(() => {})
+    }
+  }, [])
 
   useEffect(() => {
     const reason = sessionStorage.getItem('meupdv_disconnect_reason')
