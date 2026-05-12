@@ -299,7 +299,8 @@ export function VendaProvider({ children }: { children: ReactNode }) {
         const venda = res.data as Venda
         clearCart()
         // Recarregar dados que foram alterados pelo backend (estoque, caixa, vendas)
-        await Promise.all([recarregar(), recarregarProdutos(), recarregarCaixas()])
+        // allSettled garante que uma falha isolada não cancela as demais recargas
+        await Promise.allSettled([recarregar(), recarregarProdutos(), recarregarCaixas()])
         toast.sucesso(`Venda #${venda.numero} finalizada! Total: R$ ${totalVenda.toFixed(2)}${troco > 0 ? ` | Troco: R$ ${troco.toFixed(2)}` : ''}`)
         setFinalizando(false)
         return venda
@@ -316,7 +317,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
   const cancelarVenda = useCallback(async (id: string, motivo: string) => {
     try {
       await api.put(`/vendas/${id}/cancelar`, { motivo })
-      await Promise.all([recarregar(), recarregarProdutos()])
+      await Promise.allSettled([recarregar(), recarregarProdutos()])
       toast.info('Venda cancelada')
     } catch (err: any) {
       toast.erro(err.message || 'Erro ao cancelar venda')
