@@ -891,7 +891,7 @@ export function NovoPedidoPage() {
             } else if (totalPago >= totalVenda) { handleFinalizarVenda() }
             return
           }
-          if (e.key === 'F12') { e.preventDefault(); handleFinalizarVenda(); return }
+          if (e.key === 'F12') { e.preventDefault(); if (!showFinalizando) handleFinalizarVenda(); return }
           return
         }
 
@@ -1678,8 +1678,13 @@ export function NovoPedidoPage() {
                 <button onClick={() => { setShowPayment(false); searchRef.current?.focus() }} className="btn-secondary flex-1">
                   Voltar (Esc)
                 </button>
-                <button onClick={handleFinalizarVenda} className="btn-primary flex-1" disabled={pagamentos.length === 0 || totalPago < totalVenda}>
-                  Finalizar (F12)
+                <button onClick={handleFinalizarVenda} className="btn-primary flex-1 disabled:opacity-60 disabled:cursor-not-allowed" disabled={pagamentos.length === 0 || totalPago < totalVenda || showFinalizando}>
+                  {showFinalizando ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      Finalizando...
+                    </span>
+                  ) : 'Finalizar (F12)'}
                 </button>
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-400 justify-center">
