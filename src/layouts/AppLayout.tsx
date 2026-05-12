@@ -8,6 +8,7 @@ import { usePermissao, ROTA_PERMISSAO } from '../hooks/usePermissao'
 import { useSessionCheck } from '../hooks/useSessionCheck'
 import { useVersionCheck } from '../hooks/useVersionCheck'
 import { UpdateBanner } from '../components/app/UpdateBanner'
+import { AssinaturaAlerta } from '../components/app/AssinaturaAlerta'
 import { ProdutoProvider } from '../contexts/ProdutoContext'
 import { ClienteProvider } from '../contexts/ClienteContext'
 import { CaixaProvider } from '../contexts/CaixaContext'
@@ -44,53 +45,32 @@ function calcularStatusAssinatura(dataVencimento?: string, statusAssinatura?: st
   }
 }
 
-function AssinaturaBanner({ diasRestantes, diasVencidos, isTeste }: { diasRestantes: number; diasVencidos: number; isTeste: boolean }) {
+// Banner fixo apenas para período de carência (já vencida, contagem regressiva para bloqueio)
+function AssinaturaCarenciaBanner({ diasVencidos, isTeste }: { diasVencidos: number; isTeste: boolean }) {
   const navigate = useNavigate()
   const graceDays = isTeste ? 0 : 3
-
-  if (diasVencidos > 0) {
-    const diasGraca = graceDays - diasVencidos
-    return (
-      <div className="bg-red-600 text-white text-center text-sm py-2 px-4 flex items-center justify-center gap-2 flex-wrap">
-        <AlertTriangle size={16} className="shrink-0" />
-        <span>
-          {isTeste ? (
-            <><strong>Seu período de teste expirou.</strong> Assine agora para continuar usando o sistema.</>
-          ) : (
-            <>
-              <strong>Assinatura vencida há {diasVencidos} dia{diasVencidos !== 1 ? 's' : ''}.</strong>
-              {diasGraca > 0 && <> O acesso será bloqueado em <strong>{diasGraca} dia{diasGraca !== 1 ? 's' : ''}</strong>.</>}
-            </>
-          )}
-        </span>
-        <button
-          onClick={() => navigate('/app/config/assinatura')}
-          className="ml-2 rounded-lg bg-white/20 px-3 py-1 text-xs font-bold hover:bg-white/30 transition-colors"
-        >
-          Assinar Agora
-        </button>
-      </div>
-    )
-  }
-  if (diasRestantes <= 7) {
-    const cor = diasRestantes <= 1 ? 'bg-red-500' : diasRestantes <= 3 ? 'bg-orange-500' : 'bg-yellow-500'
-    const texto = diasRestantes === 0 ? 'vence hoje' : diasRestantes === 1 ? 'vence amanhã' : `vence em ${diasRestantes} dias`
-    return (
-      <div className={`${cor} text-white text-center text-sm py-2 px-4 flex items-center justify-center gap-2 flex-wrap`}>
-        <AlertTriangle size={16} className="shrink-0" />
-        <span>
-          <strong>Atenção:</strong> {isTeste ? 'Seu teste gratuito' : 'Sua assinatura'} <strong>{texto}</strong>.
-        </span>
-        <button
-          onClick={() => navigate('/app/config/assinatura')}
-          className="ml-2 rounded-lg bg-white/20 px-3 py-1 text-xs font-bold hover:bg-white/30 transition-colors"
-        >
-          Assinar Agora
-        </button>
-      </div>
-    )
-  }
-  return null
+  const diasGraca = graceDays - diasVencidos
+  return (
+    <div className="bg-red-600 text-white text-center text-sm py-2 px-4 flex items-center justify-center gap-2 flex-wrap">
+      <AlertTriangle size={16} className="shrink-0" />
+      <span>
+        {isTeste ? (
+          <><strong>Período de teste expirado.</strong> Assine agora para continuar usando.</>
+        ) : (
+          <>
+            <strong>Assinatura vencida há {diasVencidos} dia{diasVencidos !== 1 ? 's' : ''}.</strong>
+            {diasGraca > 0 && <> Bloqueio em <strong>{diasGraca} dia{diasGraca !== 1 ? 's' : ''}</strong>.</>}
+          </>
+        )}
+      </span>
+      <button
+        onClick={() => navigate('/app/config/assinatura')}
+        className="ml-2 rounded-lg bg-white/20 px-3 py-1 text-xs font-bold hover:bg-white/30 transition-colors"
+      >
+        Assinar Agora
+      </button>
+    </div>
+  )
 }
 
 function AssinaturaBloqueada({ diasVencidos, dataVencimento, isTeste }: { diasVencidos: number; dataVencimento: string; isTeste: boolean }) {
@@ -173,10 +153,14 @@ function PermissionGate() {
   return <Outlet />
 }
 
+// Dias em que o alerta de vencimento deve aparecer ao logar
+const DIAS_ALERTA = [5, 4, 3, 2, 1]
+
 function AppLayoutInner() {
   useSessionCheck()
   const { hasUpdate, doUpdate } = useVersionCheck()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [showAssinaturaAlerta, setShowAssinaturaAlerta] = useState(false)
   const { user } = useAuth()
   const location = useLocation()
 
@@ -189,6 +173,16 @@ function AppLayoutInner() {
   }, [drawerOpen, closeDrawer])
 
   const assinaturaStatus = calcularStatusAssinatura(user?.dataVencimento, user?.statusAssinatura)
+
+  // Alerta de vencimento ao logar — apenas para pagamentos não-recorrentes (sem Stripe)
+  useEffect(() => {
+    const temStripe = !!(user as any)?.stripeSubscriptionId
+    if (temStripe) return
+    const { diasRestantes } = assinaturaStatus
+    if (diasRestantes > 0 && DIAS_ALERTA.includes(diasRestantes)) {
+      setShowAssinaturaAlerta(true)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bloqueio total — mas permite acessar a página de assinatura para poder pagar
   const isAssinaturaPage = location.pathname === '/app/config/assinatura'
@@ -222,17 +216,25 @@ function AppLayoutInner() {
         className={`pt-14 min-h-screen transition-[padding] duration-300 ${drawerOpen ? 'lg:pl-80' : ''}`}
         role="main"
       >
-        {/* Banners abaixo da topbar fixa */}
+        {/* Banner de nova versão */}
         {hasUpdate && <UpdateBanner onUpdate={doUpdate} />}
-        {(assinaturaStatus.expirando || assinaturaStatus.diasVencidos > 0) && (
-          <AssinaturaBanner
-            diasRestantes={assinaturaStatus.diasRestantes}
+        {/* Banner fixo apenas durante período de carência (já vencida) */}
+        {assinaturaStatus.diasVencidos > 0 && !(user as any)?.stripeSubscriptionId && (
+          <AssinaturaCarenciaBanner
             diasVencidos={assinaturaStatus.diasVencidos}
             isTeste={assinaturaStatus.isTeste}
           />
         )}
         <OnboardingGate />
       </main>
+
+      {/* Alerta de vencimento — aparece uma vez ao logar, não é fixo */}
+      {showAssinaturaAlerta && (
+        <AssinaturaAlerta
+          diasRestantes={assinaturaStatus.diasRestantes}
+          onDismiss={() => setShowAssinaturaAlerta(false)}
+        />
+      )}
     </div>
   )
 }

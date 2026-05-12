@@ -20,6 +20,7 @@ export interface User {
   comissao?: number
   dataVencimento?: string
   statusAssinatura?: 'ativa' | 'expirando' | 'vencida' | 'teste'
+  stripeSubscriptionId?: string | null
 }
 
 export type SegmentoEmpresa =
