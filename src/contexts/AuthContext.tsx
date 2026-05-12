@@ -48,12 +48,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // O token JWT está no cookie httpOnly — enviado automaticamente pelo browser.
-    // Sempre verificamos a sessão no servidor ao carregar o app.
-    // Usamos os dados em cache (USER_KEY) apenas para pré-popular o estado enquanto aguardamos.
+    // Só validamos no servidor se houver dados de usuário em cache.
+    // Sem cache = não está logado, evita loop de 401 → redirect → 401.
     const cached = localStorage.getItem(USER_KEY)
-    if (cached) {
-      try { setUser(JSON.parse(cached)) } catch { /* ignore */ }
+    if (!cached) {
+      setLoading(false)
+      return
     }
+
+    try { setUser(JSON.parse(cached)) } catch { /* ignore */ }
 
     api.get('/auth/me')
       .then(res => {

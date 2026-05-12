@@ -36,8 +36,9 @@ async function request<T = any>(path: string, options?: RequestInit): Promise<Ap
 
   // Token expirado ou invalido - redirect uma única vez
   // Nao redirecionar se for rota de login (401 = senha errada, nao token expirado)
+  // Nao redirecionar se já estamos na página de login (evita loop de reload)
   if (res.status === 401 && !path.includes('/auth/login')) {
-    if (!isRedirecting) {
+    if (!isRedirecting && !window.location.pathname.startsWith('/login')) {
       isRedirecting = true;
       const body = await res.json().catch(() => ({}));
       localStorage.removeItem(StorageKeys.CURRENT_USER);
