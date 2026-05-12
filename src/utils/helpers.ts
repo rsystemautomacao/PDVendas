@@ -157,8 +157,18 @@ export function sanitize(input: string): string {
 export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
   const result = { ...obj }
   for (const key in result) {
-    if (typeof result[key] === 'string') {
-      (result as Record<string, unknown>)[key] = sanitize(result[key] as string)
+    const val = result[key]
+    if (typeof val === 'string') {
+      (result as Record<string, unknown>)[key] = sanitize(val)
+    } else if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+      // Percorre objetos aninhados recursivamente
+      (result as Record<string, unknown>)[key] = sanitizeObject(val as Record<string, unknown>)
+    } else if (Array.isArray(val)) {
+      // Sanitiza strings dentro de arrays
+      (result as Record<string, unknown>)[key] = val.map(item =>
+        typeof item === 'string' ? sanitize(item) :
+        (item !== null && typeof item === 'object' ? sanitizeObject(item as Record<string, unknown>) : item)
+      )
     }
   }
   return result
