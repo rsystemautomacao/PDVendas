@@ -1,7 +1,6 @@
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import cookieParser from 'cookie-parser';
 import { corsConfig } from './config/cors';
 import { connectDB } from './config/db';
 import { env } from './config/env';
@@ -19,7 +18,6 @@ app.set('strict routing', true);
 // Security & parsing
 app.use(helmet());
 app.use(corsConfig);
-app.use(cookieParser());
 app.use(morgan(env.NODE_ENV === 'production' ? 'short' : 'dev'));
 
 // Webhook do Stripe precisa do body raw (antes do express.json)
