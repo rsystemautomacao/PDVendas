@@ -7,7 +7,9 @@ const PREFIX = 'meupdv_'
 
 export const StorageKeys = {
   // ---- Chaves ativas (API-based) ----
-  /** Dados do usuário logado em cache (token fica no cookie httpOnly) */
+  /** Token JWT de autenticação */
+  TOKEN: `${PREFIX}token`,
+  /** Dados do usuário logado em cache */
   CURRENT_USER: `${PREFIX}current_user`,
   /** Carrinho em andamento salvo para recuperação de crash */
   DRAFT_CART: `${PREFIX}draft_cart`,

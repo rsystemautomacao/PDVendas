@@ -6,33 +6,33 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 /**
  * Polls the server to check if the current session is still valid.
- * O token JWT está no cookie httpOnly e é enviado automaticamente pelo browser.
- * Se a sessão foi invalidada (licença excedida, logout forçado, etc.),
- * o interceptor em api.ts trata o redirect + armazenamento do motivo.
+ * If the session was invalidated (kicked, license exceeded, etc.),
+ * the API interceptor in api.ts handles redirect + reason storage.
+ * This hook simply ensures the check happens periodically even when
+ * the user isn't actively making API calls.
  */
 export function useSessionCheck() {
   const timerRef = useRef<ReturnType<typeof setInterval>>()
 
   useEffect(() => {
-    // Só iniciar polling se o usuário parecer estar logado (dados em cache)
-    const hasUser = !!localStorage.getItem(StorageKeys.CURRENT_USER)
-    if (!hasUser) return
+    const token = localStorage.getItem(StorageKeys.TOKEN)
+    if (!token) return
 
     const check = async () => {
-      // Se o cache de usuário foi removido (logout), parar o polling
-      if (!localStorage.getItem(StorageKeys.CURRENT_USER)) {
+      const currentToken = localStorage.getItem(StorageKeys.TOKEN)
+      if (!currentToken) {
         if (timerRef.current) clearInterval(timerRef.current)
         return
       }
 
       try {
         const res = await fetch(`${API_BASE}/auth/me`, {
-          // credentials: 'include' envia o cookie httpOnly automaticamente
-          credentials: 'include',
+          headers: { Authorization: `Bearer ${currentToken}` },
         })
 
         if (res.status === 401) {
           const body = await res.json().catch(() => ({}))
+          localStorage.removeItem(StorageKeys.TOKEN)
           localStorage.removeItem(StorageKeys.CURRENT_USER)
           if (body.code === 'SESSION_INVALIDATED' && body.reason) {
             sessionStorage.setItem('meupdv_disconnect_reason', body.reason)
@@ -41,7 +41,7 @@ export function useSessionCheck() {
           window.location.href = '/login'
         }
       } catch {
-        // Erro de rede — ignora, tenta no próximo intervalo
+        // Network error — ignore, will retry next interval
       }
     }
 

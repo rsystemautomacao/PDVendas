@@ -4,8 +4,7 @@ import type { User } from '../types'
 import { api } from '../services/api'
 import { StorageKeys } from '../utils/storage'
 
-// Apenas dados do usuário são armazenados em localStorage (não o token JWT)
-// O token fica exclusivamente no cookie httpOnly definido pelo servidor
+const TOKEN_KEY = StorageKeys.TOKEN
 const USER_KEY = StorageKeys.CURRENT_USER
 
 interface LoginResult {
@@ -47,32 +46,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // O token JWT está no cookie httpOnly — enviado automaticamente pelo browser.
-    // Só validamos no servidor se houver dados de usuário em cache.
-    // Sem cache = não está logado, evita loop de 401 → redirect → 401.
-    const cached = localStorage.getItem(USER_KEY)
-    if (!cached) {
-      setLoading(false)
-      return
-    }
-
-    try { setUser(JSON.parse(cached)) } catch { /* ignore */ }
-
-    api.get('/auth/me')
-      .then(res => {
-        if (res.success && res.data) {
-          setUser(res.data)
-          localStorage.setItem(USER_KEY, JSON.stringify(res.data))
-        } else {
-          setUser(null)
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (token) {
+      api.get('/auth/me')
+        .then(res => {
+          if (res.success && res.data) {
+            setUser(res.data)
+            localStorage.setItem(USER_KEY, JSON.stringify(res.data))
+          } else {
+            localStorage.removeItem(TOKEN_KEY)
+            localStorage.removeItem(USER_KEY)
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem(TOKEN_KEY)
           localStorage.removeItem(USER_KEY)
-        }
-      })
-      .catch(() => {
-        setUser(null)
-        localStorage.removeItem(USER_KEY)
-      })
-      .finally(() => setLoading(false))
+        })
+        .finally(() => setLoading(false))
+    } else {
+      setLoading(false)
+    }
   }, [])
 
   const login = useCallback(async (email: string, senha: string, forceLogin?: boolean) => {
@@ -89,8 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             message: res.data.message,
           }
         }
-        const { user: userData } = res.data
-        // Token JWT está no cookie httpOnly — não precisa ser armazenado aqui
+        const { user: userData, token } = res.data
+        localStorage.setItem(TOKEN_KEY, token)
         localStorage.setItem(USER_KEY, JSON.stringify(userData))
         setUser(userData)
         return { ok: true }
@@ -110,8 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         empresa: dados.empresa ? { nome: dados.empresa } : undefined,
       })
       if (res.success && res.data) {
-        const { user: userData } = res.data
-        // Token JWT está no cookie httpOnly — não precisa ser armazenado aqui
+        const { user: userData, token } = res.data
+        localStorage.setItem(TOKEN_KEY, token)
         localStorage.setItem(USER_KEY, JSON.stringify(userData))
         setUser(userData)
         return { ok: true }
@@ -123,12 +116,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(() => {
-    // Notifica o backend para invalidar a sessão e limpar o cookie httpOnly
+    // Notify backend (fire-and-forget)
     api.post('/auth/logout').catch(() => {})
+    localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
     setUser(null)
   }, [])
-
 
   const updateUser = useCallback(async (updates: Record<string, unknown>) => {
     try {

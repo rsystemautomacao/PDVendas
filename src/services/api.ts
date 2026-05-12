@@ -19,14 +19,15 @@ interface ApiResponse<T = any> {
 }
 
 async function request<T = any>(path: string, options?: RequestInit): Promise<ApiResponse<T>> {
+  const token = localStorage.getItem(StorageKeys.TOKEN);
+
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
       ...options,
-      // credentials: 'include' envia o cookie httpOnly automaticamente (proteção contra XSS)
-      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options?.headers,
       },
     });
@@ -36,11 +37,11 @@ async function request<T = any>(path: string, options?: RequestInit): Promise<Ap
 
   // Token expirado ou invalido - redirect uma única vez
   // Nao redirecionar se for rota de login (401 = senha errada, nao token expirado)
-  // Nao redirecionar se já estamos na página de login (evita loop de reload)
   if (res.status === 401 && !path.includes('/auth/login')) {
-    if (!isRedirecting && !window.location.pathname.startsWith('/login')) {
+    if (!isRedirecting) {
       isRedirecting = true;
       const body = await res.json().catch(() => ({}));
+      localStorage.removeItem(StorageKeys.TOKEN);
       localStorage.removeItem(StorageKeys.CURRENT_USER);
       if (body.code === 'SESSION_INVALIDATED' && body.reason) {
         sessionStorage.setItem('meupdv_disconnect_reason', body.reason);
