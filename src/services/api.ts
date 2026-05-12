@@ -17,15 +17,14 @@ interface ApiResponse<T = any> {
 }
 
 async function request<T = any>(path: string, options?: RequestInit): Promise<ApiResponse<T>> {
-  const token = localStorage.getItem('meupdv_token');
-
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
       ...options,
+      // credentials: 'include' envia o cookie httpOnly automaticamente (proteção contra XSS)
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options?.headers,
       },
     });
@@ -39,7 +38,6 @@ async function request<T = any>(path: string, options?: RequestInit): Promise<Ap
     if (!isRedirecting) {
       isRedirecting = true;
       const body = await res.json().catch(() => ({}));
-      localStorage.removeItem('meupdv_token');
       localStorage.removeItem('meupdv_current_user');
       if (body.code === 'SESSION_INVALIDATED' && body.reason) {
         sessionStorage.setItem('meupdv_disconnect_reason', body.reason);

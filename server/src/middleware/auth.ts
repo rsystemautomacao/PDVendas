@@ -21,20 +21,29 @@ declare global {
 }
 
 /**
- * Middleware que verifica o token JWT no header Authorization.
+ * Middleware que verifica o token JWT.
+ * Lê o token preferencialmente do cookie httpOnly (meupdv_token),
+ * com fallback para o header Authorization (Bearer) para compatibilidade.
  * Também verifica se a sessão (JTI) ainda é válida.
  */
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
+  // Preferência: cookie httpOnly (não acessível via JS)
+  const cookieToken = (req as any).cookies?.meupdv_token as string | undefined;
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  let token: string | undefined;
+  if (cookieToken) {
+    token = cookieToken;
+  } else if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  }
+
+  if (!token) {
     return res.status(401).json({
       success: false,
       error: 'Token de autenticação não fornecido',
     });
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload & { empresaId?: string };
