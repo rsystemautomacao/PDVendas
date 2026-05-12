@@ -239,8 +239,9 @@ export const authService = {
 
   async requestReset(email: string) {
     const user = await User.findOne({ email: email.toLowerCase() });
+    // Resposta genérica para não revelar se o email existe
     if (!user) {
-      return { message: 'Se o email existir, um código será gerado' };
+      return { message: 'Se o email existir, o código será enviado' };
     }
 
     const token = Math.floor(100000 + Math.random() * 900000).toString();
@@ -248,12 +249,18 @@ export const authService = {
     user.set('resetTokenExpires', new Date(Date.now() + 30 * 60 * 1000));
     await user.save();
 
-    // TODO: In production, send token via email instead of returning it
-    // For now, return it for development/testing purposes
     if (env.NODE_ENV === 'production') {
-      return { message: 'Se o email existir, um código será enviado' };
+      const { sendPasswordResetEmail } = await import('./email.service');
+      const sent = await sendPasswordResetEmail(user.email, token);
+      if (!sent) {
+        // SMTP não configurado: fallback seguro — não expõe o token, mas loga para o admin
+        console.error(`[Auth] Reset solicitado para ${user.email} mas SMTP não está configurado. Configure SMTP_HOST/SMTP_USER/SMTP_PASS no .env`);
+      }
+      return { message: 'Se o email existir, o código será enviado' };
     }
-    return { token, message: 'Código gerado com sucesso' };
+
+    // Desenvolvimento: retorna o token na resposta para facilitar testes
+    return { token, message: 'Código gerado com sucesso (modo dev)' };
   },
 
   async resetPassword(email: string, token: string, novaSenha: string) {

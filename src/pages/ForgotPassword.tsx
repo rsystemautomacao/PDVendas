@@ -34,12 +34,14 @@ export function ForgotPassword() {
     try {
       const res = await api.post('/auth/forgot-password', { email: email.trim() })
       if (res.success && res.data?.token) {
+        // Modo dev: exibe o código na tela
         setResetCode(res.data.token)
         setStep(2)
-        toast.sucesso('Codigo gerado! Anote o codigo abaixo.')
+        toast.sucesso('Codigo gerado! (modo desenvolvimento)')
       } else {
-        toast.info('Se o email existir, um codigo sera gerado.')
+        // Modo produção: código enviado por email
         setStep(2)
+        toast.sucesso('Codigo enviado! Verifique seu email.')
       }
     } catch (err: any) {
       toast.erro(err.message || 'Erro ao solicitar reset')
@@ -87,7 +89,9 @@ export function ForgotPassword() {
             <p className="text-text-secondary mt-1">
               {step === 1
                 ? 'Informe seu email para receber o codigo de recuperacao'
-                : 'Digite o codigo recebido e sua nova senha'}
+                : resetCode
+                  ? 'Use o codigo abaixo e defina sua nova senha'
+                  : 'Digite o codigo recebido no seu email e defina a nova senha'}
             </p>
           </div>
         </div>
