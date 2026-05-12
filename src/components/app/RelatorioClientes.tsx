@@ -1,30 +1,33 @@
-import { useState, useCallback } from 'react'
-import { Printer } from 'lucide-react'
+import { useState, useCallback, useEffect } from 'react'
+import { Printer, Loader2 } from 'lucide-react'
 import { ReportFilterBar } from './ReportFilterBar'
 import type { RelatorioTipoConfig } from '../../data/relatoriosClientes'
-import { MOCK_CLIENTES } from '../../data/mockClientes'
+import { api } from '../../services/api'
+import { formatCurrency } from '../../utils/helpers'
+import type { Cliente, Venda } from '../../types'
+
+interface ClienteRow {
+  id: string
+  nome: string
+  telefone: string
+  celular: string
+  email: string
+  cpf: string
+  dataCadastro: string
+  endereco: string
+}
+
+interface VendaRow {
+  id: string
+  data: string
+  cliente: string
+  valor: string
+  tipo: string
+}
 
 interface RelatorioClientesProps {
   config: RelatorioTipoConfig
 }
-
-/** Dados mock para listagem de clientes */
-const MOCK_ROWS = MOCK_CLIENTES.map((c) => ({
-  id: c.id,
-  nome: c.nome,
-  telefone: '(11) 99999-0000',
-  celular: '(11) 98888-1111',
-  email: c.email,
-  cpf: '000.000.000-00',
-  dataCadastro: '01/02/2026',
-  endereco: 'Rua Exemplo, 123 - Centro',
-}))
-
-/** Dados mock para relatórios de vendas */
-const MOCK_VENDAS = [
-  { id: '1', data: '05/02/2026', cliente: 'Maria Silva', valor: 'R$ 450,00', tipo: 'Venda' },
-  { id: '2', data: '04/02/2026', cliente: 'João Santos', valor: 'R$ 320,00', tipo: 'Orçamento' },
-]
 
 export function RelatorioClientes({ config }: RelatorioClientesProps) {
   const [nomeCliente, setNomeCliente] = useState('')
@@ -32,7 +35,59 @@ export function RelatorioClientes({ config }: RelatorioClientesProps) {
   const [dataAte, setDataAte] = useState('')
   const [exibirEndereco, setExibirEndereco] = useState(config.exibirEndereco)
   const [exibirDataCadastro, setExibirDataCadastro] = useState(config.exibirDataCadastro)
-  const [registros] = useState(config.isVendas ? MOCK_VENDAS : MOCK_ROWS)
+  const [registros, setRegistros] = useState<ClienteRow[] | VendaRow[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const buscar = useCallback(async () => {
+    setLoading(true)
+    try {
+      if (config.isVendas) {
+        const params = new URLSearchParams({ limit: '200' })
+        if (dataDe) params.set('de', dataDe)
+        if (dataAte) params.set('ate', dataAte)
+        const res = await api.get(`/vendas?${params}`)
+        if (res.success && res.data) {
+          const rows: VendaRow[] = (res.data as Venda[])
+            .filter(v => !nomeCliente || v.clienteNome?.toLowerCase().includes(nomeCliente.toLowerCase()))
+            .map(v => ({
+              id: v._id,
+              data: new Date(v.criadoEm).toLocaleDateString('pt-BR'),
+              cliente: v.clienteNome || '—',
+              valor: formatCurrency(v.total),
+              tipo: v.status === 'orcamento' ? 'Orçamento' : 'Venda',
+            }))
+          setRegistros(rows)
+        }
+      } else {
+        const params = new URLSearchParams({ limit: '200' })
+        if (nomeCliente) params.set('busca', nomeCliente)
+        const res = await api.get(`/clientes?${params}`)
+        if (res.success && res.data) {
+          const rows: ClienteRow[] = (res.data as Cliente[]).map(c => ({
+            id: c._id,
+            nome: c.nome,
+            telefone: c.telefone || '—',
+            celular: c.celular || '—',
+            email: c.email || '—',
+            cpf: c.cpfCnpj || '—',
+            dataCadastro: new Date(c.criadoEm).toLocaleDateString('pt-BR'),
+            endereco: c.endereco
+              ? [c.endereco.logradouro, c.endereco.numero, c.endereco.bairro, c.endereco.cidade]
+                  .filter(Boolean).join(', ')
+              : '—',
+          }))
+          setRegistros(rows)
+        }
+      }
+    } catch {
+      // silencioso — lista fica vazia
+    } finally {
+      setLoading(false)
+    }
+  }, [config.isVendas, nomeCliente, dataDe, dataAte])
+
+  // Carrega ao montar e sempre que os filtros mudarem
+  useEffect(() => { buscar() }, [buscar])
 
   const handleLimpar = useCallback(() => {
     setNomeCliente('')
@@ -42,68 +97,54 @@ export function RelatorioClientes({ config }: RelatorioClientesProps) {
     setExibirDataCadastro(config.exibirDataCadastro)
   }, [config.exibirEndereco, config.exibirDataCadastro])
 
-  const handleBuscar = useCallback(() => {
-    // TODO: implementar busca de relatório de clientes
-  }, [config.slug, nomeCliente, dataDe, dataAte, exibirEndereco, exibirDataCadastro])
-
   const handlePeriodo = useCallback((key: string) => {
     const today = new Date()
     let de = new Date(today)
     let ate = new Date(today)
     switch (key) {
-      case 'hoje':
-        break
-      case 'esta-semana':
-        de.setDate(today.getDate() - today.getDay())
-        break
-      case 'este-mes':
-        de.setDate(1)
-        break
+      case 'hoje': break
+      case 'esta-semana': de.setDate(today.getDate() - today.getDay()); break
+      case 'este-mes': de.setDate(1); break
       case 'mes-anterior':
-        de.setMonth(today.getMonth() - 1)
-        de.setDate(1)
-        ate.setDate(0)
-        break
-      case '90-dias':
-        de.setDate(today.getDate() - 90)
-        break
-      default:
-        return
+        de.setMonth(today.getMonth() - 1); de.setDate(1)
+        ate.setDate(0); break
+      case '90-dias': de.setDate(today.getDate() - 90); break
+      default: return
     }
     setDataDe(de.toISOString().slice(0, 10))
     setDataAte(ate.toISOString().slice(0, 10))
   }, [])
 
-  const handlePrint = useCallback(() => {
-    window.print()
-  }, [])
+  const clienteRows = registros as ClienteRow[]
+  const vendaRows   = registros as VendaRow[]
 
   return (
     <div className="space-y-4">
       <div className="print:hidden">
         <ReportFilterBar
-        config={config}
-        nomeCliente={nomeCliente}
-        onNomeClienteChange={setNomeCliente}
-        dataDe={dataDe}
-        dataAte={dataAte}
-        onDataDeChange={setDataDe}
-        onDataAteChange={setDataAte}
-        exibirEndereco={exibirEndereco}
-        onExibirEnderecoChange={setExibirEndereco}
-        exibirDataCadastro={exibirDataCadastro}
-        onExibirDataCadastroChange={setExibirDataCadastro}
-        onLimpar={handleLimpar}
-        onBuscar={handleBuscar}
-        onPeriodo={config.temAtalhosPeriodo ? handlePeriodo : undefined}
-      />
+          config={config}
+          nomeCliente={nomeCliente}
+          onNomeClienteChange={setNomeCliente}
+          dataDe={dataDe}
+          dataAte={dataAte}
+          onDataDeChange={setDataDe}
+          onDataAteChange={setDataAte}
+          exibirEndereco={exibirEndereco}
+          onExibirEnderecoChange={setExibirEndereco}
+          exibirDataCadastro={exibirDataCadastro}
+          onExibirDataCadastroChange={setExibirDataCadastro}
+          onLimpar={handleLimpar}
+          onBuscar={buscar}
+          onPeriodo={config.temAtalhosPeriodo ? handlePeriodo : undefined}
+        />
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white shadow-card overflow-hidden print:border print:shadow-none">
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-bold text-text-primary">
             {config.isVendas ? config.titulo : 'Listagem de clientes'}
           </h2>
+          {loading && <Loader2 size={18} className="animate-spin text-primary" />}
         </div>
 
         <div className="overflow-x-auto">
@@ -118,14 +159,14 @@ export function RelatorioClientes({ config }: RelatorioClientesProps) {
                 </tr>
               </thead>
               <tbody>
-                {registros.length === 0 ? (
+                {vendaRows.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-4 py-8 text-center text-text-secondary">
-                      0 Registros
+                      {loading ? 'Carregando...' : 'Nenhum registro encontrado'}
                     </td>
                   </tr>
                 ) : (
-                  (registros as typeof MOCK_VENDAS).map((r) => (
+                  vendaRows.map((r) => (
                     <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3">{r.data}</td>
                       <td className="px-4 py-3">{r.cliente}</td>
@@ -140,43 +181,31 @@ export function RelatorioClientes({ config }: RelatorioClientesProps) {
             <table className="w-full text-sm text-left">
               <thead className="bg-gray-50 text-text-secondary">
                 <tr>
-                  {exibirDataCadastro && (
-                    <th className="px-4 py-3 font-semibold">Data de Cadastro</th>
-                  )}
+                  {exibirDataCadastro && <th className="px-4 py-3 font-semibold">Data de Cadastro</th>}
                   <th className="px-4 py-3 font-semibold">Nome</th>
                   <th className="px-4 py-3 font-semibold">Telefone / Celular</th>
                   <th className="px-4 py-3 font-semibold">E-mail / CPF</th>
-                  {exibirEndereco && (
-                    <th className="px-4 py-3 font-semibold">Endereço</th>
-                  )}
+                  {exibirEndereco && <th className="px-4 py-3 font-semibold">Endereço</th>}
                 </tr>
               </thead>
               <tbody>
-                {registros.length === 0 ? (
+                {clienteRows.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={
-                        2 +
-                        (exibirDataCadastro ? 1 : 0) +
-                        (exibirEndereco ? 1 : 0)
-                      }
+                      colSpan={2 + (exibirDataCadastro ? 1 : 0) + (exibirEndereco ? 1 : 0)}
                       className="px-4 py-8 text-center text-text-secondary"
                     >
-                      0 Registros
+                      {loading ? 'Carregando...' : 'Nenhum registro encontrado'}
                     </td>
                   </tr>
                 ) : (
-                  (registros as typeof MOCK_ROWS).map((r) => (
+                  clienteRows.map((r) => (
                     <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
-                      {exibirDataCadastro && (
-                        <td className="px-4 py-3">{r.dataCadastro}</td>
-                      )}
+                      {exibirDataCadastro && <td className="px-4 py-3">{r.dataCadastro}</td>}
                       <td className="px-4 py-3">{r.nome}</td>
                       <td className="px-4 py-3">{r.telefone} / {r.celular}</td>
                       <td className="px-4 py-3">{r.email} / {r.cpf}</td>
-                      {exibirEndereco && (
-                        <td className="px-4 py-3">{r.endereco}</td>
-                      )}
+                      {exibirEndereco && <td className="px-4 py-3">{r.endereco}</td>}
                     </tr>
                   ))
                 )}
@@ -185,23 +214,15 @@ export function RelatorioClientes({ config }: RelatorioClientesProps) {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 px-4 py-3 print:hidden">
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-primary hover:bg-gray-50"
-            >
-              Página 1 de 1
-            </button>
-            <span className="text-sm text-text-secondary">{registros.length} Registros</span>
-          </div>
+        <div className="flex items-center gap-4 border-t border-gray-200 px-4 py-3 print:hidden">
+          <span className="text-sm text-text-secondary">{registros.length} registro{registros.length !== 1 ? 's' : ''}</span>
         </div>
       </div>
 
       <div className="fixed bottom-6 right-20 z-10 print:hidden">
         <button
           type="button"
-          onClick={handlePrint}
+          onClick={() => window.print()}
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-white shadow-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <Printer className="h-5 w-5" />
