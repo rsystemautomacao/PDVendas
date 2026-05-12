@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { StorageKeys } from '../utils/storage'
 
 const CHECK_INTERVAL = 30_000 // 30 seconds
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
@@ -14,12 +15,12 @@ export function useSessionCheck() {
 
   useEffect(() => {
     // Só iniciar polling se o usuário parecer estar logado (dados em cache)
-    const hasUser = !!localStorage.getItem('meupdv_current_user')
+    const hasUser = !!localStorage.getItem(StorageKeys.CURRENT_USER)
     if (!hasUser) return
 
     const check = async () => {
       // Se o cache de usuário foi removido (logout), parar o polling
-      if (!localStorage.getItem('meupdv_current_user')) {
+      if (!localStorage.getItem(StorageKeys.CURRENT_USER)) {
         if (timerRef.current) clearInterval(timerRef.current)
         return
       }
@@ -32,7 +33,7 @@ export function useSessionCheck() {
 
         if (res.status === 401) {
           const body = await res.json().catch(() => ({}))
-          localStorage.removeItem('meupdv_current_user')
+          localStorage.removeItem(StorageKeys.CURRENT_USER)
           if (body.code === 'SESSION_INVALIDATED' && body.reason) {
             sessionStorage.setItem('meupdv_disconnect_reason', body.reason)
           }

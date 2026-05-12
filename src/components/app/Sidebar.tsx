@@ -9,6 +9,7 @@ import {
 import { useAuth, useEmpresaUsaCaixa } from '../../contexts/AuthContext'
 import { usePermissao } from '../../hooks/usePermissao'
 import { useSegmento } from '../../hooks/useSegmento'
+import { StorageKeys } from '../../utils/storage'
 
 interface SidebarProps { onClose?: () => void }
 
@@ -117,7 +118,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             <ChevronRight className="h-3.5 w-3.5 text-gray-300" />
           </Link>
         )}
-        {localStorage.getItem('meupdv_loja_nome') && (
+        {localStorage.getItem(StorageKeys.LOJA_NOME) && (
           <Link
             to="/app/config/lojas"
             onClick={onClose}
@@ -126,7 +127,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-50">
               <Store className="h-3 w-3 text-emerald-500" />
             </div>
-            <span className="truncate flex-1 font-medium">{localStorage.getItem('meupdv_loja_nome')}</span>
+            <span className="truncate flex-1 font-medium">{localStorage.getItem(StorageKeys.LOJA_NOME)}</span>
           </Link>
         )}
       </div>

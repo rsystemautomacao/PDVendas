@@ -1,3 +1,5 @@
+import { StorageKeys } from '../utils/storage';
+
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 // Guard para evitar múltiplos redirects simultâneos no 401
@@ -38,7 +40,7 @@ async function request<T = any>(path: string, options?: RequestInit): Promise<Ap
     if (!isRedirecting) {
       isRedirecting = true;
       const body = await res.json().catch(() => ({}));
-      localStorage.removeItem('meupdv_current_user');
+      localStorage.removeItem(StorageKeys.CURRENT_USER);
       if (body.code === 'SESSION_INVALIDATED' && body.reason) {
         sessionStorage.setItem('meupdv_disconnect_reason', body.reason);
       }

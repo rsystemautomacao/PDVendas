@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Edit, Trash2, Store, MapPin, Phone, X, Check } from 'lucide-react'
 import { api } from '../../../services/api'
 import { useToast } from '../../../contexts/ToastContext'
+import { StorageKeys } from '../../../utils/storage'
 
 interface Loja {
   _id: string
@@ -96,11 +97,11 @@ export function LojasPage() {
     }
   }
 
-  const lojaAtiva = localStorage.getItem('meupdv_loja_ativa')
+  const lojaAtiva = localStorage.getItem(StorageKeys.LOJA_ATIVA)
 
   const handleSetAtiva = (lojaId: string, lojaNome: string) => {
-    localStorage.setItem('meupdv_loja_ativa', lojaId)
-    localStorage.setItem('meupdv_loja_nome', lojaNome)
+    localStorage.setItem(StorageKeys.LOJA_ATIVA, lojaId)
+    localStorage.setItem(StorageKeys.LOJA_NOME, lojaNome)
     toast.sucesso(`Loja ativa: ${lojaNome}`)
     // Force re-render
     setLojas([...lojas])

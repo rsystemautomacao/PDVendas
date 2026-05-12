@@ -153,7 +153,7 @@ function imprimirTextoViaBridge(dados: string): boolean {
     if (window.AndroidPrinter) return window.AndroidPrinter.printText(dados)
     return false
   } catch (err) {
-    console.error('[ElginBridge] Erro no Android Bridge:', err)
+    if (import.meta.env.DEV) console.error('[ElginBridge] Erro no Android Bridge:', err)
     return false
   }
 }
@@ -170,7 +170,7 @@ function imprimirComandosViaBridge(comandos: ComandoImpressao[]): boolean {
     }
     return false
   } catch (err) {
-    console.error('[ElginBridge] Erro ao enviar comandos:', err)
+    if (import.meta.env.DEV) console.error('[ElginBridge] Erro ao enviar comandos:', err)
     return false
   }
 }
@@ -203,7 +203,7 @@ async function imprimirViaHttp(dados: string, config: ConfigBridge): Promise<boo
     return response.ok
   } catch (err) {
     clearTimeout(timeout)
-    console.error('[ElginBridge] Erro HTTP:', err)
+    if (import.meta.env.DEV) console.error('[ElginBridge] Erro HTTP:', err)
     return false
   }
 }

@@ -5,6 +5,7 @@ import { AuthSplitLayout } from '../components/AuthSplitLayout'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { clearAllCaches } from '../utils/cacheUtils'
+import { StorageKeys } from '../utils/storage'
 
 const PROMO_TITLE = 'Chega de planilhas e anotações!'
 const PROMO_TEXT = 'Controle suas vendas, estoque e financeiro de forma simples e centralizada.'
@@ -35,9 +36,9 @@ export function Login() {
   // Force cache clear once per day on login page
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0]
-    const lastClear = localStorage.getItem('meupdv_last_cache_clear')
+    const lastClear = localStorage.getItem(StorageKeys.LAST_CACHE_CLEAR)
     if (lastClear !== today) {
-      localStorage.setItem('meupdv_last_cache_clear', today)
+      localStorage.setItem(StorageKeys.LAST_CACHE_CLEAR, today)
       clearAllCaches()
         .then(() => window.location.reload())
         .catch(() => {})

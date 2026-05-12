@@ -5,6 +5,7 @@ import { useToast } from './ToastContext'
 import { useProdutos } from './ProdutoContext'
 import { useCaixa } from './CaixaContext'
 import { useEmpresaUsaCaixa } from './AuthContext'
+import { StorageKeys } from '../utils/storage'
 
 interface VendaContextType {
   vendas: Venda[]
@@ -58,7 +59,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
   // Carregar carrinho salvo do localStorage (recuperação de crash)
   const [cart, setCart] = useState<ItemVenda[]>(() => {
     try {
-      const saved = localStorage.getItem('meupdv_draft_cart')
+      const saved = localStorage.getItem(StorageKeys.DRAFT_CART)
       if (saved) return JSON.parse(saved)
     } catch { /* ignore */ }
     return []
@@ -78,9 +79,9 @@ export function VendaProvider({ children }: { children: ReactNode }) {
   // Persistir carrinho no localStorage a cada alteração
   useEffect(() => {
     if (cart.length > 0) {
-      localStorage.setItem('meupdv_draft_cart', JSON.stringify(cart))
+      localStorage.setItem(StorageKeys.DRAFT_CART, JSON.stringify(cart))
     } else {
-      localStorage.removeItem('meupdv_draft_cart')
+      localStorage.removeItem(StorageKeys.DRAFT_CART)
     }
   }, [cart])
 

@@ -6,8 +6,22 @@
 const PREFIX = 'meupdv_'
 
 export const StorageKeys = {
-  USERS: `${PREFIX}users`,
+  // ---- Chaves ativas (API-based) ----
+  /** Dados do usuário logado em cache (token fica no cookie httpOnly) */
   CURRENT_USER: `${PREFIX}current_user`,
+  /** Carrinho em andamento salvo para recuperação de crash */
+  DRAFT_CART: `${PREFIX}draft_cart`,
+  /** Data da última limpeza de cache (YYYY-MM-DD) */
+  LAST_CACHE_CLEAR: `${PREFIX}last_cache_clear`,
+  /** Build time do app para detecção de atualizações */
+  APP_BUILD_TIME: `${PREFIX}app_build_time`,
+  /** ID da loja ativa em modo multi-loja */
+  LOJA_ATIVA: `${PREFIX}loja_ativa`,
+  /** Nome da loja ativa em modo multi-loja */
+  LOJA_NOME: `${PREFIX}loja_nome`,
+
+  // ---- Chaves legadas (localStorage-only, anterior à migração para API) ----
+  USERS: `${PREFIX}users`,
   PRODUTOS: `${PREFIX}produtos`,
   CLIENTES: `${PREFIX}clientes`,
   VENDAS: `${PREFIX}vendas`,

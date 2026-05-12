@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { clearAllCaches } from '../utils/cacheUtils'
+import { StorageKeys } from '../utils/storage'
 
 const POLL_INTERVAL = 5 * 60 * 1000 // 5 minutes
-const STORAGE_KEY = 'meupdv_app_build_time'
+const STORAGE_KEY = StorageKeys.APP_BUILD_TIME
 
 async function fetchBuildTime(): Promise<string | null> {
   try {

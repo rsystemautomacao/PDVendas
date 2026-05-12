@@ -2,10 +2,11 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { useNavigate } from 'react-router-dom'
 import type { User } from '../types'
 import { api } from '../services/api'
+import { StorageKeys } from '../utils/storage'
 
 // Apenas dados do usuário são armazenados em localStorage (não o token JWT)
 // O token fica exclusivamente no cookie httpOnly definido pelo servidor
-const USER_KEY = 'meupdv_current_user'
+const USER_KEY = StorageKeys.CURRENT_USER
 
 interface LoginResult {
   ok: boolean

@@ -76,7 +76,7 @@ export function imprimirRecibo(reciboHtml: string, escposData?: string, logoBase
       // Dados ESC/POS prontos — envia direto como texto
       for (let i = 0; i < copias; i++) {
         imprimirEmbarcada(escposData).catch(err =>
-          console.error('[Impressao] Erro na impressora embarcada:', err)
+          { if (import.meta.env.DEV) console.error('[Impressao] Erro na impressora embarcada:', err) }
         )
       }
     } else {
@@ -84,7 +84,7 @@ export function imprimirRecibo(reciboHtml: string, escposData?: string, logoBase
       const comandos = htmlParaComandosElgin(reciboHtml, logoBase64)
       for (let i = 0; i < copias; i++) {
         imprimirComandos(comandos).catch(err =>
-          console.error('[Impressao] Erro na impressora embarcada:', err)
+          { if (import.meta.env.DEV) console.error('[Impressao] Erro na impressora embarcada:', err) }
         )
       }
     }
