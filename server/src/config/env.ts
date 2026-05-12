@@ -39,4 +39,14 @@ if (env.NODE_ENV === 'production') {
   if (!env.SUPERADMIN_EMAIL) {
     console.warn('AVISO: SUPERADMIN_EMAIL não configurado - painel admin ficará inacessível');
   }
+  // Stripe: pagamentos ficam indisponíveis se não configurados, mas não derrubamos o servidor
+  if (!env.STRIPE_SECRET_KEY) {
+    console.warn('AVISO: STRIPE_SECRET_KEY não configurada - pagamentos via Stripe indisponíveis');
+  }
+  if (!env.STRIPE_WEBHOOK_SECRET) {
+    console.warn('AVISO: STRIPE_WEBHOOK_SECRET não configurada - webhooks Stripe serão rejeitados');
+  }
+  if (!env.STRIPE_PRICE_ID) {
+    console.warn('AVISO: STRIPE_PRICE_ID não configurada - checkout Stripe indisponível');
+  }
 }
