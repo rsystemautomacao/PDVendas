@@ -198,15 +198,6 @@ function AppLayoutInner() {
 
   return (
     <div className="min-h-screen bg-surface-50 dark:bg-slate-950 dark:text-gray-200">
-      {/* Banner de nova versão */}
-      {hasUpdate && <UpdateBanner onUpdate={doUpdate} />}
-      {(assinaturaStatus.expirando || assinaturaStatus.diasVencidos > 0) && (
-        <AssinaturaBanner
-          diasRestantes={assinaturaStatus.diasRestantes}
-          diasVencidos={assinaturaStatus.diasVencidos}
-          isTeste={assinaturaStatus.isTeste}
-        />
-      )}
       <Topbar onMenuClick={() => setDrawerOpen((o) => !o)} />
       {drawerOpen && (
         <div
@@ -231,6 +222,15 @@ function AppLayoutInner() {
         className={`pt-14 min-h-screen transition-[padding] duration-300 ${drawerOpen ? 'lg:pl-80' : ''}`}
         role="main"
       >
+        {/* Banners abaixo da topbar fixa */}
+        {hasUpdate && <UpdateBanner onUpdate={doUpdate} />}
+        {(assinaturaStatus.expirando || assinaturaStatus.diasVencidos > 0) && (
+          <AssinaturaBanner
+            diasRestantes={assinaturaStatus.diasRestantes}
+            diasVencidos={assinaturaStatus.diasVencidos}
+            isTeste={assinaturaStatus.isTeste}
+          />
+        )}
         <OnboardingGate />
       </main>
     </div>
