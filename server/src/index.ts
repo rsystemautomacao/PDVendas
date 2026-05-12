@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/errorHandler';
 import routes from './routes';
 import webhookRoutes from './routes/webhook.routes';
 import { checkSubscriptions } from './jobs/subscriptionCheck';
+import { Session } from './models/Session';
 
 const app = express();
 
@@ -42,6 +43,30 @@ app.use((_req, res) => {
 // Global error handler (must be last)
 app.use(errorHandler);
 
+// Limpa sessões expiradas ou inativas periodicamente
+async function runSessionCleanup() {
+  try {
+    const inactivityHours = env.SESSION_INACTIVITY_HOURS;
+    const now = new Date();
+    const inactivityCutoff = new Date(now.getTime() - inactivityHours * 3600 * 1000);
+    const result = await Session.updateMany(
+      {
+        isValid: true,
+        $or: [
+          { expiresAt: { $lte: now } },
+          { lastActivity: { $lte: inactivityCutoff } },
+        ],
+      },
+      { isValid: false, invalidatedReason: 'inactivity', invalidatedAt: now },
+    );
+    if (result.modifiedCount > 0) {
+      console.log(`[SessionCleanup] ${result.modifiedCount} sessão(ões) inativas invalidadas`);
+    }
+  } catch (err: any) {
+    console.error('[SessionCleanup] Erro:', err.message);
+  }
+}
+
 // Start server
 connectDB().then(() => {
   app.listen(env.PORT, () => {
@@ -54,6 +79,10 @@ connectDB().then(() => {
     setInterval(() => {
       checkSubscriptions().catch(err => console.error('[SubscriptionCheck] Erro:', err.message));
     }, 6 * 60 * 60 * 1000);
+
+    // Limpar sessões expiradas/inativas a cada hora
+    runSessionCleanup();
+    setInterval(runSessionCleanup, 60 * 60 * 1000);
   });
 });
 
