@@ -46,8 +46,8 @@ export function OrdemServicoProvider({ children }: { children: ReactNode }) {
   const recarregar = useCallback(async () => {
     try {
       const [resOS, resOrc] = await Promise.all([
-        api.get('/ordens-servico?limit=9999'),
-        api.get('/orcamentos?limit=9999'),
+        api.get('/ordens-servico?limit=200'),
+        api.get('/orcamentos?limit=200'),
       ])
       if (resOS.success && resOS.data) setOrdensServico(resOS.data)
       if (resOrc.success && resOrc.data) setOrcamentos(resOrc.data)

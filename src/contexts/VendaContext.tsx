@@ -86,7 +86,10 @@ export function VendaProvider({ children }: { children: ReactNode }) {
 
   const recarregar = useCallback(async () => {
     try {
-      const res = await api.get('/vendas?limit=9999')
+      // Carrega últimos 90 dias — cobre Dashboard, relatórios e fluxo de caixa
+      const de = new Date(); de.setDate(de.getDate() - 90)
+      const deStr = de.toISOString().split('T')[0]
+      const res = await api.get(`/vendas?limit=500&de=${deStr}`)
       if (res.success && res.data) {
         setVendas(res.data)
       }

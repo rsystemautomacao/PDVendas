@@ -33,7 +33,7 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
 
   const recarregar = useCallback(async () => {
     try {
-      const res = await api.get('/clientes?limit=9999')
+      const res = await api.get('/clientes?limit=500')
       if (res.success && res.data) {
         setClientes(res.data)
       }

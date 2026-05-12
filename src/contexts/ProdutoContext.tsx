@@ -39,7 +39,7 @@ export function ProdutoProvider({ children }: { children: ReactNode }) {
 
   const recarregar = useCallback(async () => {
     try {
-      const res = await api.get('/produtos?limit=9999')
+      const res = await api.get('/produtos?limit=500')
       if (res.success && res.data) {
         setProdutos(res.data)
       }
