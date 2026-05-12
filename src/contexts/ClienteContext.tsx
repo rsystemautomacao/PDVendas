@@ -38,9 +38,9 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
         setClientes(res.data)
       }
     } catch {
-      // silencioso
+      toast.alerta('Não foi possível carregar os clientes. Verifique sua conexão.')
     }
-  }, [])
+  }, [toast])
 
   const carregarSeNecessario = useCallback(async () => {
     if (jaCarregou.current) return

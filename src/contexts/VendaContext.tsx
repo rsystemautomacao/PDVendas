@@ -94,7 +94,7 @@ export function VendaProvider({ children }: { children: ReactNode }) {
         setVendas(res.data)
       }
     } catch {
-      // silencioso
+      toast.alerta('Não foi possível carregar as vendas. Verifique sua conexão.')
     }
     jaCarregou.current = true
   }, [])

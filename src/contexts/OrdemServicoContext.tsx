@@ -52,7 +52,7 @@ export function OrdemServicoProvider({ children }: { children: ReactNode }) {
       if (resOS.success && resOS.data) setOrdensServico(resOS.data)
       if (resOrc.success && resOrc.data) setOrcamentos(resOrc.data)
     } catch {
-      // silencioso
+      toast.alerta('Não foi possível carregar ordens de serviço. Verifique sua conexão.')
     }
     jaCarregou.current = true
   }, [])

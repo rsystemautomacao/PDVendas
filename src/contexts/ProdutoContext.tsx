@@ -44,9 +44,9 @@ export function ProdutoProvider({ children }: { children: ReactNode }) {
         setProdutos(res.data)
       }
     } catch {
-      // silencioso no reload
+      toast.alerta('Não foi possível carregar os produtos. Verifique sua conexão.')
     }
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     recarregar().finally(() => setLoading(false))

@@ -60,10 +60,10 @@ export function FinanceiroProvider({ children }: { children: ReactNode }) {
       if (crRes.success && crRes.data) setContasReceber(crRes.data)
       if (dRes.success && dRes.data) setDespesas(dRes.data)
     } catch {
-      // silencioso
+      toast.alerta('Não foi possível carregar dados financeiros. Verifique sua conexão.')
     }
     jaCarregou.current = true
-  }, [])
+  }, [toast])
 
   const carregarSeNecessario = useCallback(async () => {
     if (jaCarregou.current) return
