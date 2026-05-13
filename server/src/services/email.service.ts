@@ -1,7 +1,17 @@
+import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 
-function createTransporter() {
+// ─── Resend (recomendado em produção — funciona via HTTPS, não bloqueado por Render) ───
+
+function createResendClient() {
+  if (!env.RESEND_API_KEY) return null;
+  return new Resend(env.RESEND_API_KEY);
+}
+
+// ─── Nodemailer / SMTP (fallback, pode ser bloqueado em alguns provedores) ───
+
+function createSMTPTransporter() {
   if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) return null;
   return nodemailer.createTransport({
     host: env.SMTP_HOST,
@@ -11,29 +21,31 @@ function createTransporter() {
   });
 }
 
-/** Testa a conexão SMTP na inicialização do servidor */
+/** Testa a conexão na inicialização do servidor */
 export async function verifySMTPConnection(): Promise<void> {
-  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) {
-    console.warn('[Email] SMTP não configurado (SMTP_HOST/SMTP_USER/SMTP_PASS ausentes) — emails de reset desativados.');
+  const resend = createResendClient();
+  if (resend) {
+    console.log('[Email] ✅ Resend configurado — emails enviados via API HTTPS');
     return;
   }
-  const transporter = createTransporter()!;
+
+  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) {
+    console.warn('[Email] ⚠️  Nenhum serviço de email configurado (RESEND_API_KEY ou SMTP_HOST/USER/PASS ausentes) — emails de reset desativados.');
+    return;
+  }
+
+  const transporter = createSMTPTransporter()!;
   try {
     await transporter.verify();
     console.log(`[Email] ✅ Conexão SMTP OK — ${env.SMTP_USER} via ${env.SMTP_HOST}:${env.SMTP_PORT}`);
   } catch (err: any) {
     console.error(`[Email] ❌ Falha na conexão SMTP (${env.SMTP_HOST}:${env.SMTP_PORT} / ${env.SMTP_USER}): ${err.message}`);
+    console.error('[Email]    Dica: Use RESEND_API_KEY para evitar bloqueios de porta em produção.');
   }
 }
 
-export async function sendPasswordResetEmail(to: string, code: string): Promise<boolean> {
-  const transporter = createTransporter();
-  if (!transporter) {
-    console.warn('[Email] SMTP não configurado — código de reset não foi enviado por email.');
-    return false;
-  }
-
-  const html = `
+function buildResetEmailHTML(code: string): string {
+  return `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
       <div style="text-align:center;margin-bottom:24px">
         <div style="display:inline-flex;align-items:center;justify-content:center;
@@ -67,18 +79,47 @@ export async function sendPasswordResetEmail(to: string, code: string): Promise<
       </p>
     </div>
   `;
+}
+
+export async function sendPasswordResetEmail(to: string, code: string): Promise<boolean> {
+  const html = buildResetEmailHTML(code);
+  const subject = `${code} — Código de recuperação MeuPDV`;
+
+  // Tenta Resend primeiro (funciona via HTTPS, não sofre bloqueio de porta)
+  const resend = createResendClient();
+  if (resend) {
+    try {
+      const { data, error } = await resend.emails.send({
+        from: env.RESEND_FROM || env.SMTP_FROM || 'MeuPDV <onboarding@resend.dev>',
+        to,
+        subject,
+        html,
+      });
+      if (error) {
+        console.error(`[Email] ❌ Resend falhou ao enviar para ${to}: ${error.message}`);
+        return false;
+      }
+      console.log(`[Email] ✅ Email enviado via Resend para ${to} — id: ${data?.id}`);
+      return true;
+    } catch (err: any) {
+      console.error(`[Email] ❌ Resend erro inesperado: ${err.message}`);
+      return false;
+    }
+  }
+
+  // Fallback: SMTP / Nodemailer
+  const transporter = createSMTPTransporter();
+  if (!transporter) {
+    console.warn('[Email] Nenhum serviço de email configurado — reset não enviado.');
+    return false;
+  }
 
   try {
-    const info = await transporter.sendMail({
-      from: env.SMTP_FROM,
-      to,
-      subject: `${code} — Código de recuperação MeuPDV`,
-      html,
-    });
-    console.log(`[Email] ✅ Email de reset enviado para ${to} — messageId: ${info.messageId}`);
+    const info = await transporter.sendMail({ from: env.SMTP_FROM, to, subject, html });
+    console.log(`[Email] ✅ Email enviado via SMTP para ${to} — messageId: ${info.messageId}`);
     return true;
   } catch (err: any) {
-    console.error(`[Email] ❌ Falha ao enviar email de reset para ${to}: ${err.message} (code: ${err.code})`);
+    console.error(`[Email] ❌ SMTP falhou ao enviar para ${to}: ${err.message} (code: ${err.code})`);
     return false;
   }
 }
