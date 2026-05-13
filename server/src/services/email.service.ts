@@ -11,6 +11,21 @@ function createTransporter() {
   });
 }
 
+/** Testa a conexão SMTP na inicialização do servidor */
+export async function verifySMTPConnection(): Promise<void> {
+  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) {
+    console.warn('[Email] SMTP não configurado (SMTP_HOST/SMTP_USER/SMTP_PASS ausentes) — emails de reset desativados.');
+    return;
+  }
+  const transporter = createTransporter()!;
+  try {
+    await transporter.verify();
+    console.log(`[Email] ✅ Conexão SMTP OK — ${env.SMTP_USER} via ${env.SMTP_HOST}:${env.SMTP_PORT}`);
+  } catch (err: any) {
+    console.error(`[Email] ❌ Falha na conexão SMTP (${env.SMTP_HOST}:${env.SMTP_PORT} / ${env.SMTP_USER}): ${err.message}`);
+  }
+}
+
 export async function sendPasswordResetEmail(to: string, code: string): Promise<boolean> {
   const transporter = createTransporter();
   if (!transporter) {
@@ -54,15 +69,16 @@ export async function sendPasswordResetEmail(to: string, code: string): Promise<
   `;
 
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: env.SMTP_FROM,
       to,
       subject: `${code} — Código de recuperação MeuPDV`,
       html,
     });
+    console.log(`[Email] ✅ Email de reset enviado para ${to} — messageId: ${info.messageId}`);
     return true;
-  } catch (err) {
-    console.error('[Email] Falha ao enviar email de reset:', (err as Error).message);
+  } catch (err: any) {
+    console.error(`[Email] ❌ Falha ao enviar email de reset para ${to}: ${err.message} (code: ${err.code})`);
     return false;
   }
 }

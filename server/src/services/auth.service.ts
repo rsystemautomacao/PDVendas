@@ -253,8 +253,9 @@ export const authService = {
       const { sendPasswordResetEmail } = await import('./email.service');
       const sent = await sendPasswordResetEmail(user.email, token);
       if (!sent) {
-        // SMTP não configurado: fallback seguro — não expõe o token, mas loga para o admin
-        console.error(`[Auth] Reset solicitado para ${user.email} mas SMTP não está configurado. Configure SMTP_HOST/SMTP_USER/SMTP_PASS no .env`);
+        // SMTP não configurado ou falhou: loga para o admin poder diagnosticar
+        console.error(`[Auth] ⚠️  Reset solicitado para ${user.email} — código gerado mas NÃO enviado por email.`);
+        console.error(`[Auth]    SMTP_HOST=${env.SMTP_HOST || '(vazio)'} | SMTP_USER=${env.SMTP_USER || '(vazio)'} | SMTP_PASS=${env.SMTP_PASS ? '(configurado)' : '(vazio)'}`);
       }
       return { message: 'Se o email existir, o código será enviado' };
     }

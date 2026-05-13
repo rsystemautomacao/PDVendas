@@ -9,6 +9,7 @@ import routes from './routes';
 import webhookRoutes from './routes/webhook.routes';
 import { checkSubscriptions } from './jobs/subscriptionCheck';
 import { Session } from './models/Session';
+import { verifySMTPConnection } from './services/email.service';
 
 const app = express();
 
@@ -69,6 +70,9 @@ async function runSessionCleanup() {
 connectDB().then(() => {
   app.listen(env.PORT, () => {
     console.log(`MeuPDV Server rodando na porta ${env.PORT} [${env.NODE_ENV}]`);
+
+    // Testar conexão SMTP ao iniciar
+    verifySMTPConnection();
 
     // Verificar assinaturas ao iniciar
     checkSubscriptions().catch(err => console.error('[SubscriptionCheck] Erro:', err.message));
