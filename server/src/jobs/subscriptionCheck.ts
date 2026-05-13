@@ -83,11 +83,12 @@ export async function checkSubscriptions() {
 
       if (shouldNotify) {
         // Verificar se ja notificou hoje para este marco
+        // Regex /venc/i cobre "vence", "vencida", "vencimento" etc.
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
         const jaNotificouHoje = await Notificacao.findOne({
           empresaId: tenantId,
-          titulo: { $regex: /vencimento|vencer|expira/i },
+          titulo: { $regex: /venc/i },
           criadoEm: { $gte: hoje },
         });
 
