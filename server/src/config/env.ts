@@ -23,6 +23,8 @@ export const env = {
   SMTP_USER: process.env.SMTP_USER || '',
   SMTP_PASS: process.env.SMTP_PASS || '',
   SMTP_FROM: process.env.SMTP_FROM || 'MeuPDV <noreply@meupdv.com.br>',
+  // URL pública do servidor (ex: https://pdvendas-xyz.onrender.com) — usado para keep-alive
+  SERVER_URL: process.env.SERVER_URL || '',
 };
 
 // Validate required env vars

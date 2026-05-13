@@ -85,6 +85,16 @@ connectDB().then(() => {
     // Limpar sessões expiradas/inativas a cada hora
     runSessionCleanup();
     setInterval(runSessionCleanup, 60 * 60 * 1000);
+
+    // Keep-alive: pinga o próprio /health a cada 10 min para o Render free tier não dormir
+    if (env.NODE_ENV === 'production' && env.SERVER_URL) {
+      setInterval(() => {
+        fetch(`${env.SERVER_URL}/health`)
+          .then(() => console.log('[KeepAlive] ping ok'))
+          .catch(() => {/* silencioso */});
+      }, 10 * 60 * 1000);
+      console.log(`[KeepAlive] Ativo — pingando ${env.SERVER_URL}/health a cada 10 min`);
+    }
   });
 });
 
