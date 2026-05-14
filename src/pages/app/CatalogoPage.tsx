@@ -196,9 +196,13 @@ export function CatalogoPage() {
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <Package className="h-5 w-5 text-primary" />
-                    </div>
+                    {p.fotos && p.fotos.length > 0 ? (
+                      <img src={p.fotos[0]} alt={p.nome} className="h-10 w-10 rounded-lg object-cover" />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                        <Package className="h-5 w-5 text-primary" />
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-medium ${p.ativo ? 'text-green-600' : 'text-text-muted'}`}>
                         {p.ativo ? 'Ativo' : 'Inativo'}

@@ -112,6 +112,7 @@ export interface Produto {
   precoAtacado?: number
   qtdMinimaAtacado?: number
   validade?: string
+  fotos?: string[]
   criadoEm: string
   atualizadoEm: string
 }

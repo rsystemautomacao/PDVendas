@@ -59,6 +59,7 @@ export const createProdutoSchema = z.object({
   precoAtacado: z.number().min(0).optional(),
   qtdMinimaAtacado: z.number().min(1).optional(),
   validade: z.string().optional(),
+  fotos: z.array(z.string()).max(4).optional(),
 });
 
 export const updateProdutoSchema = createProdutoSchema.partial();

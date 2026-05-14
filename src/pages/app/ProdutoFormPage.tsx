@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { ArrowLeft, Scale, AlertCircle, Plus, Trash2, Cpu, Shirt, Shield, Hash } from 'lucide-react'
+import { ArrowLeft, Scale, AlertCircle, Plus, Trash2, Cpu, Shirt, Shield, Hash, Camera, ImagePlus, X } from 'lucide-react'
 import { useProdutos } from '../../contexts/ProdutoContext'
 import { useToast } from '../../contexts/ToastContext'
 import { sanitize } from '../../utils/helpers'
@@ -36,6 +36,37 @@ const SPECS_SUGESTOES: Record<string, string[]> = {
   eletrodomesticos: ['Potencia', 'Voltagem', 'Capacidade', 'Dimensoes', 'Peso', 'Cor'],
 }
 
+const MAX_FOTOS = 4
+const MAX_IMG_SIZE = 800 // px max width/height
+
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let w = img.width
+        let h = img.height
+        if (w > MAX_IMG_SIZE || h > MAX_IMG_SIZE) {
+          if (w > h) { h = Math.round(h * MAX_IMG_SIZE / w); w = MAX_IMG_SIZE }
+          else { w = Math.round(w * MAX_IMG_SIZE / h); h = MAX_IMG_SIZE }
+        }
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, w, h)
+        const base64 = canvas.toDataURL('image/jpeg', 0.75)
+        resolve(base64)
+      }
+      img.onerror = reject
+      img.src = e.target?.result as string
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 export function ProdutoFormPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -69,6 +100,11 @@ export function ProdutoFormPage() {
   const [qtdMinimaAtacado, setQtdMinimaAtacado] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
+
+  // Fotos
+  const [fotos, setFotos] = useState<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   // Novos campos
   const [categoria, setCategoria] = useState('')
@@ -167,6 +203,7 @@ export function ProdutoFormPage() {
         setGarantiaMeses(String(produto.garantiaMeses || ''))
         setGarantiaTipo(produto.garantiaTipo || '')
         setEspecificacoes(produto.especificacoes || [])
+        setFotos(produto.fotos || [])
       } else {
         toast.erro('Produto nao encontrado')
         navigate(locationState?.returnTo || '/app/produtos')
@@ -254,6 +291,23 @@ export function ProdutoFormPage() {
     setEspecificacoes(prev => prev.filter((_, i) => i !== idx))
   }, [])
 
+  const handleAddFotos = useCallback(async (files: FileList | null) => {
+    if (!files) return
+    const remaining = MAX_FOTOS - fotos.length
+    if (remaining <= 0) { toast.alerta(`Maximo de ${MAX_FOTOS} fotos`); return }
+    const toProcess = Array.from(files).slice(0, remaining)
+    try {
+      const results = await Promise.all(toProcess.map(f => compressImage(f)))
+      setFotos(prev => [...prev, ...results])
+    } catch {
+      toast.erro('Erro ao processar imagem')
+    }
+  }, [fotos.length, toast])
+
+  const removeFoto = useCallback((idx: number) => {
+    setFotos(prev => prev.filter((_, i) => i !== idx))
+  }, [])
+
   const validate = useCallback(() => {
     const next: Record<string, string> = {}
     if (!nome.trim()) next.nome = 'Nome e obrigatorio'
@@ -314,6 +368,7 @@ export function ProdutoFormPage() {
       garantiaMeses: garantiaMeses ? parseInt(garantiaMeses) : undefined,
       garantiaTipo: garantiaTipo || undefined,
       especificacoes: especificacoes.filter(e => e.chave && e.valor),
+      fotos: fotos.length > 0 ? fotos : undefined,
     }
 
     if (isEdit && id) {
@@ -324,7 +379,7 @@ export function ProdutoFormPage() {
 
     setLoading(false)
     navigate(locationState?.returnTo || '/app/produtos')
-  }, [nome, codigo, codigoBarras, tipo, modoVenda, preco, precoCusto, estoque, estoqueMinimo, estoqueIdeal, unidade, grupo, marca, fornecedor, ativo, observacoes, categoria, genero, material, colecao, temVariacoes, variacoes, tamanhosSelecionados, coresSelecionadas, temSerial, seriais, garantiaMeses, garantiaTipo, especificacoes, isEdit, id, validate, adicionarProduto, atualizarProduto, navigate])
+  }, [nome, codigo, codigoBarras, tipo, modoVenda, preco, precoCusto, estoque, estoqueMinimo, estoqueIdeal, unidade, grupo, marca, fornecedor, ativo, observacoes, categoria, genero, material, colecao, temVariacoes, variacoes, tamanhosSelecionados, coresSelecionadas, temSerial, seriais, garantiaMeses, garantiaTipo, especificacoes, fotos, isEdit, id, validate, adicionarProduto, atualizarProduto, navigate])
 
   const tamanhos = categoria === 'calcados' ? TAMANHOS_CALCADO : TAMANHOS_ROUPA
 
@@ -592,6 +647,69 @@ export function ProdutoFormPage() {
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Observacoes</label>
                 <textarea value={observacoes} onChange={e => setObservacoes(e.target.value)}
                   placeholder="Observacoes sobre o produto" rows={3} className="input-field resize-none" />
+              </div>
+
+              {/* Fotos do Produto */}
+              <div className="sm:col-span-2">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Fotos do Produto <span className="text-gray-400 font-normal">({fotos.length}/{MAX_FOTOS})</span>
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  {fotos.map((foto, idx) => (
+                    <div key={idx} className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-gray-200 group">
+                      <img src={foto} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeFoto(idx)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      >
+                        <X size={14} />
+                      </button>
+                      {idx === 0 && (
+                        <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[9px] text-center py-0.5 font-bold">
+                          PRINCIPAL
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {fotos.length < MAX_FOTOS && (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-primary hover:text-primary transition-colors"
+                      >
+                        <ImagePlus size={22} />
+                        <span className="text-[10px] mt-1 font-medium">Galeria</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-primary hover:text-primary transition-colors"
+                      >
+                        <Camera size={22} />
+                        <span className="text-[10px] mt-1 font-medium">Camera</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={e => { handleAddFotos(e.target.files); e.target.value = '' }}
+                />
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={e => { handleAddFotos(e.target.files); e.target.value = '' }}
+                />
+                <p className="text-xs text-gray-400 mt-1.5">Arraste para reordenar. A primeira foto sera a capa no catalogo.</p>
               </div>
             </div>
           </div>

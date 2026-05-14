@@ -28,7 +28,7 @@ router.get('/catalogo/:empresaId', async (req, res) => {
     const empresa = await User.findOne({ _id: req.params.empresaId, role: 'admin' });
     if (!empresa) return res.status(404).json({ success: false, error: 'Empresa nao encontrada' });
     const produtos = await Produto.find({ empresaId: req.params.empresaId, ativo: true })
-      .select('nome codigo preco precoAtacado qtdMinimaAtacado grupo marca estoque unidade categoria')
+      .select('nome codigo preco precoAtacado qtdMinimaAtacado grupo marca estoque unidade categoria fotos')
       .sort({ nome: 1 });
 
     // Buscar promocoes ativas para esta empresa

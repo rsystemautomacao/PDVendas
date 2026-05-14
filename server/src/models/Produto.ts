@@ -92,6 +92,9 @@ const produtoSchema = new Schema(
 
     // Controle de validade
     validade: String,
+
+    // Fotos do produto (base64, max 4)
+    fotos: [{ type: String }],
   },
   {
     timestamps: { createdAt: 'criadoEm', updatedAt: 'atualizadoEm' },

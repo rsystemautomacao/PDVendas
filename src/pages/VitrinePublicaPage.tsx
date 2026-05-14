@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { Search, Package, ShoppingBag, Phone, Tag } from 'lucide-react'
+import { Search, Package, ShoppingBag, Phone, Tag, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
@@ -16,6 +16,7 @@ interface ProdutoCatalogo {
   estoque: number
   unidade: string
   categoria?: string
+  fotos?: string[]
 }
 
 interface EmpresaInfo {
@@ -31,6 +32,50 @@ interface DescontoInfo {
 
 function formatCurrency(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function ProductImageCarousel({ fotos, nome, desconto }: { fotos: string[]; nome: string; desconto: boolean }) {
+  const [idx, setIdx] = useState(0)
+  const touchStart = useRef(0)
+
+  const prev = () => setIdx(i => (i > 0 ? i - 1 : fotos.length - 1))
+  const next = () => setIdx(i => (i < fotos.length - 1 ? i + 1 : 0))
+
+  return (
+    <div
+      className="relative h-36 bg-gray-100 overflow-hidden group"
+      onTouchStart={e => { touchStart.current = e.touches[0].clientX }}
+      onTouchEnd={e => {
+        const diff = e.changedTouches[0].clientX - touchStart.current
+        if (diff > 40) prev()
+        else if (diff < -40) next()
+      }}
+    >
+      <img
+        src={fotos[idx]}
+        alt={nome}
+        className="w-full h-full object-cover"
+        loading="lazy"
+      />
+      {fotos.length > 1 && (
+        <>
+          <button onClick={e => { e.stopPropagation(); prev() }}
+            className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <ChevronLeft size={16} />
+          </button>
+          <button onClick={e => { e.stopPropagation(); next() }}
+            className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <ChevronRight size={16} />
+          </button>
+          <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
+            {fotos.map((_, i) => (
+              <span key={i} className={`block w-1.5 h-1.5 rounded-full transition-colors ${i === idx ? 'bg-white' : 'bg-white/50'}`} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 export function VitrinePublicaPage() {
@@ -210,13 +255,17 @@ export function VitrinePublicaPage() {
                     </div>
                   )}
 
-                  <div className={`h-32 flex items-center justify-center ${
-                    desconto
-                      ? 'bg-gradient-to-br from-red-50 to-orange-50'
-                      : 'bg-gradient-to-br from-indigo-50 to-purple-50'
-                  }`}>
-                    <Package size={40} className={desconto ? 'text-red-300' : 'text-indigo-300'} />
-                  </div>
+                  {p.fotos && p.fotos.length > 0 ? (
+                    <ProductImageCarousel fotos={p.fotos} nome={p.nome} desconto={!!desconto} />
+                  ) : (
+                    <div className={`h-36 flex items-center justify-center ${
+                      desconto
+                        ? 'bg-gradient-to-br from-red-50 to-orange-50'
+                        : 'bg-gradient-to-br from-indigo-50 to-purple-50'
+                    }`}>
+                      <Package size={40} className={desconto ? 'text-red-300' : 'text-indigo-300'} />
+                    </div>
+                  )}
                   <div className="p-4">
                     <h3 className="font-semibold text-gray-800 text-sm line-clamp-2 min-h-[2.5rem]">{p.nome}</h3>
                     {p.grupo && <p className="text-xs text-gray-400 mt-0.5">{p.grupo}</p>}
