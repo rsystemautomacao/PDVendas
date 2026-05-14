@@ -243,3 +243,28 @@ export function isDateInRange(dateStr: string, from: string, to: string): boolea
   const t = to ? new Date(to + 'T23:59:59').getTime() : Infinity
   return d >= f && d <= t
 }
+
+// ---- WhatsApp ----
+
+/**
+ * Abre o WhatsApp com texto pre-preenchido.
+ * No Android WebView, usa intent:// para abrir o app direto.
+ * Em navegadores normais, usa https://wa.me.
+ *
+ * @param texto - Mensagem pre-preenchida
+ * @param telefone - Numero com DDI (ex: "5511999999999"). Se omitido, abre sem destinatario.
+ */
+export function abrirWhatsApp(texto: string, telefone?: string) {
+  const encoded = encodeURIComponent(texto)
+  const isAndroid = /Android/i.test(navigator.userAgent)
+
+  if (isAndroid) {
+    // intent:// resolve o app WhatsApp instalado, evita ERR_UNKNOWN_URL_SCHEME no WebView
+    const phoneParam = telefone ? `&phone=${telefone}` : ''
+    const intentUrl = `intent://send/?text=${encoded}${phoneParam}#Intent;scheme=whatsapp;package=com.whatsapp;end;`
+    window.location.href = intentUrl
+  } else {
+    const phonePath = telefone ? `/${telefone}` : ''
+    window.open(`https://wa.me${phonePath}?text=${encoded}`, '_blank')
+  }
+}

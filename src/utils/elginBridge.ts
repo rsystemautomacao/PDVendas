@@ -434,7 +434,7 @@ export class ElginBuilder {
 
   /** Cortar papel */
   cortarPapel(): this {
-    this.cmds.push({ type: 'feed', lines: 3 })
+    this.cmds.push({ type: 'feed', lines: 5 })
     this.cmds.push({ type: 'cut' })
     return this
   }

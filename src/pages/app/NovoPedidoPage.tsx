@@ -11,7 +11,7 @@ import { useClientes } from '../../contexts/ClienteContext'
 import { useCaixa } from '../../contexts/CaixaContext'
 import { useToast } from '../../contexts/ToastContext'
 import { useAuth, useEmpresaUsaCaixa } from '../../contexts/AuthContext'
-import { formatCurrency, isCodigoBalanca } from '../../utils/helpers'
+import { formatCurrency, isCodigoBalanca, abrirWhatsApp } from '../../utils/helpers'
 import { imprimirRecibo, deveImprimirAutomatico, getImpressoraPadrao } from '../../utils/impressao'
 import { isAndroidDevice } from '../../utils/elginBridge'
 import type { Pagamento, FormaPagamento, Venda, Produto } from '../../types'
@@ -574,27 +574,26 @@ export function NovoPedidoPage() {
     const texto = [
       `*${empresa}*`,
       cnpj + tel,
-      `━━━━━━━━━━━━━━━━━━`,
+      `------------------`,
       `*Venda #${v.numero}*`,
       `Data: ${new Date(v.criadoEm).toLocaleString('pt-BR')}`,
       v.clienteNome ? `Cliente: ${v.clienteNome}` : '',
       `Vendedor: ${v.vendedorNome}`,
-      `━━━━━━━━━━━━━━━━━━`,
+      `------------------`,
       `*ITENS:*`,
       itens,
-      `━━━━━━━━━━━━━━━━━━`,
+      `------------------`,
       `Subtotal: ${formatCurrency(v.subtotal)}`,
       v.desconto > 0 ? `Desconto: -${formatCurrency(v.desconto)}` : '',
       `*TOTAL: ${formatCurrency(v.total)}*`,
-      `━━━━━━━━━━━━━━━━━━`,
+      `------------------`,
       `*PAGAMENTO:*`,
       pags,
       v.troco > 0 ? `Troco: ${formatCurrency(v.troco)}` : '',
-      `━━━━━━━━━━━━━━━━━━`,
-      `Obrigado pela preferencia! 🛒`,
+      `------------------`,
+      `Obrigado pela preferencia!`,
     ].filter(Boolean).join('\n')
-    const url = `https://wa.me/?text=${encodeURIComponent(texto)}`
-    window.open(url, '_blank')
+    abrirWhatsApp(texto)
   }, [vendaFinalizada, user])
 
   // Auto-print receipt when sale is finalized (if configured)
