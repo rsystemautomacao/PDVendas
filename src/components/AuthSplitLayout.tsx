@@ -13,7 +13,7 @@ interface AuthSplitLayoutProps {
 
 function FeatureCard({ icon, title, sub }: { icon: ReactNode; title: string; sub: string }) {
   return (
-    <div className="group flex flex-col items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-4 transition-colors hover:bg-white/20">
+    <div className="group flex flex-col items-center gap-2 rounded-2xl border border-white/20 bg-white/10 desktop:backdrop-blur-md px-5 py-4 transition-colors desktop:transition-all desktop:duration-300 hover:bg-white/20 desktop:hover:scale-105 desktop:hover:shadow-lg desktop:hover:shadow-white/5">
       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15 text-white transition-colors group-hover:bg-white/25">
         {icon}
       </div>
@@ -71,7 +71,9 @@ export function AuthSplitLayout({
   )
 
   const formPanel = (
-    <div className="relative flex min-h-[50vh] flex-1 flex-col items-center justify-center bg-slate-50 px-4 py-8 md:min-h-full md:px-8 md:py-12 overflow-hidden">
+    <div className="relative flex min-h-[50vh] flex-1 flex-col items-center justify-center bg-slate-50 desktop:bg-gradient-to-br desktop:from-slate-50 desktop:via-white desktop:to-indigo-50/30 px-4 py-8 md:min-h-full md:px-8 md:py-12 overflow-hidden">
+      <div className="hidden desktop:block absolute top-0 right-0 w-96 h-96 bg-primary/[0.03] rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" aria-hidden />
+      <div className="hidden desktop:block absolute bottom-0 left-0 w-72 h-72 bg-violet-500/[0.03] rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" aria-hidden />
       <div className="relative z-10 w-full max-w-[420px]">{children}</div>
     </div>
   )

@@ -85,7 +85,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-40 flex min-h-topbar items-center gap-3 bg-white border-b border-gray-200 px-3 py-2 shadow-sm md:gap-4 md:px-5 print:hidden dark:bg-slate-900 dark:border-slate-700"
+      className="fixed top-0 left-0 right-0 z-40 flex min-h-topbar items-center gap-3 bg-white desktop:bg-white/80 desktop:backdrop-blur-xl border-b border-gray-200 desktop:border-gray-200/60 px-3 py-2 shadow-sm md:gap-4 md:px-5 print:hidden dark:bg-slate-900 desktop:dark:bg-slate-900/80 dark:border-slate-700 desktop:dark:border-slate-700/60"
       role="banner"
     >
       {/* Hamburger + Logo */}

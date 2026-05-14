@@ -133,7 +133,7 @@ body.dark {
 
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-600
-    transition-all duration-200 hover:bg-gray-100/80 active:scale-[0.97]
+    transition-colors duration-200 hover:bg-gray-100
     dark:text-gray-300 dark:hover:bg-slate-700;
   }
 
@@ -172,6 +172,82 @@ body.dark {
   .glass {
     @apply bg-white/95 border border-gray-200/50
     dark:bg-slate-800/95 dark:border-slate-600/20;
+  }
+}
+
+/* ====================================================================
+   Desktop-only enhancements (mouse + cursor preciso = nao e touch)
+   Restaura gradientes, transforms, shadows coloridos e backdrop-blur
+   que sao pesados demais para GPUs de tablets Android.
+   ==================================================================== */
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary {
+    background-image: linear-gradient(to right, #6366F1, #4338CA);
+    box-shadow: 0 4px 6px -1px rgb(99 102 241 / 0.25);
+    transition: all 0.2s;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 10px 15px -3px rgb(99 102 241 / 0.3);
+    transform: translateY(-2px);
+  }
+  .btn-primary:active {
+    transform: scale(0.97) translateY(0);
+  }
+
+  .btn-danger {
+    background-image: linear-gradient(to right, #ef4444, #e11d48);
+    box-shadow: 0 4px 6px -1px rgb(239 68 68 / 0.25);
+    transition: all 0.2s;
+  }
+  .btn-danger:hover {
+    box-shadow: 0 10px 15px -3px rgb(239 68 68 / 0.3);
+    transform: translateY(-2px);
+  }
+
+  .btn-secondary:hover {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.06);
+  }
+  .btn-secondary:active {
+    transform: scale(0.97);
+  }
+
+  .btn-ghost:active {
+    transform: scale(0.97);
+  }
+
+  .input-field:focus {
+    box-shadow: 0 0 12px -2px rgb(99 102 241 / 0.15);
+  }
+
+  .card {
+    transition: all 0.3s;
+  }
+  .card:hover {
+    box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
+    border-color: rgb(229 231 235 / 0.8);
+  }
+
+  .stat-card {
+    transition: all 0.3s;
+  }
+  .stat-card:hover {
+    box-shadow: 0 4px 16px -2px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+    transform: translateY(-2px);
+  }
+
+  .hover-lift {
+    transition: all 0.3s;
+  }
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 16px -2px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+  }
+
+  .glass {
+    background: rgb(255 255 255 / 0.7);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-color: rgb(255 255 255 / 0.2);
   }
 }
 

@@ -70,5 +70,9 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    function({ addVariant }) {
+      addVariant('desktop', '@media (hover: hover) and (pointer: fine)')
+    },
+  ],
 }

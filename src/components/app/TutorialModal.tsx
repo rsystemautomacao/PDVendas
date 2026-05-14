@@ -70,13 +70,13 @@ export function TutorialModal({ id, titulo, subtitulo, steps }: TutorialModalPro
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4" onClick={handleClose}>
+    <div className="fixed inset-0 bg-black/50 desktop:backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={handleClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-lg animate-scale-in overflow-hidden"
+        className="bg-white rounded-2xl shadow-xl desktop:shadow-2xl w-full max-w-lg animate-scale-in overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="relative bg-primary px-6 py-5 text-white">
+        <div className="relative bg-primary desktop:bg-gradient-to-r desktop:from-primary desktop:to-violet-600 px-6 py-5 text-white">
           <button
             onClick={handleClose}
             className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
