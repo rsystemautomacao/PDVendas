@@ -247,24 +247,32 @@ export function isDateInRange(dateStr: string, from: string, to: string): boolea
 // ---- WhatsApp ----
 
 /**
- * Abre o WhatsApp com texto pre-preenchido.
- * No Android WebView, usa intent:// para abrir o app direto.
- * Em navegadores normais, usa https://wa.me.
+ * Compartilha texto via WhatsApp.
+ *
+ * Em Android (especialmente WebView), usa navigator.share() que mostra
+ * o menu de compartilhamento nativo do sistema — o usuario escolhe WhatsApp.
+ * Isso evita ERR_UNKNOWN_URL_SCHEME que acontece com wa.me e intent:// no WebView.
+ *
+ * Em desktop/iOS, usa https://wa.me normalmente.
  *
  * @param texto - Mensagem pre-preenchida
  * @param telefone - Numero com DDI (ex: "5511999999999"). Se omitido, abre sem destinatario.
  */
-export function abrirWhatsApp(texto: string, telefone?: string) {
-  const encoded = encodeURIComponent(texto)
+export async function abrirWhatsApp(texto: string, telefone?: string) {
   const isAndroid = /Android/i.test(navigator.userAgent)
 
-  if (isAndroid) {
-    // intent:// resolve o app WhatsApp instalado, evita ERR_UNKNOWN_URL_SCHEME no WebView
-    const phoneParam = telefone ? `&phone=${telefone}` : ''
-    const intentUrl = `intent://send/?text=${encoded}${phoneParam}#Intent;scheme=whatsapp;package=com.whatsapp;end;`
-    window.location.href = intentUrl
-  } else {
-    const phonePath = telefone ? `/${telefone}` : ''
-    window.open(`https://wa.me${phonePath}?text=${encoded}`, '_blank')
+  // Android: usa Web Share API (funciona no WebView e no Chrome)
+  if (isAndroid && navigator.share) {
+    try {
+      await navigator.share({ text: texto })
+      return
+    } catch {
+      // Usuário cancelou ou API falhou — tenta fallback
+    }
   }
+
+  // Fallback para desktop e iOS: abre wa.me
+  const encoded = encodeURIComponent(texto)
+  const phonePath = telefone ? `/${telefone}` : ''
+  window.open(`https://wa.me${phonePath}?text=${encoded}`, '_blank')
 }

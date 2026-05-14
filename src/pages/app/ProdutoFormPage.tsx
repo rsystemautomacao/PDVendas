@@ -5,6 +5,8 @@ import { useProdutos } from '../../contexts/ProdutoContext'
 import { useToast } from '../../contexts/ToastContext'
 import { sanitize } from '../../utils/helpers'
 import { useSegmento } from '../../hooks/useSegmento'
+import { isAndroidDevice } from '../../utils/elginBridge'
+import { BarcodeScanner } from '../../components/app/BarcodeScanner'
 import type { VariacaoProduto, SerialProduto, EspecificacaoProduto } from '../../types'
 
 const UNIDADES = ['UN', 'KG', 'L', 'CX', 'M', 'PCT'] as const
@@ -100,6 +102,9 @@ export function ProdutoFormPage() {
   const [qtdMinimaAtacado, setQtdMinimaAtacado] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
+
+  // Scanner de codigo de barras
+  const [showScanner, setShowScanner] = useState(false)
 
   // Fotos
   const [fotos, setFotos] = useState<string[]>([])
@@ -501,10 +506,23 @@ export function ProdutoFormPage() {
                 <label className="text-sm font-medium text-gray-700 mb-1 block">
                   {modoVenda === 'balanca' ? 'Codigo PLU da Balanca * (7 digitos)' : 'Codigo de Barras'}
                 </label>
-                <input type="text" value={codigoBarras} onChange={e => handleCodigoBarrasChange(e.target.value)}
-                  placeholder={modoVenda === 'balanca' ? 'Ex: 2124900' : 'EAN/GTIN'}
-                  maxLength={modoVenda === 'balanca' ? 7 : undefined}
-                  className={`input-field ${errors.codigoBarras ? 'border-red-500' : ''}`} />
+                <div className="flex gap-2">
+                  <input type="text" value={codigoBarras} onChange={e => handleCodigoBarrasChange(e.target.value)}
+                    placeholder={modoVenda === 'balanca' ? 'Ex: 2124900' : 'EAN/GTIN'}
+                    maxLength={modoVenda === 'balanca' ? 7 : undefined}
+                    className={`input-field flex-1 ${errors.codigoBarras ? 'border-red-500' : ''}`} />
+                  {isAndroidDevice() && modoVenda !== 'balanca' && (
+                    <button
+                      type="button"
+                      onClick={() => setShowScanner(true)}
+                      className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-white font-semibold text-sm hover:bg-primary-hover transition-colors min-h-[48px] whitespace-nowrap"
+                      title="Escanear codigo de barras"
+                    >
+                      <Camera size={20} />
+                      <span className="hidden sm:inline">Escanear</span>
+                    </button>
+                  )}
+                </div>
                 {errors.codigoBarras && <p className="text-xs text-red-500 mt-1">{errors.codigoBarras}</p>}
               </div>
 
@@ -1086,6 +1104,17 @@ export function ProdutoFormPage() {
           </button>
         </div>
       </div>
+
+      {/* Scanner de codigo de barras (Android) */}
+      {showScanner && (
+        <BarcodeScanner
+          onScan={(code) => {
+            handleCodigoBarrasChange(code)
+            setShowScanner(false)
+          }}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   )
 }
