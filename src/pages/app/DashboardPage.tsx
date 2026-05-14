@@ -121,12 +121,8 @@ export function DashboardPage() {
     <div className="p-4 md:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
         {/* Welcome Banner */}
-        <div className="mb-8 rounded-3xl bg-gradient-to-br from-primary via-violet-600 to-purple-700 p-7 md:p-8 text-white shadow-xl shadow-primary/20 relative overflow-hidden">
-          {/* Decorative elements */}
-          <div className="absolute -right-8 -top-8 h-48 w-48 rounded-full bg-white/10" />
-          <div className="absolute right-24 bottom--4 h-32 w-32 rounded-full bg-white/5" />
-          <div className="absolute left-1/2 -bottom-12 h-24 w-64 rounded-full bg-violet-400/10" />
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="mb-8 rounded-3xl bg-primary p-7 md:p-8 text-white shadow-md">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Sparkles className="h-5 w-5 text-violet-200" />
@@ -135,7 +131,7 @@ export function DashboardPage() {
               <h1 className="text-2xl md:text-3xl font-bold">
                 Ola, {user?.nome?.split(' ')[0] || 'Usuario'}!
               </h1>
-              <p className="text-sm text-violet-100/80 mt-2 max-w-md">
+              <p className="text-sm text-violet-100 mt-2 max-w-md">
                 {!empresaUsaCaixa
                   ? `${vendasHoje.length} venda(s) hoje`
                   : caixaAberto
@@ -147,7 +143,7 @@ export function DashboardPage() {
             {empresaUsaCaixa && !caixaAberto && (
               <Link
                 to="/app/caixas"
-                className="inline-flex items-center gap-2 rounded-2xl bg-white/20 border border-white/20 px-5 py-3 text-sm font-semibold text-white hover:bg-white/30 transition-all duration-200 shadow-lg self-start"
+                className="inline-flex items-center gap-2 rounded-2xl bg-white/20 border border-white/20 px-5 py-3 text-sm font-semibold text-white hover:bg-white/30 transition-colors self-start"
               >
                 <Zap className="h-4 w-4" /> Abrir Caixa
               </Link>
@@ -157,9 +153,9 @@ export function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 mb-8">
-          <Link to="/app/novo-pedido" className="group relative rounded-2xl border border-gray-100/80 bg-white p-4 md:p-5 shadow-card hover:shadow-elevated hover:-translate-y-1 transition-all duration-300">
+          <Link to="/app/novo-pedido" className="group relative rounded-2xl border border-gray-100/80 bg-white p-4 md:p-5 shadow-card hover:shadow-soft transition-shadow">
             <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary/10 to-violet-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center ">
                 <Plus size={20} className="text-primary" />
               </div>
               <div>
@@ -168,9 +164,9 @@ export function DashboardPage() {
               </div>
             </div>
           </Link>
-          <Link to="/app/produtos/novo" className="group relative rounded-2xl border border-gray-100/80 bg-white p-4 md:p-5 shadow-card hover:shadow-elevated hover:-translate-y-1 transition-all duration-300">
+          <Link to="/app/produtos/novo" className="group relative rounded-2xl border border-gray-100/80 bg-white p-4 md:p-5 shadow-card hover:shadow-soft transition-shadow">
             <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 flex items-center justify-center ">
                 <Package size={20} className="text-emerald-600" />
               </div>
               <div>
@@ -179,9 +175,9 @@ export function DashboardPage() {
               </div>
             </div>
           </Link>
-          <Link to="/app/clientes/novo" className="group relative rounded-2xl border border-gray-100/80 bg-white p-4 md:p-5 shadow-card hover:shadow-elevated hover:-translate-y-1 transition-all duration-300">
+          <Link to="/app/clientes/novo" className="group relative rounded-2xl border border-gray-100/80 bg-white p-4 md:p-5 shadow-card hover:shadow-soft transition-shadow">
             <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-11 h-11 rounded-2xl bg-blue-50 flex items-center justify-center ">
                 <Users size={20} className="text-blue-600" />
               </div>
               <div>
@@ -190,9 +186,9 @@ export function DashboardPage() {
               </div>
             </div>
           </Link>
-          {empresaUsaCaixa && <Link to="/app/caixas" className="group relative rounded-2xl border border-gray-100/80 bg-white p-4 md:p-5 shadow-card hover:shadow-elevated hover:-translate-y-1 transition-all duration-300">
+          {empresaUsaCaixa && <Link to="/app/caixas" className="group relative rounded-2xl border border-gray-100/80 bg-white p-4 md:p-5 shadow-card hover:shadow-soft transition-shadow">
             <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-11 h-11 rounded-2xl bg-amber-50 flex items-center justify-center ">
                 <LayoutDashboard size={20} className="text-amber-600" />
               </div>
               <div>
@@ -211,10 +207,10 @@ export function DashboardPage() {
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Link to="/app/relatorios-graficos?aba=vendas" className="stat-card group cursor-pointer">
-            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-emerald-400 to-green-500" />
+            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-emerald-500" />
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Vendas Hoje</span>
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-50 to-green-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center ">
                 <ShoppingCart size={18} className="text-emerald-600" />
               </div>
             </div>
@@ -223,10 +219,10 @@ export function DashboardPage() {
           </Link>
 
           <Link to="/app/relatorios-graficos?aba=vendas" className="stat-card group cursor-pointer">
-            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-blue-400 to-indigo-500" />
+            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-indigo-500" />
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Vendas no Mes</span>
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center ">
                 <TrendingUp size={18} className="text-indigo-600" />
               </div>
             </div>
@@ -235,10 +231,10 @@ export function DashboardPage() {
           </Link>
 
           <Link to="/app/relatorios-graficos?aba=financeiro" className="stat-card group cursor-pointer">
-            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-teal-400 to-emerald-500" />
+            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-teal-500" />
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">A Receber</span>
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-10 h-10 rounded-2xl bg-teal-50 flex items-center justify-center ">
                 <ArrowUpRight size={18} className="text-teal-600" />
               </div>
             </div>
@@ -247,10 +243,10 @@ export function DashboardPage() {
           </Link>
 
           <Link to="/app/relatorios-graficos?aba=financeiro" className="stat-card group cursor-pointer">
-            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-rose-400 to-red-500" />
+            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-rose-500" />
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">A Pagar</span>
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-50 to-red-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center ">
                 <ArrowDownRight size={18} className="text-rose-600" />
               </div>
             </div>
@@ -495,12 +491,12 @@ export function DashboardPage() {
         {/* Stats overview */}
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
           {[
-            { value: produtos.filter(p => p.ativo).length, label: 'Produtos ativos', color: 'from-primary/5 to-violet-50', textColor: 'text-primary' },
-            { value: clientes.filter(c => c.ativo).length, label: 'Clientes ativos', color: 'from-blue-50 to-cyan-50', textColor: 'text-blue-600' },
-            { value: vendas.filter(v => v.status === 'finalizada').length, label: 'Vendas realizadas', color: 'from-emerald-50 to-green-50', textColor: 'text-emerald-600' },
-            { value: baixoEstoque.length, label: 'Estoque baixo', color: 'from-amber-50 to-orange-50', textColor: 'text-amber-600' },
+            { value: produtos.filter(p => p.ativo).length, label: 'Produtos ativos', bgColor: 'bg-violet-50', textColor: 'text-primary' },
+            { value: clientes.filter(c => c.ativo).length, label: 'Clientes ativos', bgColor: 'bg-blue-50', textColor: 'text-blue-600' },
+            { value: vendas.filter(v => v.status === 'finalizada').length, label: 'Vendas realizadas', bgColor: 'bg-emerald-50', textColor: 'text-emerald-600' },
+            { value: baixoEstoque.length, label: 'Estoque baixo', bgColor: 'bg-amber-50', textColor: 'text-amber-600' },
           ].map((stat, i) => (
-            <div key={i} className={`bg-gradient-to-br ${stat.color} rounded-2xl p-5 border border-gray-100/50 text-center hover:shadow-soft transition-all duration-300 hover:-translate-y-0.5`}>
+            <div key={i} className={`${stat.bgColor} rounded-2xl p-5 border border-gray-100 text-center`}>
               <p className={`text-3xl font-bold ${stat.textColor} tracking-tight`}>{stat.value}</p>
               <p className="text-xs text-gray-500 mt-1.5 font-medium">{stat.label}</p>
             </div>
