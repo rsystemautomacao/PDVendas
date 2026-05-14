@@ -34,7 +34,7 @@ function formatCurrency(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-function ProductImageCarousel({ fotos, nome, desconto }: { fotos: string[]; nome: string; desconto: boolean }) {
+function ProductImageCarousel({ fotos, nome }: { fotos: string[]; nome: string }) {
   const [idx, setIdx] = useState(0)
   const touchStart = useRef(0)
 
@@ -256,7 +256,7 @@ export function VitrinePublicaPage() {
                   )}
 
                   {p.fotos && p.fotos.length > 0 ? (
-                    <ProductImageCarousel fotos={p.fotos} nome={p.nome} desconto={!!desconto} />
+                    <ProductImageCarousel fotos={p.fotos} nome={p.nome} />
                   ) : (
                     <div className={`h-36 flex items-center justify-center ${
                       desconto
