@@ -441,7 +441,7 @@ export class ElginBuilder {
 
   /** Imagem via base64 (logo da empresa) */
   imagem(base64: string, maxWidth?: number, maxHeight?: number): this {
-    this.cmds.push({ type: 'image', data: base64, maxWidth: maxWidth ?? 200, maxHeight: maxHeight ?? 120 })
+    this.cmds.push({ type: 'image', data: base64, maxWidth: maxWidth ?? 576, maxHeight: maxHeight ?? 140 })
     return this
   }
 

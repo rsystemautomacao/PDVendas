@@ -672,7 +672,7 @@ export function imprimirOrcamento(orc: Orcamento, empresa: EmpresaInfo) {
 // =============================================
 async function _imprimirOSTermica(os: OrdemServico, empresa: EmpresaInfo) {
   if (empresa.logoBase64) {
-    empresa = { ...empresa, logoBase64: await redimensionarLogoParaImpressao(empresa.logoBase64, 200, 100) }
+    empresa = { ...empresa, logoBase64: await redimensionarLogoParaImpressao(empresa.logoBase64) }
   }
   const builder = gerarOSTermica(os, empresa)
   imprimirComandos(builder.build()).catch(err =>
@@ -682,7 +682,7 @@ async function _imprimirOSTermica(os: OrdemServico, empresa: EmpresaInfo) {
 
 async function _imprimirOrcamentoTermico(orc: Orcamento, empresa: EmpresaInfo) {
   if (empresa.logoBase64) {
-    empresa = { ...empresa, logoBase64: await redimensionarLogoParaImpressao(empresa.logoBase64, 200, 100) }
+    empresa = { ...empresa, logoBase64: await redimensionarLogoParaImpressao(empresa.logoBase64) }
   }
   const builder = gerarOrcamentoTermico(orc, empresa)
   imprimirComandos(builder.build()).catch(err =>

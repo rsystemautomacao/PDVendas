@@ -65,28 +65,51 @@ function imprimirViaIframe(html: string, onAfterPrint?: () => void) {
 }
 
 /**
- * Redimensiona imagem base64 no canvas antes de enviar para a impressora.
- * Garante que o logo fique pequeno independente do APK instalado.
+ * Redimensiona e centraliza imagem base64 para impressora termica.
+ *
+ * Papel 80mm = 576 dots de largura, 58mm = 384 dots.
+ * O logo e redimensionado para caber em maxW x maxH e depois
+ * desenhado centralizado em um canvas da largura total do papel.
+ * Assim a impressora recebe uma imagem ja centralizada,
+ * sem depender de alinhamento no firmware/APK.
  */
-export function redimensionarLogoParaImpressao(base64: string, maxW = 200, maxH = 100): Promise<string> {
+export function redimensionarLogoParaImpressao(
+  base64: string,
+  maxW = 360,
+  maxH = 140,
+  larguraPapel = 576,
+): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => {
       let w = img.width, h = img.height
-      if (w <= maxW && h <= maxH) { resolve(base64); return }
-      const ratioW = w > maxW ? maxW / w : 1
-      const ratioH = h > maxH ? maxH / h : 1
-      const ratio = Math.min(ratioW, ratioH)
-      w = Math.round(w * ratio)
-      h = Math.round(h * ratio)
+
+      // Redimensiona se necessario
+      if (w > maxW || h > maxH) {
+        const ratioW = w > maxW ? maxW / w : 1
+        const ratioH = h > maxH ? maxH / h : 1
+        const ratio = Math.min(ratioW, ratioH)
+        w = Math.round(w * ratio)
+        h = Math.round(h * ratio)
+      }
+
+      // Canvas na largura do papel para centralizar
       const canvas = document.createElement('canvas')
-      canvas.width = w
+      canvas.width = larguraPapel
       canvas.height = h
       const ctx = canvas.getContext('2d')!
-      ctx.drawImage(img, 0, 0, w, h)
+
+      // Fundo branco (evita artefatos de transparencia na termica)
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      // Desenha logo centralizado
+      const x = Math.round((larguraPapel - w) / 2)
+      ctx.drawImage(img, 0, 0, img.width, img.height, x, 0, w, h)
+
       resolve(canvas.toDataURL('image/png'))
     }
-    img.onerror = () => resolve(base64) // fallback: envia original
+    img.onerror = () => resolve(base64)
     img.src = base64
   })
 }
@@ -192,7 +215,7 @@ export function deveImprimirAutomatico(): boolean {
 async function _imprimirComandosComLogo(html: string, logoBase64: string | undefined, copias: number) {
   let logoReduzido: string | undefined
   if (logoBase64) {
-    logoReduzido = await redimensionarLogoParaImpressao(logoBase64, 200, 100)
+    logoReduzido = await redimensionarLogoParaImpressao(logoBase64)
   }
   const comandos = htmlParaComandosElgin(html, logoReduzido)
   for (let i = 0; i < copias; i++) {
@@ -209,9 +232,9 @@ async function _imprimirComandosComLogo(html: string, logoBase64: string | undef
 function htmlParaComandosElgin(html: string, logoBase64?: string) {
   const builder = new ElginBuilder()
 
-  // Logo da empresa (ja redimensionado pelo caller)
+  // Logo da empresa (ja redimensionado e centralizado pelo caller)
   if (logoBase64) {
-    builder.imagem(logoBase64, 200, 100)
+    builder.imagem(logoBase64, 576, 140)
   }
 
   // Remove tags HTML e converte para texto limpo
