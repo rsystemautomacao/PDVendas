@@ -251,6 +251,58 @@ body.dark {
   }
 }
 
+/* ====================================================================
+   TOUCH DEVICE SAFETY NET
+   Forca desativacao de TODOS os efeitos pesados para GPU em dispositivos
+   touch (tablets Android, celulares). Usa !important para sobrescrever
+   qualquer classe inline do Tailwind que escapou.
+   Detecta: sem mouse hover OU cursor impreciso (dedo) = touch device.
+   ==================================================================== */
+@media (hover: none), (pointer: coarse) {
+  *,
+  *::before,
+  *::after {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Desabilitar transforms de hover/animacao (nao afeta layout) */
+  .hover-lift:hover,
+  .stat-card:hover,
+  .card:hover,
+  [class*="hover:-translate"],
+  [class*="hover:scale"],
+  [class*="group-hover:scale"] {
+    transform: none !important;
+  }
+
+  /* Simplificar shadows pesados */
+  [class*="shadow-xl"],
+  [class*="shadow-2xl"] {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
+  }
+
+  /* Remover blur de elementos decorativos */
+  [class*="blur-sm"],
+  [class*="blur-2xl"],
+  [class*="blur-3xl"],
+  [class*="blur-xl"] {
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
+
+  /* Desabilitar transition-all (causa compositing layers desnecessarios) */
+  .btn-primary,
+  .btn-danger,
+  .btn-ghost,
+  .card,
+  .stat-card,
+  .hover-lift {
+    transition-property: color, background-color, border-color !important;
+    transition-duration: 150ms !important;
+  }
+}
+
 /* Dark mode global overrides */
 .dark {
   color-scheme: dark;
