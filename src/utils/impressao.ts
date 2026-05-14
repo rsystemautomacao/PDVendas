@@ -2,6 +2,10 @@ import { temImpressoraEmbarcada, imprimirEmbarcada, imprimirComandos, ElginBuild
 
 const STORAGE_KEY = 'meupdv_impressoras'
 
+// Guard contra impressao duplicada (debounce)
+let _lastPrintTime = 0
+const PRINT_DEBOUNCE_MS = 3000
+
 interface Impressora {
   id: string
   nome: string
@@ -61,11 +65,49 @@ function imprimirViaIframe(html: string, onAfterPrint?: () => void) {
 }
 
 /**
+ * Redimensiona imagem base64 no canvas antes de enviar para a impressora.
+ * Garante que o logo fique pequeno independente do APK instalado.
+ */
+export function redimensionarLogoParaImpressao(base64: string, maxW = 200, maxH = 100): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      let w = img.width, h = img.height
+      if (w <= maxW && h <= maxH) { resolve(base64); return }
+      const ratioW = w > maxW ? maxW / w : 1
+      const ratioH = h > maxH ? maxH / h : 1
+      const ratio = Math.min(ratioW, ratioH)
+      w = Math.round(w * ratio)
+      h = Math.round(h * ratio)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, w, h)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = () => resolve(base64) // fallback: envia original
+    img.src = base64
+  })
+}
+
+/**
  * Imprime recibo. Aceita HTML (para navegador) ou ESC/POS (para embarcada).
  * Se a impressora padrao for embarcada e escposData for fornecido,
  * envia direto para a impressora sem dialogo do navegador.
+ *
+ * Tem debounce de 3s para evitar impressao duplicada
+ * (auto-print + clique manual, ou useEffect re-render).
  */
 export function imprimirRecibo(reciboHtml: string, escposData?: string, logoBase64?: string) {
+  // Debounce: ignora chamadas duplicadas em menos de 3 segundos
+  const now = Date.now()
+  if (now - _lastPrintTime < PRINT_DEBOUNCE_MS) {
+    if (import.meta.env.DEV) console.log('[Impressao] Ignorada — debounce ativo')
+    return
+  }
+  _lastPrintTime = now
+
   const impressora = getImpressoraPadrao()
 
   // Se tem impressora embarcada, envia via bridge
@@ -80,13 +122,8 @@ export function imprimirRecibo(reciboHtml: string, escposData?: string, logoBase
         )
       }
     } else {
-      // Converte HTML para comandos estruturados (com suporte a logo)
-      const comandos = htmlParaComandosElgin(reciboHtml, logoBase64)
-      for (let i = 0; i < copias; i++) {
-        imprimirComandos(comandos).catch(err =>
-          { if (import.meta.env.DEV) console.error('[Impressao] Erro na impressora embarcada:', err) }
-        )
-      }
+      // Converte HTML para comandos estruturados (com logo redimensionado)
+      _imprimirComandosComLogo(reciboHtml, logoBase64, copias)
     }
     return
   }
@@ -150,15 +187,31 @@ export function deveImprimirAutomatico(): boolean {
 }
 
 /**
+ * Imprime comandos com logo redimensionado (async por causa do canvas).
+ */
+async function _imprimirComandosComLogo(html: string, logoBase64: string | undefined, copias: number) {
+  let logoReduzido: string | undefined
+  if (logoBase64) {
+    logoReduzido = await redimensionarLogoParaImpressao(logoBase64, 200, 100)
+  }
+  const comandos = htmlParaComandosElgin(html, logoReduzido)
+  for (let i = 0; i < copias; i++) {
+    imprimirComandos(comandos).catch(err =>
+      { if (import.meta.env.DEV) console.error('[Impressao] Erro na impressora embarcada:', err) }
+    )
+  }
+}
+
+/**
  * Converte HTML de recibo em comandos estruturados para impressora Elgin.
  * Extrai texto do HTML e monta comandos com formatação.
  */
 function htmlParaComandosElgin(html: string, logoBase64?: string) {
   const builder = new ElginBuilder()
 
-  // Logo da empresa
+  // Logo da empresa (ja redimensionado pelo caller)
   if (logoBase64) {
-    builder.imagem(logoBase64)
+    builder.imagem(logoBase64, 200, 100)
   }
 
   // Remove tags HTML e converte para texto limpo

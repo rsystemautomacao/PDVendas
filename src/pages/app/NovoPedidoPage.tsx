@@ -598,8 +598,14 @@ export function NovoPedidoPage() {
   }, [vendaFinalizada, user])
 
   // Auto-print receipt when sale is finalized (if configured)
+  // Usa ref para garantir que imprime automaticamente apenas 1 vez por venda
+  const autoPrintDoneRef = useRef<string | null>(null)
   useEffect(() => {
     if (showRecibo && vendaFinalizada && deveImprimirAutomatico()) {
+      // Evita reimprimir se já imprimiu esta venda
+      const vendaId = vendaFinalizada._id || vendaFinalizada.numero?.toString()
+      if (autoPrintDoneRef.current === vendaId) return
+      autoPrintDoneRef.current = vendaId
       const timer = setTimeout(() => {
         const html = gerarReciboHtml(vendaFinalizada)
         avisarImpressoraNaoConfigurada()
@@ -612,6 +618,7 @@ export function NovoPedidoPage() {
   const handleNovaVenda = () => {
     setVendaFinalizada(null)
     setShowRecibo(false)
+    autoPrintDoneRef.current = null
     clearCart()
     searchRef.current?.focus()
   }

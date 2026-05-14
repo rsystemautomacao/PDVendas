@@ -1,6 +1,6 @@
 import type { OrdemServico, Orcamento } from '../types'
 import { hasAndroidBridge, imprimirComandos, ElginBuilder } from './elginBridge'
-import { getImpressoraPadrao } from './impressao'
+import { getImpressoraPadrao, redimensionarLogoParaImpressao } from './impressao'
 
 interface EmpresaInfo {
   nome?: string
@@ -319,10 +319,8 @@ export function imprimirOS(os: OrdemServico, empresa: EmpresaInfo) {
   // Se estiver em Android/embarcada, imprime em formato térmico 80mm
   const impressora = getImpressoraPadrao()
   if ((impressora?.tipo === 'embarcada' || hasAndroidBridge()) && hasAndroidBridge()) {
-    const builder = gerarOSTermica(os, empresa)
-    imprimirComandos(builder.build()).catch(err =>
-      console.error('[ImpressaoOS] Erro na impressora embarcada:', err)
-    )
+    // Redimensiona logo no frontend antes de enviar
+    _imprimirOSTermica(os, empresa)
     return
   }
 
@@ -512,10 +510,8 @@ export function imprimirOrcamento(orc: Orcamento, empresa: EmpresaInfo) {
   // Se estiver em Android/embarcada, imprime em formato térmico 80mm
   const impressora = getImpressoraPadrao()
   if ((impressora?.tipo === 'embarcada' || hasAndroidBridge()) && hasAndroidBridge()) {
-    const builder = gerarOrcamentoTermico(orc, empresa)
-    imprimirComandos(builder.build()).catch(err =>
-      console.error('[ImpressaoOS] Erro na impressora embarcada:', err)
-    )
+    // Redimensiona logo no frontend antes de enviar
+    _imprimirOrcamentoTermico(orc, empresa)
     return
   }
 
@@ -669,6 +665,29 @@ export function imprimirOrcamento(orc: Orcamento, empresa: EmpresaInfo) {
   `
 
   abrirJanelaImpressao(viaCliente + viaLoja, `Orcamento #${orc.numero}`)
+}
+
+// =============================================
+// HELPERS ASYNC PARA REDIMENSIONAR LOGO
+// =============================================
+async function _imprimirOSTermica(os: OrdemServico, empresa: EmpresaInfo) {
+  if (empresa.logoBase64) {
+    empresa = { ...empresa, logoBase64: await redimensionarLogoParaImpressao(empresa.logoBase64, 200, 100) }
+  }
+  const builder = gerarOSTermica(os, empresa)
+  imprimirComandos(builder.build()).catch(err =>
+    console.error('[ImpressaoOS] Erro na impressora embarcada:', err)
+  )
+}
+
+async function _imprimirOrcamentoTermico(orc: Orcamento, empresa: EmpresaInfo) {
+  if (empresa.logoBase64) {
+    empresa = { ...empresa, logoBase64: await redimensionarLogoParaImpressao(empresa.logoBase64, 200, 100) }
+  }
+  const builder = gerarOrcamentoTermico(orc, empresa)
+  imprimirComandos(builder.build()).catch(err =>
+    console.error('[ImpressaoOS] Erro na impressora embarcada:', err)
+  )
 }
 
 // =============================================
