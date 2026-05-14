@@ -195,7 +195,7 @@ function AppLayoutInner() {
       <Topbar onMenuClick={() => setDrawerOpen((o) => !o)} />
       {drawerOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 z-30 bg-black/40 transition-opacity"
           onClick={() => setDrawerOpen(false)}
           aria-hidden
         />

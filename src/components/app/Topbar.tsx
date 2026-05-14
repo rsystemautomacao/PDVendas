@@ -85,7 +85,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-40 flex min-h-topbar items-center gap-3 bg-white/80 backdrop-blur-xl border-b border-gray-200/60 px-3 py-2 shadow-sm md:gap-4 md:px-5 print:hidden dark:bg-slate-900/80 dark:border-slate-700/60"
+      className="fixed top-0 left-0 right-0 z-40 flex min-h-topbar items-center gap-3 bg-white border-b border-gray-200 px-3 py-2 shadow-sm md:gap-4 md:px-5 print:hidden dark:bg-slate-900 dark:border-slate-700"
       role="banner"
     >
       {/* Hamburger + Logo */}
@@ -141,7 +141,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
       {/* Search overlay mobile */}
       {searchOpen && (
-        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm md:hidden" aria-hidden>
+        <div className="fixed inset-0 z-50 bg-black/40 md:hidden" aria-hidden>
           <div className="mt-16 mx-3 rounded-2xl bg-white p-3 shadow-float border border-gray-100">
             <div className="flex items-center gap-2">
               <Search className="h-5 w-5 flex-shrink-0 text-gray-400" />

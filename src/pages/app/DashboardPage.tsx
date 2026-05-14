@@ -123,9 +123,9 @@ export function DashboardPage() {
         {/* Welcome Banner */}
         <div className="mb-8 rounded-3xl bg-gradient-to-br from-primary via-violet-600 to-purple-700 p-7 md:p-8 text-white shadow-xl shadow-primary/20 relative overflow-hidden">
           {/* Decorative elements */}
-          <div className="absolute -right-8 -top-8 h-48 w-48 rounded-full bg-white/10 blur-sm" />
+          <div className="absolute -right-8 -top-8 h-48 w-48 rounded-full bg-white/10" />
           <div className="absolute right-24 bottom--4 h-32 w-32 rounded-full bg-white/5" />
-          <div className="absolute left-1/2 -bottom-12 h-24 w-64 rounded-full bg-gradient-to-r from-violet-400/20 to-transparent blur-2xl" />
+          <div className="absolute left-1/2 -bottom-12 h-24 w-64 rounded-full bg-violet-400/10" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -147,7 +147,7 @@ export function DashboardPage() {
             {empresaUsaCaixa && !caixaAberto && (
               <Link
                 to="/app/caixas"
-                className="inline-flex items-center gap-2 rounded-2xl bg-white/15 backdrop-blur-sm border border-white/20 px-5 py-3 text-sm font-semibold text-white hover:bg-white/25 transition-all duration-200 shadow-lg self-start"
+                className="inline-flex items-center gap-2 rounded-2xl bg-white/20 border border-white/20 px-5 py-3 text-sm font-semibold text-white hover:bg-white/30 transition-all duration-200 shadow-lg self-start"
               >
                 <Zap className="h-4 w-4" /> Abrir Caixa
               </Link>

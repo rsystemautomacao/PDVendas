@@ -9,7 +9,7 @@ export function FloatingHelp() {
     <div className="fixed bottom-6 right-6 z-30 flex flex-col items-end gap-3 print:hidden">
       {open && (
         <div
-          className="w-72 rounded-2xl border border-gray-100 bg-white/95 backdrop-blur-sm p-5 shadow-xl animate-scale-in"
+          className="w-72 rounded-2xl border border-gray-100 bg-white p-5 shadow-xl animate-scale-in"
           role="dialog"
           aria-label="Ajuda"
         >
