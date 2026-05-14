@@ -133,10 +133,6 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
 
   const isAndroid = /android/i.test(navigator.userAgent)
 
-  const openAppSettings = () => {
-    // Nao existe API para abrir configuracoes diretamente.
-    // Mostrar instrucoes claras ao usuario.
-  }
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
