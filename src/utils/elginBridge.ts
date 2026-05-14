@@ -95,6 +95,7 @@ declare global {
       getStatus: () => string
       getVersao: () => string
       setColunas: (cols: number) => void
+      compartilhar?: (texto: string, packageName: string) => boolean
     }
   }
 }

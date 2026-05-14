@@ -230,6 +230,45 @@ public class ElginPrinterBridge {
         this.colunas = cols;
     }
 
+    /**
+     * Compartilha texto via Intent do Android.
+     * Se packageName for fornecido (ex: "com.whatsapp"), abre direto nesse app.
+     * Caso contrario, mostra o menu de compartilhamento do sistema.
+     *
+     * Uso no JavaScript:
+     *   window.ElginPrinter.compartilhar("texto aqui", "com.whatsapp")
+     */
+    @JavascriptInterface
+    public boolean compartilhar(String texto, String packageName) {
+        try {
+            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_SEND);
+            intent.setType("text/plain");
+            intent.putExtra(android.content.Intent.EXTRA_TEXT, texto);
+
+            if (packageName != null && !packageName.isEmpty()) {
+                intent.setPackage(packageName);
+            }
+
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(intent);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Erro ao compartilhar", e);
+            // Se o app especifico nao existe, tenta menu generico
+            try {
+                android.content.Intent fallback = new android.content.Intent(android.content.Intent.ACTION_SEND);
+                fallback.setType("text/plain");
+                fallback.putExtra(android.content.Intent.EXTRA_TEXT, texto);
+                fallback.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                activity.startActivity(android.content.Intent.createChooser(fallback, "Compartilhar via"));
+                return true;
+            } catch (Exception e2) {
+                Log.e(TAG, "Erro ao abrir menu de compartilhamento", e2);
+                return false;
+            }
+        }
+    }
+
     // ============================================================
     // PROCESSAMENTO INTERNO DE COMANDOS
     // ============================================================

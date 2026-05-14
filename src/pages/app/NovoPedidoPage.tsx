@@ -559,7 +559,7 @@ export function NovoPedidoPage() {
     imprimirRecibo(html, undefined, user?.empresa?.logoBase64)
   }, [vendaFinalizada, gerarReciboHtml, user, avisarImpressoraNaoConfigurada])
 
-  const enviarReciboWhatsApp = useCallback(() => {
+  const enviarReciboWhatsApp = useCallback(async () => {
     if (!vendaFinalizada) return
     const v = vendaFinalizada
     const empresa = user?.empresa?.nome || 'MeuPDV'
@@ -593,8 +593,11 @@ export function NovoPedidoPage() {
       `------------------`,
       `Obrigado pela preferencia!`,
     ].filter(Boolean).join('\n')
-    abrirWhatsApp(texto)
-  }, [vendaFinalizada, user])
+    const resultado = await abrirWhatsApp(texto)
+    if (resultado.copiado) {
+      toast.sucesso('Recibo copiado! Abra o WhatsApp e cole a mensagem.')
+    }
+  }, [vendaFinalizada, user, toast])
 
   // Auto-print receipt when sale is finalized (if configured)
   // Usa ref para garantir que imprime automaticamente apenas 1 vez por venda

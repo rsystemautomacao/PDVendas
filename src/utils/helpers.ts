@@ -249,30 +249,68 @@ export function isDateInRange(dateStr: string, from: string, to: string): boolea
 /**
  * Compartilha texto via WhatsApp.
  *
- * Em Android (especialmente WebView), usa navigator.share() que mostra
- * o menu de compartilhamento nativo do sistema — o usuario escolhe WhatsApp.
- * Isso evita ERR_UNKNOWN_URL_SCHEME que acontece com wa.me e intent:// no WebView.
+ * Abordagem em cascata para funcionar em TODOS os ambientes:
  *
- * Em desktop/iOS, usa https://wa.me normalmente.
+ * 1. Android Bridge (WebView com ElginPrinter) — usa metodo nativo Java
+ *    que abre o WhatsApp via Intent do Android. Mais confiavel no WebView.
+ *
+ * 2. navigator.share() — Web Share API, funciona no Chrome Android e
+ *    em alguns WebViews modernos. Mostra menu de compartilhamento do sistema.
+ *
+ * 3. window.open('https://wa.me/...') — funciona em desktop e iOS.
+ *
+ * 4. Ultimo recurso (WebView sem bridge atualizado) — copia o texto para
+ *    a area de transferencia e avisa o usuario para colar no WhatsApp.
  *
  * @param texto - Mensagem pre-preenchida
- * @param telefone - Numero com DDI (ex: "5511999999999"). Se omitido, abre sem destinatario.
+ * @param telefone - Numero com DDI (ex: "5511999999999"). Opcional.
+ * @returns Objeto com resultado: { ok, metodo, copiado }
  */
-export async function abrirWhatsApp(texto: string, telefone?: string) {
+export async function abrirWhatsApp(
+  texto: string,
+  telefone?: string,
+): Promise<{ ok: boolean; metodo: string; copiado?: boolean }> {
   const isAndroid = /Android/i.test(navigator.userAgent)
+  // 1. Android Bridge — funciona dentro do WebView customizado
+  if (window.ElginPrinter?.compartilhar) {
+    try {
+      const ok = window.ElginPrinter.compartilhar(texto, 'com.whatsapp')
+      if (ok) return { ok: true, metodo: 'bridge' }
+    } catch { /* bridge sem metodo compartilhar, segue pro proximo */ }
+  }
 
-  // Android: usa Web Share API (funciona no WebView e no Chrome)
+  // 2. Web Share API — funciona no Chrome Android e WebViews modernos
   if (isAndroid && navigator.share) {
     try {
       await navigator.share({ text: texto })
-      return
+      return { ok: true, metodo: 'share-api' }
     } catch {
-      // Usuário cancelou ou API falhou — tenta fallback
+      // Usuario cancelou ou API falhou
     }
   }
 
-  // Fallback para desktop e iOS: abre wa.me
-  const encoded = encodeURIComponent(texto)
-  const phonePath = telefone ? `/${telefone}` : ''
-  window.open(`https://wa.me${phonePath}?text=${encoded}`, '_blank')
+  // 3. Link direto wa.me — funciona em desktop/iOS/Chrome (nao no WebView Android)
+  const isWebView = !!window.ElginPrinter || !!window.AndroidPrinter
+  if (!isWebView) {
+    const encoded = encodeURIComponent(texto)
+    const phonePath = telefone ? `/${telefone}` : ''
+    window.open(`https://wa.me${phonePath}?text=${encoded}`, '_blank')
+    return { ok: true, metodo: 'wa.me' }
+  }
+
+  // 4. Ultimo recurso (WebView sem suporte) — copia para clipboard
+  try {
+    await navigator.clipboard.writeText(texto)
+    return { ok: false, metodo: 'clipboard', copiado: true }
+  } catch {
+    // Fallback clipboard para browsers antigos
+    const ta = document.createElement('textarea')
+    ta.value = texto
+    ta.style.cssText = 'position:fixed;left:-9999px;'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+    return { ok: false, metodo: 'clipboard', copiado: true }
+  }
 }
