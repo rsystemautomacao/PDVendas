@@ -1,11 +1,13 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middlewares/auth';
+import { authenticate } from '../middleware/auth';
 import { Promocao } from '../models/Promocao';
 
 const router = Router();
 
+router.use(authenticate);
+
 // Listar promocoes da empresa
-router.get('/', authMiddleware, async (req: any, res) => {
+router.get('/', async (req: any, res) => {
   try {
     const empresaId = req.user.adminId || req.user._id;
     const promocoes = await Promocao.find({ empresaId })
@@ -18,7 +20,7 @@ router.get('/', authMiddleware, async (req: any, res) => {
 });
 
 // Buscar promocao por ID
-router.get('/:id', authMiddleware, async (req: any, res) => {
+router.get('/:id', async (req: any, res) => {
   try {
     const empresaId = req.user.adminId || req.user._id;
     const promo = await Promocao.findOne({ _id: req.params.id, empresaId })
@@ -31,7 +33,7 @@ router.get('/:id', authMiddleware, async (req: any, res) => {
 });
 
 // Criar promocao
-router.post('/', authMiddleware, async (req: any, res) => {
+router.post('/', async (req: any, res) => {
   try {
     const empresaId = req.user.adminId || req.user._id;
     const promo = await Promocao.create({ ...req.body, empresaId });
@@ -42,7 +44,7 @@ router.post('/', authMiddleware, async (req: any, res) => {
 });
 
 // Atualizar promocao
-router.put('/:id', authMiddleware, async (req: any, res) => {
+router.put('/:id', async (req: any, res) => {
   try {
     const empresaId = req.user.adminId || req.user._id;
     const promo = await Promocao.findOneAndUpdate(
@@ -58,7 +60,7 @@ router.put('/:id', authMiddleware, async (req: any, res) => {
 });
 
 // Deletar promocao
-router.delete('/:id', authMiddleware, async (req: any, res) => {
+router.delete('/:id', async (req: any, res) => {
   try {
     const empresaId = req.user.adminId || req.user._id;
     await Promocao.findOneAndDelete({ _id: req.params.id, empresaId });
