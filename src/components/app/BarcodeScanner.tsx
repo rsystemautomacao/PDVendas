@@ -78,9 +78,15 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
             qrbox: { width: 280, height: 150 },
             aspectRatio: 1.5,
           },
-          (decodedText) => {
+          async (decodedText) => {
             if (hasScanned.current) return
             hasScanned.current = true
+            // Parar o scanner ANTES de notificar o pai (evita tela branca no Android)
+            try {
+              await scanner.stop()
+              scanner.clear()
+            } catch { /* ignore */ }
+            scannerRef.current = null
             onScan(decodedText)
           },
           () => {}
@@ -103,10 +109,10 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
 
     return () => {
       mounted = false
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {})
-        scannerRef.current.clear()
+      const sc = scannerRef.current
+      if (sc) {
         scannerRef.current = null
+        sc.stop().then(() => { try { sc.clear() } catch {} }).catch(() => { try { sc.clear() } catch {} })
       }
     }
   }, [onScan])
@@ -117,12 +123,18 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
     try {
       await scannerRef.current.stop()
       hasScanned.current = false
-      await scannerRef.current.start(
+      const sc = scannerRef.current
+      await sc.start(
         cameras[nextIdx].id,
         { fps: 10, qrbox: { width: 280, height: 150 }, aspectRatio: 1.5 },
-        (decodedText) => {
+        async (decodedText) => {
           if (hasScanned.current) return
           hasScanned.current = true
+          try {
+            await sc.stop()
+            sc.clear()
+          } catch { /* ignore */ }
+          scannerRef.current = null
           onScan(decodedText)
         },
         () => {}
