@@ -25,6 +25,7 @@ export function PromocoesPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editando, setEditando] = useState<Promocao | null>(null)
+  const [confirmExcluir, setConfirmExcluir] = useState<string | null>(null)
 
   // Form
   const [nome, setNome] = useState('')
@@ -129,15 +130,15 @@ export function PromocoesPage() {
 
     setSaving(true)
     try {
-      const body: any = {
+      const body = {
         nome: nome.trim(),
-        descricao: descricao.trim(),
-        percentual,
+        descricao: descricao.trim() || undefined,
+        percentual: Number(percentual),
         dataInicio: dataInicio || new Date().toISOString(),
-        dataFim: dataFim || null,
+        dataFim: dataFim || undefined,
         produtos: Array.from(selecionados),
-        grupo: modoSelecao === 'grupo' ? filtroGrupo : null,
-        categoria: modoSelecao === 'categoria' ? filtroCategoria : null,
+        grupo: modoSelecao === 'grupo' ? filtroGrupo : undefined,
+        categoria: modoSelecao === 'categoria' ? filtroCategoria : undefined,
       }
 
       if (editando) {
@@ -155,7 +156,7 @@ export function PromocoesPage() {
   }
 
   const excluir = async (id: string) => {
-    if (!confirm('Excluir esta promocao?')) return
+    setConfirmExcluir(null)
     try {
       await api.delete(`/promocoes/${id}`)
       toast.sucesso('Promocao excluida')
@@ -215,7 +216,7 @@ export function PromocoesPage() {
                       </div>
                       <div>
                         <h3 className="font-semibold text-text-primary">{promo.nome}</h3>
-                        <span className={`text-xs font-bold ${vigente ? 'text-green-600' : 'text-gray-400'}`}>
+                        <span className={`text-xs font-bold ${vigente ? 'text-green-600' : promo.ativo ? 'text-amber-500' : 'text-gray-400'}`}>
                           {vigente ? 'Ativa' : promo.ativo ? 'Agendada' : 'Inativa'}
                         </span>
                       </div>
@@ -257,7 +258,7 @@ export function PromocoesPage() {
                       <button onClick={() => abrirModal(promo)} className="p-2 rounded-lg hover:bg-gray-100 text-text-muted">
                         <Edit3 className="h-4 w-4" />
                       </button>
-                      <button onClick={() => excluir(promo._id)} className="p-2 rounded-lg hover:bg-red-50 text-red-400">
+                      <button onClick={() => setConfirmExcluir(promo._id)} className="p-2 rounded-lg hover:bg-red-50 text-red-400">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -269,11 +270,10 @@ export function PromocoesPage() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Modal de criacao/edicao */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-2xl my-8 shadow-2xl">
-            {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h2 className="text-lg font-bold text-text-primary">
                 {editando ? 'Editar Promocao' : 'Nova Promocao'}
@@ -284,39 +284,25 @@ export function PromocoesPage() {
             </div>
 
             <div className="p-6 space-y-5">
-              {/* Nome + Percentual */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-text-primary mb-1">Nome da promocao *</label>
-                  <input
-                    type="text" value={nome} onChange={e => setNome(e.target.value)}
-                    placeholder="Ex: Liquidacao de Verao"
-                    className="input-field"
-                  />
+                  <input type="text" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Liquidacao de Verao" className="input-field" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1">Desconto (%) *</label>
                   <div className="relative">
-                    <input
-                      type="number" min={1} max={99} value={percentual} onChange={e => setPercentual(Number(e.target.value))}
-                      className="input-field pr-8"
-                    />
+                    <input type="number" min={1} max={99} value={percentual} onChange={e => setPercentual(Number(e.target.value))} className="input-field pr-8" />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-sm font-bold">%</span>
                   </div>
                 </div>
               </div>
 
-              {/* Descricao */}
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-1">Descricao (opcional)</label>
-                <input
-                  type="text" value={descricao} onChange={e => setDescricao(e.target.value)}
-                  placeholder="Desconto especial para ..."
-                  className="input-field"
-                />
+                <input type="text" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Desconto especial para ..." className="input-field" />
               </div>
 
-              {/* Datas */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1">Data inicio</label>
@@ -328,15 +314,14 @@ export function PromocoesPage() {
                 </div>
               </div>
 
-              {/* Modo de selecao */}
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-2">Aplicar desconto em:</label>
                 <div className="flex flex-wrap gap-2">
-                  {[
+                  {([
                     { value: 'manual' as const, label: 'Selecionar produtos', icon: Check },
                     { value: 'grupo' as const, label: 'Por grupo', icon: Filter },
                     { value: 'categoria' as const, label: 'Por categoria', icon: Tag },
-                  ].map(opt => (
+                  ]).map(opt => (
                     <button
                       key={opt.value}
                       onClick={() => { setModoSelecao(opt.value); setSelecionados(new Set()) }}
@@ -350,7 +335,6 @@ export function PromocoesPage() {
                 </div>
               </div>
 
-              {/* Filtro por grupo/categoria */}
               {modoSelecao === 'grupo' && (
                 <select value={filtroGrupo} onChange={e => { setFiltroGrupo(e.target.value); setSelecionados(new Set()) }} className="input-field">
                   <option value="">Selecione um grupo</option>
@@ -364,7 +348,6 @@ export function PromocoesPage() {
                 </select>
               )}
 
-              {/* Selecao de produtos */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-medium text-text-primary">
@@ -376,11 +359,7 @@ export function PromocoesPage() {
                 </div>
                 <div className="relative mb-2">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted h-4 w-4" />
-                  <input
-                    type="text" value={buscaProduto} onChange={e => setBuscaProduto(e.target.value)}
-                    placeholder="Buscar produto..."
-                    className="input-field pl-9"
-                  />
+                  <input type="text" value={buscaProduto} onChange={e => setBuscaProduto(e.target.value)} placeholder="Buscar produto..." className="input-field pl-9" />
                 </div>
                 <div className="border border-gray-200 rounded-xl max-h-[240px] overflow-y-auto">
                   {produtosFiltrados.length === 0 ? (
@@ -395,14 +374,9 @@ export function PromocoesPage() {
                       return (
                         <label
                           key={p._id}
-                          className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
-                            checked ? 'bg-primary/5' : ''
-                          }`}
+                          className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${checked ? 'bg-primary/5' : ''}`}
                         >
-                          <input
-                            type="checkbox" checked={checked} onChange={() => toggleProduto(p._id)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
+                          <input type="checkbox" checked={checked} onChange={() => toggleProduto(p._id)} className="rounded border-gray-300 text-primary focus:ring-primary" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-text-primary truncate">{p.nome}</p>
                             <p className="text-xs text-text-muted">{p.codigo}{p.grupo ? ` - ${p.grupo}` : ''}</p>
@@ -425,11 +399,31 @@ export function PromocoesPage() {
               </div>
             </div>
 
-            {/* Modal footer */}
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
               <button onClick={() => setShowModal(false)} className="btn-secondary">Cancelar</button>
               <button onClick={salvar} disabled={saving} className="btn-primary">
                 {saving ? 'Salvando...' : editando ? 'Salvar Alteracoes' : 'Criar Promocao'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmacao de exclusao (substitui confirm() do navegador) */}
+      {confirmExcluir && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center">
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="h-6 w-6 text-red-500" />
+            </div>
+            <h3 className="text-lg font-bold text-text-primary mb-2">Excluir promocao?</h3>
+            <p className="text-sm text-text-secondary mb-6">Esta acao nao pode ser desfeita. A promocao sera removida permanentemente.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmExcluir(null)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl font-semibold text-gray-600 hover:bg-gray-50 text-sm">
+                Cancelar
+              </button>
+              <button onClick={() => excluir(confirmExcluir)} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 text-sm">
+                Excluir
               </button>
             </div>
           </div>

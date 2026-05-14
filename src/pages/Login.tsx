@@ -104,6 +104,7 @@ export function Login() {
   }
 
   return (
+    <>
     <AuthSplitLayout
       align="right"
       promoTitle={PROMO_TITLE}
@@ -293,10 +294,11 @@ export function Login() {
           </a>
         </div>
       </form>
+    </AuthSplitLayout>
 
-      {/* Account not found modal */}
+      {/* Account not found modal — fora do layout para nao ser sobreposto */}
       {showNotFoundModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[999] animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 text-center animate-scale-in">
             <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-indigo-500/30">
               <User size={26} className="text-white" />
@@ -323,9 +325,9 @@ export function Login() {
         </div>
       )}
 
-      {/* License limit modal */}
+      {/* License limit modal — fora do layout para nao ser sobreposto */}
       {showLicenseModal && licenseInfo && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[999] animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 text-center animate-scale-in">
             <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-orange-500/30">
               <Monitor size={26} className="text-white" />
@@ -357,6 +359,6 @@ export function Login() {
           </div>
         </div>
       )}
-    </AuthSplitLayout>
+    </>
   )
 }

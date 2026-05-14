@@ -6,16 +6,6 @@ const router = Router();
 
 router.use(authenticate);
 
-// Campos permitidos para criar/atualizar
-function pick(body: any) {
-  const allowed: Record<string, any> = {};
-  const keys = ['nome', 'descricao', 'percentual', 'produtos', 'grupo', 'categoria', 'ativo', 'dataInicio', 'dataFim'];
-  for (const k of keys) {
-    if (body[k] !== undefined) allowed[k] = body[k];
-  }
-  return allowed;
-}
-
 // Listar promocoes da empresa
 router.get('/', async (req: any, res) => {
   try {
@@ -46,9 +36,25 @@ router.get('/:id', async (req: any, res) => {
 router.post('/', async (req: any, res) => {
   try {
     const empresaId = req.user.empresaId;
-    const data = pick(req.body);
-    const promo = new Promocao({ ...data, empresaId });
-    await promo.save();
+    const b = req.body;
+
+    // Inserir direto na collection para evitar problemas com _id getter do Mongoose 8
+    const doc: any = {
+      empresaId,
+      nome: b.nome,
+      percentual: Number(b.percentual),
+      ativo: true,
+      dataInicio: b.dataInicio ? new Date(b.dataInicio) : new Date(),
+      produtos: b.produtos || [],
+    };
+    if (b.descricao) doc.descricao = b.descricao;
+    if (b.dataFim) doc.dataFim = new Date(b.dataFim);
+    if (b.grupo) doc.grupo = b.grupo;
+    if (b.categoria) doc.categoria = b.categoria;
+
+    const result = await Promocao.collection.insertOne(doc);
+    const promo = await Promocao.findById(result.insertedId);
+
     res.status(201).json({ success: true, data: promo });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -59,11 +65,24 @@ router.post('/', async (req: any, res) => {
 router.put('/:id', async (req: any, res) => {
   try {
     const empresaId = req.user.empresaId;
-    const data = pick(req.body);
+    const b = req.body;
+
+    // Montar update apenas com campos presentes
+    const update: any = {};
+    if (b.nome !== undefined) update.nome = b.nome;
+    if (b.descricao !== undefined) update.descricao = b.descricao;
+    if (b.percentual !== undefined) update.percentual = Number(b.percentual);
+    if (b.produtos !== undefined) update.produtos = b.produtos;
+    if (b.grupo !== undefined) update.grupo = b.grupo || null;
+    if (b.categoria !== undefined) update.categoria = b.categoria || null;
+    if (b.ativo !== undefined) update.ativo = b.ativo;
+    if (b.dataInicio !== undefined) update.dataInicio = b.dataInicio ? new Date(b.dataInicio) : new Date();
+    if (b.dataFim !== undefined) update.dataFim = b.dataFim ? new Date(b.dataFim) : null;
+
     const promo = await Promocao.findOneAndUpdate(
       { _id: req.params.id, empresaId },
-      { $set: data },
-      { new: true, runValidators: true }
+      { $set: update },
+      { new: true }
     );
     if (!promo) return res.status(404).json({ success: false, error: 'Promocao nao encontrada' });
     res.json({ success: true, data: promo });
