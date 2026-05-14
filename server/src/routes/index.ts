@@ -37,7 +37,7 @@ router.get('/catalogo/:empresaId', async (req, res) => {
       empresaId: req.params.empresaId,
       ativo: true,
       dataInicio: { $lte: agora },
-      $or: [{ dataFim: null }, { dataFim: { $gte: agora } }],
+      $or: [{ dataFim: null }, { dataFim: { $exists: false } }, { dataFim: { $gte: agora } }],
     }).select('nome percentual produtos grupo categoria');
 
     // Montar mapa de desconto por produto (maior desconto vence)

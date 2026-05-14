@@ -6,6 +6,16 @@ const router = Router();
 
 router.use(authenticate);
 
+// Campos permitidos para criar/atualizar
+function pick(body: any) {
+  const allowed: Record<string, any> = {};
+  const keys = ['nome', 'descricao', 'percentual', 'produtos', 'grupo', 'categoria', 'ativo', 'dataInicio', 'dataFim'];
+  for (const k of keys) {
+    if (body[k] !== undefined) allowed[k] = body[k];
+  }
+  return allowed;
+}
+
 // Listar promocoes da empresa
 router.get('/', async (req: any, res) => {
   try {
@@ -36,7 +46,8 @@ router.get('/:id', async (req: any, res) => {
 router.post('/', async (req: any, res) => {
   try {
     const empresaId = req.user.adminId || req.user._id;
-    const promo = await Promocao.create({ ...req.body, empresaId });
+    const data = pick(req.body);
+    const promo = await Promocao.create({ ...data, empresaId });
     res.status(201).json({ success: true, data: promo });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -47,9 +58,10 @@ router.post('/', async (req: any, res) => {
 router.put('/:id', async (req: any, res) => {
   try {
     const empresaId = req.user.adminId || req.user._id;
+    const data = pick(req.body);
     const promo = await Promocao.findOneAndUpdate(
       { _id: req.params.id, empresaId },
-      req.body,
+      { $set: data },
       { new: true, runValidators: true }
     );
     if (!promo) return res.status(404).json({ success: false, error: 'Promocao nao encontrada' });
