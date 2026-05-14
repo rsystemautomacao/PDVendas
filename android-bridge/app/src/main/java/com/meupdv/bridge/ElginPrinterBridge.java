@@ -264,8 +264,11 @@ public class ElginPrinterBridge {
         // Suporta base64 (data:image/png;base64,...) ou path de arquivo
         String base64 = cmd.optString("data", cmd.optString("base64", ""));
         String path = cmd.optString("path", "");
-        // Largura maxima: 576px para 80mm, 384px para 58mm
-        int maxWidth = colunas >= 48 ? 576 : 384;
+        // Largura total do papel: 576px para 80mm, 384px para 58mm
+        int paperWidth = colunas >= 48 ? 576 : 384;
+        // Logo usa no maximo 50% da largura e 120px de altura
+        int maxWidth = cmd.optInt("maxWidth", Math.round(paperWidth * 0.5f));
+        int maxHeight = cmd.optInt("maxHeight", 120);
 
         Bitmap bmp = null;
 
@@ -281,11 +284,17 @@ public class ElginPrinterBridge {
         }
 
         if (bmp != null) {
-            // Redimensiona se a imagem for maior que a largura maxima
-            if (bmp.getWidth() > maxWidth) {
-                float ratio = (float) maxWidth / bmp.getWidth();
-                int newHeight = Math.round(bmp.getHeight() * ratio);
-                Bitmap resized = Bitmap.createScaledBitmap(bmp, maxWidth, newHeight, true);
+            // Redimensiona mantendo aspecto, respeitando maxWidth E maxHeight
+            int w = bmp.getWidth();
+            int h = bmp.getHeight();
+            float ratioW = (w > maxWidth) ? (float) maxWidth / w : 1f;
+            float ratioH = (h > maxHeight) ? (float) maxHeight / h : 1f;
+            float ratio = Math.min(ratioW, ratioH);
+
+            if (ratio < 1f) {
+                int newW = Math.round(w * ratio);
+                int newH = Math.round(h * ratio);
+                Bitmap resized = Bitmap.createScaledBitmap(bmp, newW, newH, true);
                 bmp.recycle();
                 bmp = resized;
             }
