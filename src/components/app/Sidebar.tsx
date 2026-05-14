@@ -186,6 +186,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               <MenuItem to="/app/relatorios-graficos" icon={BarChart3} label="Relatorios" perm="relatorios.visualizar" />
               <MenuItem to="/app/comissoes" icon={TrendingUp} label="Comissoes" perm="relatorios.visualizar" />
               <MenuItem to="/app/catalogo" icon={Store} label="Catalogo" perm="relatorios.visualizar" />
+              <MenuItem to="/app/promocoes" icon={Tag} label="Promocoes" perm="relatorios.visualizar" />
             </ul>
           </div>
         )}

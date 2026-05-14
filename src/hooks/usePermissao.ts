@@ -38,6 +38,7 @@ export const ROTA_PERMISSAO: Record<string, string> = {
   '/app/fluxo-de-caixa': 'financeiro.fluxo_caixa',
   '/app/relatorios-graficos': 'relatorios.visualizar',
   '/app/catalogo': 'relatorios.visualizar',
+  '/app/promocoes': 'relatorios.visualizar',
   '/app/config/minha-empresa': 'config.empresa',
   '/app/config/parametros': 'config.parametros',
 }

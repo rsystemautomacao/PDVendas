@@ -15,7 +15,9 @@ import adminRoutes from './admin.routes';
 import trocaRoutes from './troca.routes';
 import lojaRoutes from './loja.routes';
 import stripeRoutes from './stripe.routes';
+import promocaoRoutes from './promocao.routes';
 import { Produto } from '../models/Produto';
+import { Promocao } from '../models/Promocao';
 import { User } from '../models/User';
 
 const router = Router();
@@ -28,10 +30,40 @@ router.get('/catalogo/:empresaId', async (req, res) => {
     const produtos = await Produto.find({ empresaId: req.params.empresaId, ativo: true })
       .select('nome codigo preco precoAtacado qtdMinimaAtacado grupo marca estoque unidade categoria')
       .sort({ nome: 1 });
+
+    // Buscar promocoes ativas para esta empresa
+    const agora = new Date();
+    const promocoes = await Promocao.find({
+      empresaId: req.params.empresaId,
+      ativo: true,
+      dataInicio: { $lte: agora },
+      $or: [{ dataFim: null }, { dataFim: { $gte: agora } }],
+    }).select('nome percentual produtos grupo categoria');
+
+    // Montar mapa de desconto por produto (maior desconto vence)
+    const descontoMap: Record<string, { percentual: number; nomePromo: string }> = {};
+    for (const promo of promocoes) {
+      const prodIds = (promo.produtos || []).map((id: any) => id.toString());
+      for (const prod of produtos) {
+        const pid = (prod as any)._id.toString();
+        // Produto esta explicitamente na lista OU bate com grupo/categoria do filtro
+        const incluso = prodIds.includes(pid)
+          || (promo.grupo && (prod as any).grupo === promo.grupo)
+          || (promo.categoria && (prod as any).categoria === promo.categoria);
+        if (incluso) {
+          const atual = descontoMap[pid];
+          if (!atual || promo.percentual > atual.percentual) {
+            descontoMap[pid] = { percentual: promo.percentual, nomePromo: promo.nome };
+          }
+        }
+      }
+    }
+
     res.json({
       success: true,
       empresa: { nome: empresa.empresa?.nome || '', telefone: empresa.empresa?.telefone || '', logoBase64: empresa.empresa?.logoBase64 || '' },
       data: produtos,
+      promocoes: descontoMap,
     });
   } catch {
     res.status(500).json({ success: false, error: 'Erro ao buscar catalogo' });
@@ -54,5 +86,6 @@ router.use('/admin', adminRoutes);
 router.use('/trocas', trocaRoutes);
 router.use('/lojas', lojaRoutes);
 router.use('/stripe', stripeRoutes);
+router.use('/promocoes', promocaoRoutes);
 
 export default router;

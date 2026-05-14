@@ -37,6 +37,7 @@ const OrcamentoFormPage      = lazy(() => import('./pages/app/OrcamentoFormPage'
 const AjudaPage              = lazy(() => import('./pages/app/AjudaPage').then(m => ({ default: m.AjudaPage })))
 const NotificacoesPage       = lazy(() => import('./pages/app/NotificacoesPage').then(m => ({ default: m.NotificacoesPage })))
 const CatalogoPage           = lazy(() => import('./pages/app/CatalogoPage').then(m => ({ default: m.CatalogoPage })))
+const PromocoesPage          = lazy(() => import('./pages/app/PromocoesPage').then(m => ({ default: m.PromocoesPage })))
 const AplicativosPage        = lazy(() => import('./pages/app/AplicativosPage').then(m => ({ default: m.AplicativosPage })))
 const RelatoriosGraficosPage = lazy(() => import('./pages/app/RelatoriosGraficosPage').then(m => ({ default: m.RelatoriosGraficosPage })))
 const OnboardingPage         = lazy(() => import('./pages/app/OnboardingPage').then(m => ({ default: m.OnboardingPage })))
@@ -104,6 +105,7 @@ function App() {
           <Route path="ajuda" element={<AjudaPage />} />
           <Route path="notificacoes" element={<NotificacoesPage />} />
           <Route path="catalogo" element={<CatalogoPage />} />
+          <Route path="promocoes" element={<PromocoesPage />} />
           <Route path="aplicativos" element={<AplicativosPage />} />
           <Route path="relatorios-graficos" element={<RelatoriosGraficosPage />} />
           <Route path="config/meu-usuario" element={<MeuUsuarioPage />} />
