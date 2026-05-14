@@ -19,7 +19,7 @@ function pick(body: any) {
 // Listar promocoes da empresa
 router.get('/', async (req: any, res) => {
   try {
-    const empresaId = req.user.adminId || req.user._id;
+    const empresaId = req.user.empresaId;
     const promocoes = await Promocao.find({ empresaId })
       .populate('produtos', 'nome codigo preco grupo categoria')
       .sort({ criadoEm: -1 });
@@ -32,7 +32,7 @@ router.get('/', async (req: any, res) => {
 // Buscar promocao por ID
 router.get('/:id', async (req: any, res) => {
   try {
-    const empresaId = req.user.adminId || req.user._id;
+    const empresaId = req.user.empresaId;
     const promo = await Promocao.findOne({ _id: req.params.id, empresaId })
       .populate('produtos', 'nome codigo preco grupo categoria');
     if (!promo) return res.status(404).json({ success: false, error: 'Promocao nao encontrada' });
@@ -45,9 +45,10 @@ router.get('/:id', async (req: any, res) => {
 // Criar promocao
 router.post('/', async (req: any, res) => {
   try {
-    const empresaId = req.user.adminId || req.user._id;
+    const empresaId = req.user.empresaId;
     const data = pick(req.body);
-    const promo = await Promocao.create({ ...data, empresaId });
+    const promo = new Promocao({ ...data, empresaId });
+    await promo.save();
     res.status(201).json({ success: true, data: promo });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -57,7 +58,7 @@ router.post('/', async (req: any, res) => {
 // Atualizar promocao
 router.put('/:id', async (req: any, res) => {
   try {
-    const empresaId = req.user.adminId || req.user._id;
+    const empresaId = req.user.empresaId;
     const data = pick(req.body);
     const promo = await Promocao.findOneAndUpdate(
       { _id: req.params.id, empresaId },
@@ -74,7 +75,7 @@ router.put('/:id', async (req: any, res) => {
 // Deletar promocao
 router.delete('/:id', async (req: any, res) => {
   try {
-    const empresaId = req.user.adminId || req.user._id;
+    const empresaId = req.user.empresaId;
     await Promocao.findOneAndDelete({ _id: req.params.id, empresaId });
     res.json({ success: true });
   } catch (err: any) {
