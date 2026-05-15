@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import type { Cliente } from '../types'
 import { api } from '../services/api'
 import { useToast } from './ToastContext'
+import { salvarClientes as salvarClientesOffline, buscarTodos, STORES } from '../utils/offlineDb'
 
 interface ClienteContextType {
   clientes: Cliente[]
@@ -36,9 +37,22 @@ export function ClienteProvider({ children }: { children: ReactNode }) {
       const res = await api.get('/clientes?limit=500')
       if (res.success && res.data) {
         setClientes(res.data)
+        // OFFLINE: Cachear clientes no IndexedDB
+        salvarClientesOffline(res.data).catch(() => {})
       }
     } catch {
-      toast.alerta('Não foi possível carregar os clientes. Verifique sua conexão.')
+      // OFFLINE: Tentar carregar do IndexedDB
+      try {
+        const cached = await buscarTodos<Cliente>(STORES.CLIENTES)
+        if (cached.length > 0) {
+          setClientes(cached)
+          return
+        }
+      } catch { /* ignorar */ }
+
+      if (navigator.onLine) {
+        toast.alerta('Não foi possível carregar os clientes. Verifique sua conexão.')
+      }
     }
   }, [toast])
 

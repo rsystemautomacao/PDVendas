@@ -6,6 +6,7 @@ import { useProdutos } from './ProdutoContext'
 import { useCaixa } from './CaixaContext'
 import { useEmpresaUsaCaixa } from './AuthContext'
 import { StorageKeys } from '../utils/storage'
+import { enfileirarVenda } from '../utils/offlineDb'
 
 interface VendaContextType {
   vendas: Venda[]
@@ -95,7 +96,11 @@ export function VendaProvider({ children }: { children: ReactNode }) {
         setVendas(res.data)
       }
     } catch {
-      toast.alerta('Não foi possível carregar as vendas. Verifique sua conexão.')
+      // OFFLINE: Se nao conseguiu carregar, manter vendas atuais em memoria
+      // Nao mostrar erro se estiver offline (o banner ja informa)
+      if (navigator.onLine) {
+        toast.alerta('Não foi possível carregar as vendas. Verifique sua conexão.')
+      }
     }
     jaCarregou.current = true
   }, [])
@@ -309,6 +314,63 @@ export function VendaProvider({ children }: { children: ReactNode }) {
       setFinalizando(false)
       return null
     } catch (err: any) {
+      // OFFLINE: Se o erro é de conexao, salvar venda localmente
+      const isNetworkError =
+        err.message?.includes('Sem conexao') ||
+        err.message?.includes('Failed to fetch') ||
+        !navigator.onLine
+
+      if (isNetworkError) {
+        try {
+          const payload = {
+            clienteId: clienteId || undefined,
+            clienteNome: clienteNome || 'Consumidor Final',
+            itens: cart,
+            subtotal,
+            desconto: totalDesconto,
+            descontoTipo,
+            total: totalVenda,
+            pagamentos,
+            troco: totalPago - totalVenda,
+            status: 'finalizada',
+            caixaId: caixaAberto?._id,
+            observacoes: observacoes || undefined,
+          }
+
+          const offlineId = await enfileirarVenda({ payload })
+
+          // Criar venda local temporaria para exibir recibo
+          const vendaLocal: Venda = {
+            _id: `offline_${offlineId}`,
+            numero: offlineId * -1, // Numero negativo = offline
+            clienteId: clienteId || undefined,
+            clienteNome: clienteNome || 'Consumidor Final',
+            vendedorId: '',
+            vendedorNome: 'Offline',
+            itens: cart,
+            subtotal,
+            desconto: totalDesconto,
+            descontoTipo,
+            total: totalVenda,
+            pagamentos,
+            troco: totalPago - totalVenda,
+            status: 'finalizada',
+            criadoEm: new Date().toISOString(),
+          } as Venda
+
+          clearCart()
+          setFinalizando(false)
+          toast.alerta(
+            `Venda salva OFFLINE (sera sincronizada quando a conexao voltar)`,
+          )
+          return vendaLocal
+        } catch {
+          setFinalizando(false)
+          toast.erro('Erro ao salvar venda offline. Tente novamente.')
+          return null
+        }
+      }
+
       setFinalizando(false)
       toast.erro(err.message || 'Erro ao finalizar venda')
       return null

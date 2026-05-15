@@ -15,6 +15,8 @@ import { CaixaProvider } from '../contexts/CaixaContext'
 import { VendaProvider } from '../contexts/VendaContext'
 import { FinanceiroProvider } from '../contexts/FinanceiroContext'
 import { OrdemServicoProvider } from '../contexts/OrdemServicoContext'
+import { OfflineProvider } from '../contexts/OfflineContext'
+import { OfflineIndicator } from '../components/app/OfflineIndicator'
 
 function calcularStatusAssinatura(dataVencimento?: string, statusAssinatura?: string): {
   bloqueado: boolean
@@ -216,6 +218,8 @@ function AppLayoutInner() {
         className={`pt-14 min-h-screen transition-[padding] duration-300 ${drawerOpen ? 'lg:pl-80' : ''}`}
         role="main"
       >
+        {/* Indicador de modo offline */}
+        <OfflineIndicator />
         {/* Banner de nova versão */}
         {hasUpdate && <UpdateBanner onUpdate={doUpdate} />}
         {/* Banner fixo apenas durante período de carência (já vencida) */}
@@ -242,19 +246,21 @@ function AppLayoutInner() {
 export function AppLayout() {
   return (
     <RequireAuth>
-      <ProdutoProvider>
-        <ClienteProvider>
-          <CaixaProvider>
-            <VendaProvider>
-              <FinanceiroProvider>
-                <OrdemServicoProvider>
-                  <AppLayoutInner />
-                </OrdemServicoProvider>
-              </FinanceiroProvider>
-            </VendaProvider>
-          </CaixaProvider>
-        </ClienteProvider>
-      </ProdutoProvider>
+      <OfflineProvider>
+        <ProdutoProvider>
+          <ClienteProvider>
+            <CaixaProvider>
+              <VendaProvider>
+                <FinanceiroProvider>
+                  <OrdemServicoProvider>
+                    <AppLayoutInner />
+                  </OrdemServicoProvider>
+                </FinanceiroProvider>
+              </VendaProvider>
+            </CaixaProvider>
+          </ClienteProvider>
+        </ProdutoProvider>
+      </OfflineProvider>
     </RequireAuth>
   )
 }

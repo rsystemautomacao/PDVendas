@@ -58,9 +58,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             localStorage.removeItem(USER_KEY)
           }
         })
-        .catch(() => {
-          localStorage.removeItem(TOKEN_KEY)
-          localStorage.removeItem(USER_KEY)
+        .catch((err) => {
+          // OFFLINE: Se o erro é de conexao, manter usuario do cache local
+          // em vez de deslogar. Isso permite uso offline.
+          const isNetworkError =
+            err.message?.includes('Sem conexao') ||
+            err.message?.includes('Failed to fetch') ||
+            !navigator.onLine
+
+          if (isNetworkError) {
+            const cached = localStorage.getItem(USER_KEY)
+            if (cached) {
+              try {
+                setUser(JSON.parse(cached))
+              } catch {
+                localStorage.removeItem(TOKEN_KEY)
+                localStorage.removeItem(USER_KEY)
+              }
+            }
+          } else {
+            // Erro real (401, etc) — limpar normalmente
+            localStorage.removeItem(TOKEN_KEY)
+            localStorage.removeItem(USER_KEY)
+          }
         })
         .finally(() => setLoading(false))
     } else {

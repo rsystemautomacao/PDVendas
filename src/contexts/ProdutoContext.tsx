@@ -3,6 +3,7 @@ import type { Produto } from '../types'
 import { api } from '../services/api'
 import { useToast } from './ToastContext'
 import { isCodigoBalanca, parseCodigoBalanca } from '../utils/helpers'
+import { salvarProdutos as salvarProdutosOffline, buscarTodos, STORES } from '../utils/offlineDb'
 
 export interface BalancaResult {
   produto: Produto
@@ -42,9 +43,25 @@ export function ProdutoProvider({ children }: { children: ReactNode }) {
       const res = await api.get('/produtos?limit=500')
       if (res.success && res.data) {
         setProdutos(res.data)
+        // OFFLINE: Cachear produtos no IndexedDB para uso offline
+        salvarProdutosOffline(res.data).catch(() => {})
       }
     } catch {
-      toast.alerta('Não foi possível carregar os produtos. Verifique sua conexão.')
+      // OFFLINE: Tentar carregar do IndexedDB se a API falhou
+      try {
+        const cached = await buscarTodos<Produto>(STORES.PRODUTOS)
+        if (cached.length > 0) {
+          setProdutos(cached)
+          if (navigator.onLine) {
+            toast.alerta('Usando catalogo de produtos do cache local.')
+          }
+          return
+        }
+      } catch { /* IndexedDB falhou tambem, ignorar */ }
+
+      if (navigator.onLine) {
+        toast.alerta('Não foi possível carregar os produtos. Verifique sua conexão.')
+      }
     }
   }, [toast])
 
