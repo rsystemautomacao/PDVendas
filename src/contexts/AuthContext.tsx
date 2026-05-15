@@ -85,6 +85,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY)
     if (token) {
+      // OFFLINE: Se ja sabemos que esta offline, carregar do cache direto
+      // sem tentar a API (evita delay e garante que o usuario nao veja login page)
+      if (!navigator.onLine) {
+        const cached = localStorage.getItem(USER_KEY)
+        if (cached) {
+          try {
+            setUser(JSON.parse(cached))
+          } catch {
+            localStorage.removeItem(TOKEN_KEY)
+            localStorage.removeItem(USER_KEY)
+          }
+        }
+        setLoading(false)
+        return
+      }
+
       api.get('/auth/me')
         .then(res => {
           if (res.success && res.data) {
@@ -159,22 +175,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         !navigator.onLine
 
       if (isNetworkError) {
+        const cached = localStorage.getItem(USER_KEY)
+        const token = localStorage.getItem(TOKEN_KEY)
+
+        // Tentar validar pelo hash de credenciais
         const credValida = await validarCredenciaisOffline(email, senha)
-        if (credValida) {
-          const cached = localStorage.getItem(USER_KEY)
-          if (cached) {
-            try {
-              const userData = JSON.parse(cached)
-              setUser(userData)
-              return { ok: true, offline: true }
-            } catch { /* cache corrompido */ }
-          }
+
+        if (credValida && cached) {
+          try {
+            const userData = JSON.parse(cached)
+            setUser(userData)
+            return { ok: true, offline: true }
+          } catch { /* cache corrompido */ }
         }
+
+        // FALLBACK: Se o hash nao existe ainda (primeiro deploy do offline),
+        // mas temos token + dados em cache + email bate, permitir login offline.
+        // Isso cobre o caso do usuario que ja logava antes do codigo de hash existir.
+        if (!credValida && cached && token) {
+          try {
+            const userData = JSON.parse(cached)
+            if (userData.email?.toLowerCase().trim() === email.toLowerCase().trim()) {
+              setUser(userData)
+              // Gerar o hash agora para futuros logins offline
+              salvarCredenciaisOffline(email, senha).catch(() => {})
+              return { ok: true, offline: true }
+            }
+          } catch { /* cache corrompido */ }
+        }
+
         return {
           ok: false,
-          error: credValida
-            ? 'Dados do usuario nao encontrados no cache. Conecte-se a internet pelo menos uma vez.'
-            : 'Sem conexao com o servidor. Verifique sua internet.',
+          error: 'Sem conexao com o servidor. Verifique sua internet.',
         }
       }
 

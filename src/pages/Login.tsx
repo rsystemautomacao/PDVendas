@@ -19,7 +19,7 @@ const disconnectMessages: Record<string, string> = {
 
 export function Login() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, user, loading: authLoading } = useAuth()
   const toast = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -33,8 +33,16 @@ export function Login() {
   const [licenseInfo, setLicenseInfo] = useState<{ activeSessions: number; maxLicencas: number; message: string } | null>(null)
   const [showNotFoundModal, setShowNotFoundModal] = useState(false)
 
-  // Force cache clear once per day on login page
+  // Se usuario ja esta autenticado (ex: auto-login do cache offline), redirecionar
   useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/app', { replace: true })
+    }
+  }, [authLoading, user, navigate])
+
+  // Force cache clear once per day on login page (somente quando online)
+  useEffect(() => {
+    if (!navigator.onLine) return // Nao limpar cache quando offline
     const today = new Date().toISOString().split('T')[0]
     const lastClear = localStorage.getItem(StorageKeys.LAST_CACHE_CLEAR)
     if (lastClear !== today) {
