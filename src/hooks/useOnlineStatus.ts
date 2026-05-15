@@ -14,18 +14,23 @@ const PING_TIMEOUT = 5_000 // 5s
 /** Testa conexao real com o servidor */
 async function pingServidor(): Promise<boolean> {
   try {
-    const baseUrl = import.meta.env.VITE_API_URL || '/api'
+    // /health esta na raiz do Express, nao em /api/health
+    // API_BASE = '/api' (dev) ou 'https://api.omeupdv.com.br/api' (prod)
+    // Precisamos remover o /api do final para chegar na raiz
+    const apiBase = import.meta.env.VITE_API_URL || '/api'
+    const healthUrl = apiBase.replace(/\/api\/?$/, '') + '/health'
+
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), PING_TIMEOUT)
 
-    const resp = await fetch(`${baseUrl}/auth/me`, {
+    const resp = await fetch(healthUrl, {
       method: 'HEAD',
       signal: controller.signal,
       cache: 'no-store',
     })
 
     clearTimeout(timer)
-    // Qualquer resposta (mesmo 401) = servidor acessivel
+    // Qualquer resposta = servidor acessivel
     return resp.status > 0
   } catch {
     return false

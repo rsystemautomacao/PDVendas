@@ -8,6 +8,8 @@ import { salvarConfig } from '../utils/offlineDb'
 const TOKEN_KEY = StorageKeys.TOKEN
 const USER_KEY = StorageKeys.CURRENT_USER
 const OFFLINE_CRED_KEY = 'meupdv_offline_cred'
+// Cache separado do USER_KEY — sobrevive ao logout para permitir login offline
+const OFFLINE_USER_KEY = 'meupdv_offline_user'
 
 // ─── Hash seguro para credenciais offline ───────────────────────
 // Usa SHA-256 nativo do browser. Nunca armazena a senha em texto.
@@ -39,6 +41,30 @@ async function validarCredenciaisOffline(email: string, senha: string): Promise<
   if (!stored) return false
   const hash = await hashCredenciais(email, senha)
   return hash === stored
+}
+
+// ─── Cache offline do usuario (sobrevive ao logout) ────────────
+
+/** Salva dados do usuario em cache offline (nao é apagado no logout) */
+function salvarUsuarioOffline(userData: unknown): void {
+  try {
+    localStorage.setItem(OFFLINE_USER_KEY, JSON.stringify(userData))
+  } catch { /* storage cheio */ }
+}
+
+/** Busca dados do usuario de qualquer cache disponivel */
+function buscarUsuarioOfflineCache(): unknown | null {
+  // Tenta USER_KEY primeiro (sessao ativa)
+  const active = localStorage.getItem(USER_KEY)
+  if (active) {
+    try { return JSON.parse(active) } catch { /* corrompido */ }
+  }
+  // Fallback: cache offline (sobrevive ao logout)
+  const offline = localStorage.getItem(OFFLINE_USER_KEY)
+  if (offline) {
+    try { return JSON.parse(offline) } catch { /* corrompido */ }
+  }
+  return null
 }
 
 // ─── Tipos ──────────────────────────────────────────────────────
@@ -106,8 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (res.success && res.data) {
             setUser(res.data)
             localStorage.setItem(USER_KEY, JSON.stringify(res.data))
-            // OFFLINE: cachear dados do usuario/empresa no IndexedDB
+            // OFFLINE: cachear dados do usuario/empresa no IndexedDB e localStorage
             salvarConfig('usuario', res.data).catch(() => {})
+            salvarUsuarioOffline(res.data)
           } else {
             localStorage.removeItem(TOKEN_KEY)
             localStorage.removeItem(USER_KEY)
@@ -162,7 +189,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(USER_KEY, JSON.stringify(userData))
         setUser(userData)
         salvarConfig('usuario', userData).catch(() => {})
-        // OFFLINE: Cachear credenciais (hash) para login offline futuro
+        // OFFLINE: Cachear dados do usuario e credenciais para login offline futuro
+        salvarUsuarioOffline(userData)
         salvarCredenciaisOffline(email, senha).catch(() => {})
         return { ok: true }
       }
@@ -175,38 +203,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         !navigator.onLine
 
       if (isNetworkError) {
-        const cached = localStorage.getItem(USER_KEY)
-        const token = localStorage.getItem(TOKEN_KEY)
+        // Buscar dados do usuario de qualquer cache (USER_KEY ou OFFLINE_USER_KEY)
+        const userData = buscarUsuarioOfflineCache()
 
         // Tentar validar pelo hash de credenciais
         const credValida = await validarCredenciaisOffline(email, senha)
 
-        if (credValida && cached) {
-          try {
-            const userData = JSON.parse(cached)
-            setUser(userData)
-            return { ok: true, offline: true }
-          } catch { /* cache corrompido */ }
+        if (credValida && userData) {
+          // Hash valido + dados em cache → login offline OK
+          setUser(userData as unknown as User)
+          // Restaurar USER_KEY e TOKEN para que o app funcione normalmente
+          localStorage.setItem(USER_KEY, JSON.stringify(userData))
+          if (!localStorage.getItem(TOKEN_KEY)) {
+            localStorage.setItem(TOKEN_KEY, 'offline_session')
+          }
+          return { ok: true, offline: true }
         }
 
         // FALLBACK: Se o hash nao existe ainda (primeiro deploy do offline),
-        // mas temos token + dados em cache + email bate, permitir login offline.
-        // Isso cobre o caso do usuario que ja logava antes do codigo de hash existir.
-        if (!credValida && cached && token) {
-          try {
-            const userData = JSON.parse(cached)
-            if (userData.email?.toLowerCase().trim() === email.toLowerCase().trim()) {
-              setUser(userData)
-              // Gerar o hash agora para futuros logins offline
-              salvarCredenciaisOffline(email, senha).catch(() => {})
-              return { ok: true, offline: true }
+        // mas temos dados em cache + email bate, permitir login offline.
+        if (!credValida && userData) {
+          const cachedEmail = (userData as { email?: string }).email
+          if (cachedEmail?.toLowerCase().trim() === email.toLowerCase().trim()) {
+            setUser(userData as unknown as User)
+            localStorage.setItem(USER_KEY, JSON.stringify(userData))
+            if (!localStorage.getItem(TOKEN_KEY)) {
+              localStorage.setItem(TOKEN_KEY, 'offline_session')
             }
-          } catch { /* cache corrompido */ }
+            // Gerar o hash agora para futuros logins offline
+            salvarCredenciaisOffline(email, senha).catch(() => {})
+            return { ok: true, offline: true }
+          }
         }
 
         return {
           ok: false,
-          error: 'Sem conexao com o servidor. Verifique sua internet.',
+          error: userData
+            ? 'E-mail nao corresponde ao ultimo usuario logado neste dispositivo.'
+            : 'Sem conexao e nenhum dado em cache. Conecte-se a internet pelo menos uma vez.',
         }
       }
 
