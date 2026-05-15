@@ -7,6 +7,7 @@ import { useCaixa } from './CaixaContext'
 import { useEmpresaUsaCaixa } from './AuthContext'
 import { StorageKeys } from '../utils/storage'
 import { enfileirarVenda } from '../utils/offlineDb'
+import { SYNC_COMPLETE_EVENT } from './OfflineContext'
 
 interface VendaContextType {
   vendas: Venda[]
@@ -111,6 +112,13 @@ export function VendaProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     await recarregar()
     setLoading(false)
+  }, [recarregar])
+
+  // OFFLINE: Recarregar vendas quando sync offline completar
+  useEffect(() => {
+    const handler = () => { recarregar() }
+    window.addEventListener(SYNC_COMPLETE_EVENT, handler)
+    return () => window.removeEventListener(SYNC_COMPLETE_EVENT, handler)
   }, [recarregar])
 
   // ---- Cálculos ----
@@ -271,7 +279,8 @@ export function VendaProvider({ children }: { children: ReactNode }) {
     }
     // Empresas que usam controle de caixa (default) exigem caixa aberto.
     // Quando empresa.usaCaixa === false, vendas podem ser registradas sem caixa.
-    if (empresaUsaCaixa && !caixaAberto) {
+    // OFFLINE: Se estiver offline, permitir venda sem caixa (sera associado no sync)
+    if (empresaUsaCaixa && !caixaAberto && navigator.onLine) {
       toast.erro('Nao ha caixa aberto. Abra um caixa primeiro.')
       return null
     }

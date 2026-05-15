@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { User } from '../types'
 import { api } from '../services/api'
 import { StorageKeys } from '../utils/storage'
+import { salvarConfig } from '../utils/offlineDb'
 
 const TOKEN_KEY = StorageKeys.TOKEN
 const USER_KEY = StorageKeys.CURRENT_USER
@@ -53,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (res.success && res.data) {
             setUser(res.data)
             localStorage.setItem(USER_KEY, JSON.stringify(res.data))
+            // OFFLINE: cachear dados do usuario/empresa no IndexedDB
+            salvarConfig('usuario', res.data).catch(() => {})
           } else {
             localStorage.removeItem(TOKEN_KEY)
             localStorage.removeItem(USER_KEY)
@@ -106,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(TOKEN_KEY, token)
         localStorage.setItem(USER_KEY, JSON.stringify(userData))
         setUser(userData)
+        salvarConfig('usuario', userData).catch(() => {})
         return { ok: true }
       }
       return { ok: false, error: 'Erro ao fazer login' }

@@ -5,6 +5,7 @@
  * - Detectar online/offline
  * - Sincronizar vendas pendentes quando voltar online
  * - Prover estado para o indicador visual
+ * - Disparar evento global quando sync conclui (para recarregar dados)
  *
  * SEGURANCA: Este contexto NUNCA interfere no fluxo online normal.
  * Ele apenas reage a mudancas de conectividade e oferece dados.
@@ -18,6 +19,10 @@ import {
   limparVendasSincronizadas,
   contarVendasPendentes,
 } from '../utils/offlineDb'
+
+// Evento global para notificar que o sync completou
+// Outros contextos podem escutar para recarregar dados
+export const SYNC_COMPLETE_EVENT = 'meupdv:sync-complete'
 
 interface OfflineState {
   /** App esta online e servidor acessivel */
@@ -56,6 +61,8 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
   const [sincronizando, setSincronizando] = useState(false)
   const [ultimoSync, setUltimoSync] = useState<string | null>(null)
   const syncEmAndamento = useRef(false)
+  // Guarda se estava offline para detectar transicao offline→online
+  const estavaOffline = useRef(false)
 
   // Atualizar contador de vendas pendentes
   const atualizarContador = useCallback(async () => {
@@ -81,6 +88,11 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       }>
 
       if (pendentes.length === 0) {
+        // Mesmo sem vendas pendentes, se voltou do offline, recarregar dados
+        if (estavaOffline.current) {
+          window.dispatchEvent(new CustomEvent(SYNC_COMPLETE_EVENT))
+          estavaOffline.current = false
+        }
         setSincronizando(false)
         syncEmAndamento.current = false
         return
@@ -128,11 +140,14 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       await limparVendasSincronizadas()
       await atualizarContador()
 
+      // Notificar outros contextos para recarregar dados atualizados
       if (sucessos > 0) {
+        window.dispatchEvent(new CustomEvent(SYNC_COMPLETE_EVENT))
         setUltimoSync(
           `${sucessos} venda(s) sincronizada(s)${falhas > 0 ? `, ${falhas} com erro` : ''}`,
         )
       }
+      estavaOffline.current = false
     } catch (err) {
       console.error('[Offline Sync] Erro:', err)
     } finally {
@@ -140,6 +155,13 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       syncEmAndamento.current = false
     }
   }, [isOnline, atualizarContador])
+
+  // Detectar transicao para offline
+  useEffect(() => {
+    if (!isOnline) {
+      estavaOffline.current = true
+    }
+  }, [isOnline])
 
   // Quando voltar online, tentar sincronizar
   useEffect(() => {

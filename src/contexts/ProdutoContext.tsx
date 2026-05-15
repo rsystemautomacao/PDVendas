@@ -4,6 +4,7 @@ import { api } from '../services/api'
 import { useToast } from './ToastContext'
 import { isCodigoBalanca, parseCodigoBalanca } from '../utils/helpers'
 import { salvarProdutos as salvarProdutosOffline, buscarTodos, STORES } from '../utils/offlineDb'
+import { SYNC_COMPLETE_EVENT } from './OfflineContext'
 
 export interface BalancaResult {
   produto: Produto
@@ -67,6 +68,13 @@ export function ProdutoProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     recarregar().finally(() => setLoading(false))
+  }, [recarregar])
+
+  // OFFLINE: Recarregar produtos quando sync offline completar (estoque pode ter mudado)
+  useEffect(() => {
+    const handler = () => { recarregar() }
+    window.addEventListener(SYNC_COMPLETE_EVENT, handler)
+    return () => window.removeEventListener(SYNC_COMPLETE_EVENT, handler)
   }, [recarregar])
 
   const getProduto = useCallback((id: string) => {

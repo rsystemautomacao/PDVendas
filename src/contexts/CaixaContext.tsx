@@ -35,9 +35,20 @@ export function CaixaProvider({ children }: { children: ReactNode }) {
       const res = await api.get('/caixas')
       if (res.success && res.data) {
         setCaixas(res.data)
+        // OFFLINE: cachear caixas no localStorage para uso offline
+        try {
+          localStorage.setItem('meupdv_caixas_cache', JSON.stringify(res.data))
+        } catch { /* storage cheio, ignorar */ }
       }
     } catch {
-      // silencioso
+      // OFFLINE: tentar carregar do cache se a API falhou
+      try {
+        const cached = localStorage.getItem('meupdv_caixas_cache')
+        if (cached) {
+          setCaixas(JSON.parse(cached))
+          return
+        }
+      } catch { /* ignorar */ }
     }
   }, [])
 

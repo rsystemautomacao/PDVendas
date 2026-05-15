@@ -14,9 +14,12 @@ import {
   Sparkles,
   Moon,
   Sun,
+  WifiOff,
+  CloudUpload,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
+import { useOffline } from '../../contexts/OfflineContext'
 import { api } from '../../services/api'
 import type { Notificacao } from '../../types'
 
@@ -27,6 +30,7 @@ interface TopbarProps {
 export function Topbar({ onMenuClick }: TopbarProps) {
   const { user, logout } = useAuth()
   const { isDark, toggleTheme } = useTheme()
+  const { isOnline, vendasPendentes } = useOffline()
   const navigate = useNavigate()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
@@ -168,6 +172,25 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
       {/* Right icons */}
       <div className="flex flex-shrink-0 items-center gap-1">
+        {/* Indicador offline / vendas pendentes */}
+        {(!isOnline || vendasPendentes > 0) && (
+          <div
+            className={`relative flex h-9 items-center gap-1 rounded-xl px-2 text-xs font-bold ${
+              !isOnline
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+            }`}
+            title={!isOnline ? 'Sem conexao — modo offline ativo' : `${vendasPendentes} venda(s) aguardando sincronizacao`}
+          >
+            {!isOnline ? (
+              <WifiOff className="h-4 w-4" />
+            ) : (
+              <CloudUpload className="h-4 w-4" />
+            )}
+            {vendasPendentes > 0 && <span>{vendasPendentes}</span>}
+            {!isOnline && vendasPendentes === 0 && <span className="hidden sm:inline">Offline</span>}
+          </div>
+        )}
         <Link
           to="/app/novo-pedido"
           className="relative flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-primary/5 hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30"
