@@ -10,7 +10,7 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="MeuPDV"
-        tools:replace="android:label"
+        tools:replace="android:label,android:icon,android:roundIcon"
         android:theme="@style/Theme.MeuPDV"
         android:usesCleartextTraffic="true">
 
