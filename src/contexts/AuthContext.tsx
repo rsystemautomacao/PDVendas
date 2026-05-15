@@ -8,8 +8,9 @@ import { salvarConfig } from '../utils/offlineDb'
 const TOKEN_KEY = StorageKeys.TOKEN
 const USER_KEY = StorageKeys.CURRENT_USER
 const OFFLINE_CRED_KEY = 'meupdv_offline_cred'
-// Cache separado do USER_KEY — sobrevive ao logout para permitir login offline
+// Caches separados — sobrevivem ao logout para permitir login offline
 const OFFLINE_USER_KEY = 'meupdv_offline_user'
+const OFFLINE_TOKEN_KEY = 'meupdv_offline_token'
 
 // ─── Hash seguro para credenciais offline ───────────────────────
 // Usa SHA-256 nativo do browser. Nunca armazena a senha em texto.
@@ -132,7 +133,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (res.success && res.data) {
             setUser(res.data)
             localStorage.setItem(USER_KEY, JSON.stringify(res.data))
-            // OFFLINE: cachear dados do usuario/empresa no IndexedDB e localStorage
+            // OFFLINE: cachear token, dados do usuario/empresa
+            localStorage.setItem(OFFLINE_TOKEN_KEY, token)
             salvarConfig('usuario', res.data).catch(() => {})
             salvarUsuarioOffline(res.data)
           } else {
@@ -189,7 +191,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(USER_KEY, JSON.stringify(userData))
         setUser(userData)
         salvarConfig('usuario', userData).catch(() => {})
-        // OFFLINE: Cachear dados do usuario e credenciais para login offline futuro
+        // OFFLINE: Cachear token, dados do usuario e credenciais para login offline futuro
+        localStorage.setItem(OFFLINE_TOKEN_KEY, token)
         salvarUsuarioOffline(userData)
         salvarCredenciaisOffline(email, senha).catch(() => {})
         return { ok: true }
@@ -205,18 +208,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (isNetworkError) {
         // Buscar dados do usuario de qualquer cache (USER_KEY ou OFFLINE_USER_KEY)
         const userData = buscarUsuarioOfflineCache()
+        // Restaurar o token JWT real (salvo antes do logout) para que,
+        // ao voltar a internet, as chamadas à API funcionem sem 401.
+        // O logout offline nao invalida a sessao no servidor (POST falha),
+        // entao o token original continua valido.
+        const offlineToken = localStorage.getItem(OFFLINE_TOKEN_KEY)
 
         // Tentar validar pelo hash de credenciais
         const credValida = await validarCredenciaisOffline(email, senha)
 
+        // Helper: restaurar sessao local com dados do cache
+        const restaurarSessaoOffline = (data: unknown) => {
+          setUser(data as unknown as User)
+          localStorage.setItem(USER_KEY, JSON.stringify(data))
+          // Usar token real se disponivel, senao placeholder
+          localStorage.setItem(TOKEN_KEY, offlineToken || 'offline_session')
+        }
+
         if (credValida && userData) {
           // Hash valido + dados em cache → login offline OK
-          setUser(userData as unknown as User)
-          // Restaurar USER_KEY e TOKEN para que o app funcione normalmente
-          localStorage.setItem(USER_KEY, JSON.stringify(userData))
-          if (!localStorage.getItem(TOKEN_KEY)) {
-            localStorage.setItem(TOKEN_KEY, 'offline_session')
-          }
+          restaurarSessaoOffline(userData)
           return { ok: true, offline: true }
         }
 
@@ -225,11 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!credValida && userData) {
           const cachedEmail = (userData as { email?: string }).email
           if (cachedEmail?.toLowerCase().trim() === email.toLowerCase().trim()) {
-            setUser(userData as unknown as User)
-            localStorage.setItem(USER_KEY, JSON.stringify(userData))
-            if (!localStorage.getItem(TOKEN_KEY)) {
-              localStorage.setItem(TOKEN_KEY, 'offline_session')
-            }
+            restaurarSessaoOffline(userData)
             // Gerar o hash agora para futuros logins offline
             salvarCredenciaisOffline(email, senha).catch(() => {})
             return { ok: true, offline: true }

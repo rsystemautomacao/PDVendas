@@ -37,7 +37,13 @@ async function request<T = any>(path: string, options?: RequestInit): Promise<Ap
 
   // Token expirado ou invalido - redirect uma única vez
   // Nao redirecionar se for rota de login (401 = senha errada, nao token expirado)
+  // Nao redirecionar se o token é placeholder offline (usuario vai re-autenticar ao voltar online)
   if (res.status === 401 && !path.includes('/auth/login')) {
+    const currentToken = localStorage.getItem(StorageKeys.TOKEN);
+    if (currentToken === 'offline_session') {
+      // Token placeholder — nao deslogar, apenas falhar silenciosamente
+      throw new Error('Sem conexao com o servidor. Verifique sua internet.');
+    }
     if (!isRedirecting) {
       isRedirecting = true;
       const body = await res.json().catch(() => ({}));
