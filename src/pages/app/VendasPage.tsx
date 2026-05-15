@@ -1,8 +1,10 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, ShoppingCart, Eye, XCircle, Printer, X } from 'lucide-react'
 import { useVendas } from '../../contexts/VendaContext'
+import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency, formatDateTime } from '../../utils/helpers'
+import { imprimirRecibo } from '../../utils/impressao'
 import type { Venda } from '../../types'
 import { TutorialModal } from '../../components/app/TutorialModal'
 import { tutorialVendas } from '../../config/tutorials'
@@ -19,7 +21,51 @@ const formaLabel: Record<string, string> = {
 export function VendasPage() {
   const navigate = useNavigate()
   const { vendas, cancelarVenda, carregarSeNecessario: carregarVendas } = useVendas()
+  const { user } = useAuth()
   useEffect(() => { carregarVendas() }, [carregarVendas])
+
+  const gerarReciboHtml = useCallback((venda: Venda) => {
+    const logo = user?.empresa?.logoBase64
+      ? `<div class="centro"><img src="${user.empresa.logoBase64}" alt="Logo" /></div>`
+      : ''
+    const cnpj = user?.empresa?.cnpj ? `<div class="centro" style="font-size:10px">CNPJ: ${user.empresa.cnpj}</div>` : ''
+    const tel = user?.empresa?.telefone ? `<div class="centro" style="font-size:10px">Tel: ${user.empresa.telefone}</div>` : ''
+    const itensHtml = venda.itens.map(item =>
+      `<div>${item.nome}<br/>&nbsp;&nbsp;${item.quantidade}x ${formatCurrency(item.precoUnitario)} = ${formatCurrency(item.total)}</div>`
+    ).join('')
+    const pagHtml = venda.pagamentos.map(p =>
+      `<div style="text-transform:capitalize">${p.forma}: ${formatCurrency(p.valor)}${p.parcelas && p.parcelas > 1 ? ` (${p.parcelas}x)` : ''}</div>`
+    ).join('')
+    return `
+      ${logo}
+      <div class="centro bold">${user?.empresa?.nome || 'COMPROVANTE DE VENDA'}</div>
+      ${cnpj}${tel}
+      <div class="linha"></div>
+      <div>Venda #${venda.numero}</div>
+      <div>Data: ${new Date(venda.criadoEm).toLocaleString('pt-BR')}</div>
+      <div>Cliente: ${venda.clienteNome || 'Consumidor Final'}</div>
+      <div>Vendedor: ${venda.vendedorNome}</div>
+      <div class="linha"></div>
+      <div class="bold">ITENS:</div>
+      ${itensHtml}
+      <div class="linha"></div>
+      <div>Subtotal: ${formatCurrency(venda.subtotal)}</div>
+      ${venda.desconto > 0 ? `<div>Desconto: -${formatCurrency(venda.desconto)}</div>` : ''}
+      <div class="bold">TOTAL: ${formatCurrency(venda.total)}</div>
+      <div class="linha"></div>
+      <div class="bold">PAGAMENTO:</div>
+      ${pagHtml}
+      ${venda.troco > 0 ? `<div>Troco: ${formatCurrency(venda.troco)}</div>` : ''}
+      <div class="linha"></div>
+      <div class="centro">** REIMPRESSAO **</div>
+      <div class="centro">Obrigado pela preferencia!</div>
+    `
+  }, [user])
+
+  const handleReimprimir = useCallback((venda: Venda) => {
+    const html = gerarReciboHtml(venda)
+    imprimirRecibo(html, undefined, user?.empresa?.logoBase64)
+  }, [gerarReciboHtml, user])
 
   const hoje = new Date().toISOString().substring(0, 10)
   const mesInicio = hoje.substring(0, 7) + '-01'
@@ -205,9 +251,10 @@ export function VendasPage() {
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-lg font-bold text-gray-800">Venda #{vendaSelecionada.numero}</h3>
               <div className="flex gap-2">
-                <button onClick={() => window.print()}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">
-                  <Printer size={16} />
+                <button onClick={() => handleReimprimir(vendaSelecionada)}
+                  className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-indigo-50 text-indigo-500 hover:text-indigo-700 transition-colors"
+                  title="Reimprimir cupom">
+                  <Printer size={20} />
                 </button>
                 <button onClick={() => setVendaSelecionada(null)}
                   className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">
@@ -307,10 +354,16 @@ export function VendasPage() {
 
               {/* Actions */}
               {vendaSelecionada.status === 'finalizada' && (
-                <button onClick={() => { setCancelModal(vendaSelecionada._id); setVendaSelecionada(null) }}
-                  className="btn-danger w-full">
-                  <XCircle size={16} /> Cancelar Venda
-                </button>
+                <div className="space-y-2">
+                  <button onClick={() => handleReimprimir(vendaSelecionada)}
+                    className="btn-primary w-full">
+                    <Printer size={16} /> Reimprimir Cupom
+                  </button>
+                  <button onClick={() => { setCancelModal(vendaSelecionada._id); setVendaSelecionada(null) }}
+                    className="btn-danger w-full">
+                    <XCircle size={16} /> Cancelar Venda
+                  </button>
+                </div>
               )}
             </div>
           </div>
