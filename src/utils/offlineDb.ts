@@ -9,7 +9,7 @@
  */
 
 const DB_NAME = 'meupdv_offline'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 // Nomes dos object stores
 export const STORES = {
@@ -17,6 +17,7 @@ export const STORES = {
   CLIENTES: 'clientes',
   CONFIG: 'config', // empresa, usuario, etc
   VENDAS_PENDENTES: 'vendas_pendentes',
+  VENDAS_CACHE: 'vendas_cache', // v2: historico de vendas para dashboard offline
 } as const
 
 type StoreName = (typeof STORES)[keyof typeof STORES]
@@ -59,6 +60,13 @@ function abrirBanco(): Promise<IDBDatabase> {
         })
         store.createIndex('criadoEm', 'criadoEm', { unique: false })
         store.createIndex('sincronizado', 'sincronizado', { unique: false })
+      }
+
+      // Vendas cache (v2) — historico de vendas para dashboard/relatorios offline
+      if (!db.objectStoreNames.contains(STORES.VENDAS_CACHE)) {
+        const store = db.createObjectStore(STORES.VENDAS_CACHE, { keyPath: '_id' })
+        store.createIndex('criadoEm', 'criadoEm', { unique: false })
+        store.createIndex('status', 'status', { unique: false })
       }
     }
 
@@ -213,4 +221,26 @@ export async function limparVendasSincronizadas(): Promise<void> {
 export async function contarVendasPendentes(): Promise<number> {
   const pendentes = await buscarVendasPendentes()
   return pendentes.length
+}
+
+// ─── Cache de vendas (historico para dashboard offline) ─────────
+
+/** Salva a lista completa de vendas no cache (limpa e reinsere) */
+export async function salvarVendasCache(vendas: unknown[]): Promise<void> {
+  const db = await abrirBanco()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORES.VENDAS_CACHE, 'readwrite')
+    const os = tx.objectStore(STORES.VENDAS_CACHE)
+    os.clear()
+    for (const v of vendas) {
+      os.put(v)
+    }
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+/** Busca vendas do cache */
+export async function buscarVendasCache<T>(): Promise<T[]> {
+  return buscarTodos<T>(STORES.VENDAS_CACHE)
 }

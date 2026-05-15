@@ -68,7 +68,11 @@ export function Login() {
     try {
       const result = await login(email.trim(), password, force)
       if (result.ok) {
-        toast.sucesso('Login realizado com sucesso!')
+        if (result.offline) {
+          toast.alerta('Login offline — dados do cache local. Vendas serao sincronizadas ao reconectar.')
+        } else {
+          toast.sucesso('Login realizado com sucesso!')
+        }
         navigate('/app', { replace: true })
       } else if (result.requiresConfirmation) {
         setLicenseInfo({

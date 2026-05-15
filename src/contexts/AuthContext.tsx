@@ -7,6 +7,41 @@ import { salvarConfig } from '../utils/offlineDb'
 
 const TOKEN_KEY = StorageKeys.TOKEN
 const USER_KEY = StorageKeys.CURRENT_USER
+const OFFLINE_CRED_KEY = 'meupdv_offline_cred'
+
+// ─── Hash seguro para credenciais offline ───────────────────────
+// Usa SHA-256 nativo do browser. Nunca armazena a senha em texto.
+async function hashCredenciais(email: string, senha: string): Promise<string> {
+  const data = new TextEncoder().encode(`meupdv:${email.toLowerCase().trim()}:${senha}`)
+  try {
+    const buffer = await crypto.subtle.digest('SHA-256', data)
+    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('')
+  } catch {
+    // Fallback para ambientes sem crypto.subtle (HTTP sem SSL)
+    let hash = 0
+    const str = `meupdv:${email.toLowerCase().trim()}:${senha}`
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32bit
+    }
+    return `fallback_${Math.abs(hash).toString(36)}`
+  }
+}
+
+async function salvarCredenciaisOffline(email: string, senha: string): Promise<void> {
+  const hash = await hashCredenciais(email, senha)
+  localStorage.setItem(OFFLINE_CRED_KEY, hash)
+}
+
+async function validarCredenciaisOffline(email: string, senha: string): Promise<boolean> {
+  const stored = localStorage.getItem(OFFLINE_CRED_KEY)
+  if (!stored) return false
+  const hash = await hashCredenciais(email, senha)
+  return hash === stored
+}
+
+// ─── Tipos ──────────────────────────────────────────────────────
 
 interface LoginResult {
   ok: boolean
@@ -15,6 +50,7 @@ interface LoginResult {
   activeSessions?: number
   maxLicencas?: number
   message?: string
+  offline?: boolean
 }
 
 interface AuthContextType {
@@ -110,10 +146,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(USER_KEY, JSON.stringify(userData))
         setUser(userData)
         salvarConfig('usuario', userData).catch(() => {})
+        // OFFLINE: Cachear credenciais (hash) para login offline futuro
+        salvarCredenciaisOffline(email, senha).catch(() => {})
         return { ok: true }
       }
       return { ok: false, error: 'Erro ao fazer login' }
     } catch (err: any) {
+      // OFFLINE: Se erro de rede, tentar login offline
+      const isNetworkError =
+        err.message?.includes('Sem conexao') ||
+        err.message?.includes('Failed to fetch') ||
+        !navigator.onLine
+
+      if (isNetworkError) {
+        const credValida = await validarCredenciaisOffline(email, senha)
+        if (credValida) {
+          const cached = localStorage.getItem(USER_KEY)
+          if (cached) {
+            try {
+              const userData = JSON.parse(cached)
+              setUser(userData)
+              return { ok: true, offline: true }
+            } catch { /* cache corrompido */ }
+          }
+        }
+        return {
+          ok: false,
+          error: credValida
+            ? 'Dados do usuario nao encontrados no cache. Conecte-se a internet pelo menos uma vez.'
+            : 'Sem conexao com o servidor. Verifique sua internet.',
+        }
+      }
+
       return { ok: false, error: err.message || 'Erro ao fazer login' }
     }
   }, [])
@@ -144,6 +208,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api.post('/auth/logout').catch(() => {})
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
+    // Manter credenciais offline (hash) para permitir login offline
+    // Nao remover OFFLINE_CRED_KEY
     setUser(null)
   }, [])
 

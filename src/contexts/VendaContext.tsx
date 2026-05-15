@@ -6,7 +6,7 @@ import { useProdutos } from './ProdutoContext'
 import { useCaixa } from './CaixaContext'
 import { useEmpresaUsaCaixa } from './AuthContext'
 import { StorageKeys } from '../utils/storage'
-import { enfileirarVenda } from '../utils/offlineDb'
+import { enfileirarVenda, salvarVendasCache, buscarVendasCache } from '../utils/offlineDb'
 import { SYNC_COMPLETE_EVENT } from './OfflineContext'
 
 interface VendaContextType {
@@ -95,10 +95,19 @@ export function VendaProvider({ children }: { children: ReactNode }) {
       const res = await api.get(`/vendas?limit=500&de=${deStr}`)
       if (res.success && res.data) {
         setVendas(res.data)
+        // OFFLINE: Cachear vendas no IndexedDB para dashboard offline
+        salvarVendasCache(res.data).catch(() => {})
       }
     } catch {
-      // OFFLINE: Se nao conseguiu carregar, manter vendas atuais em memoria
-      // Nao mostrar erro se estiver offline (o banner ja informa)
+      // OFFLINE: Tentar carregar do IndexedDB
+      try {
+        const cached = await buscarVendasCache<Venda>()
+        if (cached.length > 0) {
+          setVendas(cached)
+          return
+        }
+      } catch { /* ignorar */ }
+
       if (navigator.onLine) {
         toast.alerta('Não foi possível carregar as vendas. Verifique sua conexão.')
       }
